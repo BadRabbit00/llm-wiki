@@ -30,7 +30,9 @@ class Authorize:
     ) -> Principal:
         if credentials is None:
             raise WikiError("E_UNAUTHORIZED", "Нужен Bearer-токен.", status=401)
-        actor = services.auth.authenticate(credentials.credentials)
+        actor: Principal = getattr(request.state, "actor", None) or services.auth.authenticate(
+            credentials.credentials
+        )
         request.state.actor = actor
         require_role(actor, self.role)
         return actor

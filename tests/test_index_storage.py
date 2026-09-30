@@ -125,6 +125,8 @@ def test_state_git_and_lock(tmp_path: Path) -> None:
     with pytest.raises(WikiError):
         repo.show(base, "wiki/missing.md")
     SafeFS(root).write("inbox/file", "raw")
+    repo.ensure_main()
+    SafeFS(root).write("wiki/uncommitted.md", "local content")
     with pytest.raises(WikiError):
         repo.ensure_main()
     database = StateDB(state)
@@ -137,3 +139,21 @@ def test_state_git_and_lock(tmp_path: Path) -> None:
         ).returncode
         == 0
     )
+
+
+def test_existing_state_schema_migrates_without_data_loss(tmp_path: Path) -> None:
+    from wikisvc.services.auth import Auth
+
+    state = StateDB(tmp_path / "state")
+    token = Auth(state).create("existing", "writer", "internal")
+    with state.connect() as db:
+        db.execute("ALTER TABLE proposals DROP COLUMN last_editor")
+        db.execute("ALTER TABLE raw_notes DROP COLUMN original_name")
+        db.execute(
+            "INSERT INTO raw_notes VALUES ('test-hash','saved note','existing','raw/docs/test.txt')"
+        )
+    migrated = StateDB(tmp_path / "state")
+    assert Auth(migrated).authenticate(token).name == "existing"
+    assert migrated.rows("SELECT note,original_name FROM raw_notes") == [
+        {"note": "saved note", "original_name": None}
+    ]

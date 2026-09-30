@@ -3,13 +3,14 @@ import json
 import mimetypes
 import re
 import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 
 from wikisvc.domain.errors import WikiError
 from wikisvc.domain.markdown import edges, parse, sections
 from wikisvc.domain.models import Edge, Frontmatter, LintIssue, Page
 from wikisvc.domain.registry import Registry
-from wikisvc.domain.validate import issue, parse_page, validate_set
+from wikisvc.domain.validate import ValidationCache, issue, parse_page, validate_set
 from wikisvc.index.db import IndexDB
 from wikisvc.index.normalize import normalize
 from wikisvc.storage.gitrepo import GitRepo
@@ -25,13 +26,19 @@ def row_page(row: sqlite3.Row) -> Page:
     )
 
 
-def read_pages(root: Path) -> tuple[list[Page], list[LintIssue]]:
+def read_pages(root: Path, paths: list[str] | None = None) -> tuple[list[Page], list[LintIssue]]:
     fs = SafeFS(root)
     pages, issues = [], []
-    for path in fs.files("wiki/**/*.md"):
-        if path in ("wiki/index.md", "wiki/log.md"):
+    for path in fs.files("wiki/**/*.md") if paths is None else sorted(set(paths)):
+        if (
+            not path.startswith("wiki/")
+            or not path.endswith(".md")
+            or path in ("wiki/index.md", "wiki/log.md")
+        ):
             continue
         try:
+            if not fs.path(path).is_file():
+                continue
             pages.append(parse_page(fs.read(path), path))
         except (WikiError, OSError, UnicodeError) as exc:
             issues.append(
@@ -76,14 +83,36 @@ def chunks(body: str, limit: int = 1500) -> list[tuple[str, str]]:
 class Indexer:
     def __init__(self, root: Path, db: IndexDB, registry: Registry) -> None:
         self.root, self.db, self.registry = root, db, registry
+        self.validation = ValidationCache()
+
+    def pages(self) -> list[Page]:
+        with self.db.connect() as db:
+            return [row_page(row) for row in db.execute("SELECT * FROM pages ORDER BY path")]
+
+    def failures(self) -> list[LintIssue]:
+        with self.db.connect() as db:
+            return [
+                LintIssue.model_validate_json(row[0])
+                for row in db.execute("SELECT data FROM issues WHERE page LIKE 'wiki/%'")
+            ]
 
     def reindex(self, paths: list[str] | None = None) -> list[LintIssue]:
         fs = SafeFS(self.root)
-        all_pages, failures = read_pages(self.root)
-        issues = failures + validate_set(all_pages, self.registry)
+        with self.db.connect() as db:
+            if db.execute(
+                "SELECT 1 FROM issues WHERE json_extract(data,'$.code')='E_ID_DUPLICATE' LIMIT 1"
+            ).fetchone():
+                paths = None  # a duplicate omitted from the unique index may become canonical
         selected = set(paths) if paths is not None else None
+        changed, failures = read_pages(self.root, paths)
+        all_pages = changed
+        if selected is not None:
+            all_pages = [p for p in self.pages() if p.path not in selected] + changed
+            failures += [i for i in self.failures() if i.page not in selected]
         if len({page.id for page in all_pages}) != len(all_pages):
             selected = None  # keep duplicate resolution identical to a full rebuild
+            all_pages, failures = read_pages(self.root)
+        issues = failures + validate_set(all_pages, self.registry, self.validation)
         with self.db.connect() as db:
             if selected is None:
                 for table in ("chunks_fts", "embeddings", "chunks", "pages"):
@@ -142,8 +171,22 @@ class Indexer:
                             normalize(text),
                         ),
                     )
-            db.execute("DELETE FROM edges")
-            for row in db.execute("SELECT * FROM pages").fetchall():
+            if selected is None:
+                db.execute("DELETE FROM edges")
+                edge_pages = all_pages
+            else:
+                old_ids = {p.id for p in self.pages() if p.path in selected}
+                changed_ids = old_ids | {p.id for p in changed}
+                for page_id in changed_ids:
+                    db.execute(
+                        "DELETE FROM edges WHERE (src=? AND kind!='inverse') OR (dst=? AND kind='inverse')",
+                        (page_id, page_id),
+                    )
+                edge_pages = changed
+            for page in edge_pages:
+                row = db.execute("SELECT * FROM pages WHERE id=?", (page.id,)).fetchone()
+                if row is None:
+                    continue
                 for edge in edges(row_page(row)):
                     self._edge(db, edge)
                     relation = self.registry.relations.get(edge.rel)
@@ -158,23 +201,39 @@ class Indexer:
                     "INSERT INTO issues VALUES (?,?,?)",
                     (problem.page or "", problem.page, problem.model_dump_json()),
                 )
-            db.execute("DELETE FROM raw_files")
-            for path in fs.files("raw/**/*"):
+            raw_paths = (
+                set(fs.files("raw/**/*"))
+                if paths is None
+                else {p for p in paths if p.startswith("raw/")}
+            )
+            if paths is None:
+                for row in db.execute("SELECT path FROM raw_files").fetchall():
+                    if row[0] not in raw_paths:
+                        db.execute("DELETE FROM raw_files WHERE path=?", (row[0],))
+            for path in raw_paths:
                 if Path(path).name == ".gitkeep":
                     continue
                 try:
                     raw = fs.path(path)
+                    if not raw.is_file():
+                        db.execute("DELETE FROM raw_files WHERE path=?", (path,))
+                        continue
+                    stat = raw.stat()
+                    modified = datetime.fromtimestamp(stat.st_mtime, UTC).isoformat()
+                    cached = db.execute(
+                        "SELECT size,added_at FROM raw_files WHERE path=?", (path,)
+                    ).fetchone()
+                    if cached and (cached[0], cached[1]) == (stat.st_size, modified):
+                        continue
                     data = raw.read_bytes()
-                    from datetime import UTC, datetime
-
                     db.execute(
-                        "INSERT INTO raw_files VALUES (?,?,?,?,?)",
+                        "INSERT OR REPLACE INTO raw_files VALUES (?,?,?,?,?)",
                         (
                             path,
                             hashlib.sha256(data).hexdigest(),
                             len(data),
                             mimetypes.guess_type(path)[0] or "application/octet-stream",
-                            datetime.fromtimestamp(raw.stat().st_mtime, UTC).isoformat(),
+                            modified,
                         ),
                     )
                 except (WikiError, OSError):

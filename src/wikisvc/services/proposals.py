@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import difflib
-import hashlib
 import json
 import re
 import subprocess
@@ -18,6 +17,7 @@ from wikisvc.domain.patch import apply_patch
 from wikisvc.domain.secrets import secret_kinds
 from wikisvc.domain.validate import (
     check_version,
+    issue,
     parse_page,
     require_valid,
     validate_page,
@@ -153,7 +153,7 @@ class Proposals:
                 with self.rt.state.connect() as db:
                     db.execute(
                         "INSERT INTO proposals VALUES (:pid,:title,:description,:author,:status,"
-                        ":base_commit,:branch,:review_comment,:created_at,:updated_at,:decided_by)",
+                        ":base_commit,:branch,:review_comment,:created_at,:updated_at,:decided_by,:last_editor)",
                         proposal.model_dump(),
                     )
                     db.execute(
@@ -201,13 +201,55 @@ class Proposals:
         return paginate(result, limit, cursor)
 
     def _overlay(self, proposal: Proposal) -> list[Page]:
-        pages = {page.id: page for page in read_pages(self.config.wiki_root)[0]}
+        pages = {page.id: page for page in self.rt.indexer.pages()}
         for before, after in self._changes(proposal):
             if before:
                 pages.pop(before.id, None)
             if after:
                 pages[after.id] = after
         return list(pages.values())
+
+    def _sync_main(self) -> None:
+        self.repo.ensure_main()
+        self.rt.sync_index()
+
+    def _existing(self, proposal: Proposal, page_id: str) -> Page | None:
+        for before, after in self._changes(proposal):
+            if (before and before.id == page_id) or (after and after.id == page_id):
+                return after
+        # Resolve only the requested file in the proposal's base, including app-doc paths.
+        slug = page_id.split("-", 1)[1]
+        fs = SafeFS(self.worktree(proposal.pid))
+        for path in GitRepo(self.worktree(proposal.pid)).run("ls-files", "--", "wiki").splitlines():
+            if path.endswith(f"/{slug}.md") or path == f"wiki/apps/{slug}/index.md":
+                page = parse_page(fs.read(path), path)
+                if page.id == page_id:
+                    return page
+        return None
+
+    def _edited(self, proposal: Proposal, actor: Principal) -> None:
+        with self.rt.state.connect() as db:
+            db.execute("UPDATE proposals SET last_editor=? WHERE pid=?", (actor.name, proposal.pid))
+            db.execute(
+                "INSERT OR IGNORE INTO proposal_editors VALUES (?,?)", (proposal.pid, actor.name)
+            )
+            db.execute("DELETE FROM proposal_validation WHERE pid=?", (proposal.pid,))
+
+    def _downgrades(self, proposal: Proposal) -> list[dict[str, Any]]:
+        levels = ["public", "internal", "restricted"]
+        return [
+            issue(
+                "W_SENSITIVITY_DOWNGRADE",
+                after.id,
+                f"Чувствительность понижена: {before.frontmatter.sensitivity} → {after.frontmatter.sensitivity}.",
+                "Ревьюер должен явно проверить допустимость раскрытия информации.",
+            ).model_dump()
+            for before, after in self._changes(proposal)
+            if before
+            and after
+            and levels.index(after.frontmatter.sensitivity)
+            < levels.index(before.frontmatter.sensitivity)
+        ]
 
     def _source(self, page: Page) -> None:
         if page.frontmatter.type != "source":
@@ -217,9 +259,9 @@ class Proposals:
         if not isinstance(path, str) or not path.startswith("raw/"):
             raise WikiError("E_PATH_UNSAFE", "raw_path должен находиться в raw/.")
         file = SafeFS(self.config.wiki_root).path(path)
-        if not file.is_file() or hashlib.sha256(file.read_bytes()).hexdigest() != extra.get(
-            "raw_sha256"
-        ):
+        with self.rt.index.connect() as db:
+            row = db.execute("SELECT sha256 FROM raw_files WHERE path=?", (path,)).fetchone()
+        if not file.is_file() or not row or row[0] != extra.get("raw_sha256"):
             raise WikiError("E_SOURCE_HASH", "Источник отсутствует или raw_sha256 не совпадает.")
 
     def _put(
@@ -234,10 +276,7 @@ class Proposals:
         check_id(page_id)
         if metadata.get("id") != page_id:
             raise WikiError("E_ID_INVALID", "ID в URL и frontmatter должны совпадать.")
-        existing = next(
-            (page for page in read_pages(self.worktree(proposal.pid))[0] if page.id == page_id),
-            None,
-        )
+        existing = self._existing(proposal, page_id)
         with self.rt.index.connect() as db:
             current = db.execute(
                 "SELECT content_hash,sensitivity FROM pages WHERE id=?", (page_id,)
@@ -279,11 +318,15 @@ class Proposals:
         if fs.path(page.path).exists() and parse_page(fs.read(page.path)).id != page.id:
             raise WikiError("E_ID_DUPLICATE", "Путь занят другой страницей.")
         text = render(page.frontmatter.model_dump(mode="json"), page.body_md)
-        fs.write(page.path, text)
-        if existing and existing.path != page.path:
-            fs.remove(existing.path)
-        GitRepo(self.worktree(proposal.pid)).commit(f"Update {page_id}", actor.name)
+        repo = GitRepo(self.worktree(proposal.pid))
+        paths = list({page.path, existing.path if existing else page.path})
+        with repo.transaction(paths):
+            fs.write(page.path, text)
+            if existing and existing.path != page.path:
+                fs.remove(existing.path)
+            repo.commit(f"Update {page_id}", actor.name, paths)
         self._snapshot(proposal)
+        self._edited(proposal, actor)
         self._status(proposal, "draft", actor)
         self.rt.state.audit(actor.name, "page.put", page_id)
         return Pages.serialize(parse_page(text, page.path))
@@ -298,6 +341,7 @@ class Proposals:
         base_version: str | None = None,
     ) -> dict[str, Any]:
         with write_lock(self.config.state_dir, self.config.lock_timeout):
+            self._sync_main()
             return self._put(
                 self._proposal(pid, actor, editing=True),
                 page_id,
@@ -317,10 +361,9 @@ class Proposals:
     ) -> dict[str, Any]:
         check_id(page_id)
         with write_lock(self.config.state_dir, self.config.lock_timeout):
+            self._sync_main()
             proposal = self._proposal(pid, actor, editing=True)
-            page = next(
-                (page for page in read_pages(self.worktree(pid))[0] if page.id == page_id), None
-            )
+            page = self._existing(proposal, page_id)
             if not page or not can_read(actor, page.frontmatter.sensitivity):
                 raise not_found()
             metadata, body = apply_patch(
@@ -333,6 +376,7 @@ class Proposals:
     ) -> dict[str, str]:
         check_id(page_id)
         with write_lock(self.config.state_dir, self.config.lock_timeout):
+            self._sync_main()
             proposal = self._proposal(pid, actor, editing=True)
             pages = self._overlay(proposal)
             page = next((page for page in pages if page.id == page_id), None)
@@ -358,9 +402,12 @@ class Proposals:
             fs = SafeFS(self.worktree(pid))
             if not fs.path(page.path).exists():
                 raise not_found()
-            fs.remove(page.path)
-            GitRepo(self.worktree(pid)).commit(f"Delete {page_id}", actor.name)
+            repo = GitRepo(self.worktree(pid))
+            with repo.transaction([page.path]):
+                fs.remove(page.path)
+                repo.commit(f"Delete {page_id}", actor.name, [page.path])
             self._snapshot(proposal)
+            self._edited(proposal, actor)
             self._status(proposal, "draft", actor)
             self.rt.state.audit(actor.name, "page.delete", page_id)
         return {"id": page_id, "change": "deleted"}
@@ -368,11 +415,13 @@ class Proposals:
     def _validation(self, proposal: Proposal) -> dict[str, Any]:
         baseline = {
             (i.code, i.page, i.message)
-            for i in validate_set(read_pages(self.config.wiki_root)[0], self.rt.registry)
+            for i in validate_set(
+                self.rt.indexer.pages(), self.rt.registry, self.rt.indexer.validation
+            )
             if i.severity == "error"
         }
         changed = {page.id for pair in self._changes(proposal) for page in pair if page}
-        issues = validate_set(self._overlay(proposal), self.rt.registry)
+        issues = validate_set(self._overlay(proposal), self.rt.registry, self.rt.indexer.validation)
         errors = [
             i
             for i in issues
@@ -385,7 +434,7 @@ class Proposals:
                 self._source(page)
         result = {
             "errors": [i.model_dump() for i in errors],
-            "warnings": [i.model_dump() for i in warnings],
+            "warnings": [i.model_dump() for i in warnings] + self._downgrades(proposal),
         }
         with self.rt.state.connect() as db:
             db.execute(
@@ -397,13 +446,17 @@ class Proposals:
     def validate(self, pid: str, actor: Principal) -> dict[str, Any]:
         require_role(actor, "writer")
         with write_lock(self.config.state_dir, self.config.lock_timeout):
+            self._sync_main()
             proposal = self._proposal(pid, actor)
             return self._validation(proposal)
 
     def submit(self, pid: str, actor: Principal) -> dict[str, Any]:
         with write_lock(self.config.state_dir, self.config.lock_timeout):
+            self._sync_main()
             proposal = self._proposal(pid, actor, editing=True)
             self._snapshot(proposal)
+            if not self._changes(proposal):
+                raise WikiError("E_PROPOSAL_EMPTY", "В предложении нет изменений.")
             validation = self._validation(proposal)
             if validation["errors"]:
                 raise WikiError(
@@ -416,6 +469,7 @@ class Proposals:
 
     def diff(self, pid: str, actor: Principal) -> dict[str, Any]:
         proposal = self._proposal(pid, actor)
+        downgrades = self._downgrades(proposal)
         result, added, removed = [], set(), set()
         for before, after in self._changes(proposal):
             page = after or before
@@ -455,6 +509,7 @@ class Proposals:
                     "change": "added" if not before else "deleted" if not after else "modified",
                     "frontmatter_diff": fields,
                     "sections": diffs,
+                    "warnings": [w for w in downgrades if w["page"] == page.id],
                 }
             )
             previous = set(edges(before)) if before else set()
@@ -485,8 +540,10 @@ class Proposals:
         if decision not in {"accepted", "rejected", "changes_requested", "abandoned"}:
             raise WikiError("E_PROPOSAL_STATE", "Неизвестное решение.", status=400)
         require_role(actor, "writer" if decision == "abandoned" else "reviewer")
-        if len(comment) > 12000 or secret_kinds(comment):
+        if len(comment) > 12000:
             raise WikiError("E_REQUEST_INVALID", "Недопустимый комментарий.")
+        if secret_kinds(comment, self.config.secret_entropy_threshold):
+            raise WikiError("E_SECRET_DETECTED", "В комментарии найден возможный секрет.")
         with write_lock(self.config.state_dir, self.config.lock_timeout):
             proposal = self._proposal(pid, actor)
             if decision == "abandoned" and proposal.author != actor.name:
@@ -496,15 +553,26 @@ class Proposals:
             ):
                 raise WikiError("E_PROPOSAL_STATE", "Переход состояния недопустим.", status=409)
             if decision == "accepted":
-                if proposal.author == actor.name:
+                editors = self.rt.state.rows(
+                    "SELECT name FROM proposal_editors WHERE pid=?", (pid,)
+                )
+                if actor.name in {
+                    proposal.author,
+                    proposal.last_editor,
+                    *(row["name"] for row in editors),
+                }:
                     self.rt.state.audit(
                         actor.name, "proposal.accept", pid, ok=False, detail="self-review"
                     )
                     raise WikiError(
-                        "E_SELF_REVIEW", "Автор не может принять своё предложение.", status=403
+                        "E_SELF_REVIEW",
+                        "Автор и редакторы не могут принять это предложение.",
+                        status=403,
                     )
-                self.repo.ensure_main()
+                self._sync_main()
                 self._snapshot(proposal)
+                if not self._changes(proposal):
+                    raise WikiError("E_PROPOSAL_EMPTY", "В предложении нет изменений.")
                 validation = self._validation(proposal)
                 if validation["errors"]:
                     raise WikiError(
@@ -513,38 +581,53 @@ class Proposals:
                         details=validation["errors"],
                     )
                 base = self.repo.head()
-                prior_pages, prior_parse_errors = read_pages(self.config.wiki_root)
+                prior_pages, prior_parse_errors = (
+                    self.rt.indexer.pages(),
+                    self.rt.indexer.failures(),
+                )
                 prior_errors = {
                     (i.code, i.page, i.message)
-                    for i in validate_set(prior_pages, self.rt.registry) + prior_parse_errors
+                    for i in validate_set(prior_pages, self.rt.registry, self.rt.indexer.validation)
+                    + prior_parse_errors
                     if i.severity == "error"
                 }
-                try:
-                    self.repo.run(
-                        "merge", "--no-ff", "--no-commit", proposal.branch, author=actor.name
-                    )
-                except subprocess.CalledProcessError as exc:
-                    self.repo.run("merge", "--abort")
-                    self._status(proposal, "conflict", actor)
-                    raise WikiError(
-                        "E_MERGE_CONFLICT",
-                        "Конфликт слияния; main не изменён.",
-                        "Исправьте конфликт в предложении или создайте новое на актуальном main.",
-                        status=409,
-                    ) from exc
-                merged, parse_errors = read_pages(self.config.wiki_root)
-                merged_errors = [
-                    problem
-                    for problem in validate_set(merged, self.rt.registry) + parse_errors
-                    if problem.severity == "error"
-                    and (problem.code, problem.page, problem.message) not in prior_errors
-                ]
-                if merged_errors:
-                    self.repo.run("merge", "--abort")
+                paths = self.repo.changed(proposal.base_commit, proposal.branch)
+                with self.repo.transaction([*paths, "wiki/index.md", "wiki/log.md"]):
+                    try:
+                        self.repo.run(
+                            "merge", "--no-ff", "--no-commit", proposal.branch, author=actor.name
+                        )
+                    except subprocess.CalledProcessError as exc:
+                        self._status(proposal, "conflict", actor)
+                        raise WikiError(
+                            "E_MERGE_CONFLICT",
+                            "Конфликт слияния; main не изменён.",
+                            "Исправьте конфликт в предложении или создайте новое на актуальном main.",
+                            status=409,
+                        ) from exc
+                    changed, parse_errors = read_pages(self.config.wiki_root, paths)
+                    merged = [p for p in prior_pages if p.path not in paths] + changed
+                    merged_errors = [
+                        problem
+                        for problem in validate_set(
+                            merged, self.rt.registry, self.rt.indexer.validation
+                        )
+                        + parse_errors
+                        if problem.severity == "error"
+                        and (problem.code, problem.page, problem.message) not in prior_errors
+                    ]
                     require_valid(merged_errors)
-                self.repo.commit(f"Accept proposal {pid}", actor.name)
-                generate(self.config.wiki_root, f"Принято {pid}: {proposal.title}")
-                self.repo.commit(f"Update index and log for {pid}", actor.name)
+                    generate(
+                        self.config.wiki_root,
+                        f"Принято {pid}: {proposal.title}",
+                        actor.name,
+                        merged,
+                    )
+                    self.repo.commit(
+                        f"Accept proposal {pid}",
+                        actor.name,
+                        [*paths, "wiki/index.md", "wiki/log.md"],
+                    )
                 self._status(proposal, decision, actor, comment)
                 self.rt.indexer.reindex(self.repo.changed(base))
                 self.repo.remove_worktree(self.worktree(pid), proposal.branch)
@@ -553,6 +636,58 @@ class Proposals:
                 if decision in ("rejected", "abandoned"):
                     self.repo.remove_worktree(self.worktree(pid), proposal.branch)
         return self.get(pid, actor)
+
+    def recover(self) -> None:
+        """Reconcile a durable merge if the process stopped before updating state.db."""
+        branches = set(
+            self.repo.run(
+                "for-each-ref", "--format=%(refname:short)", "refs/heads/proposal/"
+            ).splitlines()
+        )
+        for row in self.rt.state.rows("SELECT * FROM proposals"):
+            proposal = Proposal.model_validate(row)
+            work = self.worktree(proposal.pid)
+            if proposal.status in ("accepted", "rejected", "abandoned"):
+                if work.exists() or proposal.branch in branches:
+                    self.repo.remove_worktree(work, proposal.branch)
+                continue
+            if not work.exists():
+                continue
+            branch = GitRepo(work)
+            branch.recover()
+            self._snapshot(proposal)
+            authors = branch.run(
+                "log", "--format=%an", proposal.base_commit + "..HEAD"
+            ).splitlines()
+            with self.rt.state.connect() as db:
+                db.executemany(
+                    "INSERT OR IGNORE INTO proposal_editors VALUES (?,?)",
+                    [(proposal.pid, name) for name in set(authors)],
+                )
+                if authors:
+                    db.execute(
+                        "UPDATE proposals SET last_editor=? WHERE pid=?", (authors[0], proposal.pid)
+                    )
+            if proposal.status != "submitted" or branch.head() == proposal.base_commit:
+                continue
+            try:
+                self.repo.run("merge-base", "--is-ancestor", proposal.branch, "main")
+            except subprocess.CalledProcessError:
+                continue
+            name = self.repo.run(
+                "log",
+                "-1",
+                "--format=%an",
+                "--merges",
+                "--grep",
+                f"^Accept proposal {proposal.pid}$",
+                "main",
+            )
+            if not name:
+                continue
+            actor = Principal(name=name, role="admin", clearance="restricted")
+            self._status(proposal, "accepted", actor, "Recovered after committed merge")
+            self.repo.remove_worktree(work, proposal.branch)
 
     def expire(self) -> None:
         deadline = (datetime.now(UTC) - timedelta(days=self.config.proposal_ttl_days)).isoformat()

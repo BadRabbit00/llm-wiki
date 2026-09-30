@@ -161,7 +161,6 @@ def test_extra_fields_and_relation_types(registry: Registry) -> None:
         "eyJabcdefghijk.abcdefghijkl.1234567890abc",
         "password: example123",
         "api_key = example123",
-        "a9c26d14f8b0375ea6d190cb8f257e4a10bc9d3e7f6028a145c3b9e827af60d5",
         "aB3zP9qW4eR7tY2uI6oL8kJ5hG0fD1sA",
     ],
 )
@@ -176,6 +175,7 @@ def test_secrets(secret: str) -> None:
         "token=${TOKEN}",
         "Пароль хранится в Vault.",
         "token: abc",
+        "a9c26d14f8b0375ea6d190cb8f257e4a10bc9d3e7f6028a145c3b9e827af60d5",
         "a" * 80,
         "Описание конфигурации и технических ограничений.",
     ],

@@ -14,7 +14,11 @@ app.add_typer(tokens, name="token")
 
 
 def settings() -> Settings:
-    return Settings()  # type: ignore[call-arg]
+    import logging
+
+    config = Settings()  # type: ignore[call-arg]
+    logging.basicConfig(level=config.log_level)
+    return config
 
 
 @app.command()
@@ -47,6 +51,7 @@ def serve(reload: bool = False) -> None:
         port=config.bind_port,
         reload=reload,
         workers=1,
+        log_level=config.log_level.lower(),
     )
 
 
@@ -92,6 +97,19 @@ def token_revoke(name: str) -> None:
 
     Auth(StateDB(settings().state_dir)).revoke(name)
     typer.echo("Revoked")
+
+
+@tokens.command("list")
+def token_list() -> None:
+    """List names, access and revocation dates without credentials or hashes."""
+    import json
+
+    from wikisvc.storage.state_db import StateDB
+
+    rows = StateDB(settings().state_dir).rows(
+        "SELECT name,role,clearance,created_at,revoked_at FROM tokens ORDER BY name"
+    )
+    typer.echo(json.dumps(rows, ensure_ascii=False, indent=2))
 
 
 @app.command()

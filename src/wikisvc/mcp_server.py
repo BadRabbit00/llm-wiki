@@ -30,7 +30,7 @@ def create_server(runtime: Runtime) -> FastMCP:
     server = FastMCP(
         "wikisvc",
         instructions="Вызови get_instructions до любой другой работы с вики. Все правки идут через предложения; принимает человек.",
-        log_level="WARNING",
+        log_level=runtime.settings.log_level,
     )
 
     def actor(role: Role = "reader") -> Principal:

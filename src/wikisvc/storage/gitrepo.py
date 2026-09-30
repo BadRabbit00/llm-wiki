@@ -1,11 +1,16 @@
+import json
 import re
 import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from wikisvc.domain.errors import WikiError
 
 
 class GitRepo:
+    managed = ("wiki", "raw", "schema")
+
     def __init__(self, root: Path) -> None:
         self.root = root
 
@@ -32,19 +37,79 @@ class GitRepo:
         return self.run("rev-parse", "HEAD")
 
     def ensure_main(self) -> None:
-        if self.run("branch", "--show-current") != "main" or self.run("status", "--porcelain"):
+        if self.git_path("MERGE_HEAD").exists():
+            raise WikiError(
+                "E_GIT_MERGING",
+                "Обнаружено незавершённое слияние.",
+                "Перезапустите сервис для восстановления или выполните git merge --abort.",
+                status=409,
+            )
+        if (
+            self.run("branch", "--show-current") != "main"
+            or self.run("status", "--porcelain", "--", *self.managed)
+            or self.run("diff", "--cached", "--name-only")
+        ):
             raise WikiError(
                 "E_GIT_DIRTY",
-                "Репозиторий должен быть на чистой ветке main.",
-                "Сохраните локальные изменения и переключитесь на main.",
+                "Нужна ветка main без правок wiki/, raw/, schema/ и подготовленных коммитов.",
+                "Сохраните правки контента, уберите файлы из staging и переключитесь на main.",
                 status=409,
             )
 
-    def commit(self, message: str, author: str) -> str:
-        self.run("add", "--all")
+    def commit(self, message: str, author: str, paths: list[str] | None = None) -> str:
+        self.run("add", "--all", "--", *(paths or self.managed))
         if self.run("diff", "--cached", "--name-only"):
-            self.run("commit", "-m", message, author=author)
+            options = (
+                []
+                if self.git_path("MERGE_HEAD").exists()
+                else ["--only", "--", *(paths or self.managed)]
+            )
+            self.run("commit", "-m", message, *options, author=author)
         return self.head()
+
+    def git_path(self, name: str) -> Path:
+        return self.root / self.run("rev-parse", "--git-path", name)
+
+    def recover(self) -> None:
+        """Recover only paths owned by an interrupted service write, under write.lock."""
+        if self.git_path("MERGE_HEAD").exists():
+            self.run("merge", "--abort")
+        journal = self.git_path("wikisvc-transaction.json")
+        if not journal.exists():
+            return
+        data = json.loads(journal.read_text())
+        # A successful Git commit is durable, even if the process died before cleanup.
+        if self.head() == data["head"]:
+            for path in data["paths"]:
+                if self.run("ls-tree", "--name-only", data["head"], "--", path):
+                    self.run(
+                        "restore", "--source", data["head"], "--staged", "--worktree", "--", path
+                    )
+                else:
+                    self.run("rm", "--cached", "--ignore-unmatch", "--", path)
+                    from wikisvc.storage.safefs import SafeFS
+
+                    SafeFS(self.root).path(path).unlink(missing_ok=True)
+        journal.unlink()
+
+    @contextmanager
+    def transaction(self, paths: list[str]) -> Iterator[None]:
+        """Journal before touching files; roll back failed writes without resetting other paths."""
+        from wikisvc.storage.safefs import SafeFS
+
+        journal = self.git_path("wikisvc-transaction.json")
+        if journal.exists():
+            self.recover()
+        SafeFS(journal.parent).write(
+            journal.name, json.dumps({"head": self.head(), "paths": sorted(set(paths))})
+        )
+        try:
+            yield
+        except BaseException:
+            self.recover()
+            raise
+        else:
+            journal.unlink(missing_ok=True)
 
     def add_worktree(self, path: Path, branch: str, base: str = "main") -> None:
         path.parent.mkdir(parents=True, exist_ok=True)

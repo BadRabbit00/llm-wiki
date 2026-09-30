@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from wikisvc.domain.errors import WikiError
 from wikisvc.domain.ids import check_id, page_path
 from wikisvc.domain.markdown import content_hash, edges, parse, render, sections
-from wikisvc.domain.models import Frontmatter, LintIssue, Page
+from wikisvc.domain.models import Edge, Frontmatter, LintIssue, Page
 from wikisvc.domain.registry import Registry
 from wikisvc.domain.secrets import secret_kinds
 
@@ -116,16 +116,43 @@ def validate_page(
     return result
 
 
-def validate_set(pages: list[Page], registry: Registry) -> list[LintIssue]:
+class ValidationCache:
+    """Reuse local checks for unchanged pages; always recheck cross-page constraints."""
+
+    def __init__(self, entropy_threshold: float = 4.5) -> None:
+        self.entropy_threshold = entropy_threshold
+        self.registry: Registry | None = None
+        self.entries: dict[str, tuple[tuple[str, str, str], list[LintIssue], list[Edge]]] = {}
+
+    def local(self, page: Page, registry: Registry) -> tuple[list[LintIssue], list[Edge]]:
+        if registry != self.registry:
+            self.entries.clear()
+            self.registry = registry
+        key = (page.frontmatter.model_dump_json(), page.body_md, page.path)
+        previous = self.entries.get(page.id)
+        if previous is None or previous[0] != key:
+            previous = (key, validate_page(page, registry, self.entropy_threshold), edges(page))
+            self.entries[page.id] = previous
+        return previous[1], previous[2]
+
+
+def validate_set(
+    pages: list[Page], registry: Registry, cache: ValidationCache | None = None
+) -> list[LintIssue]:
     by_id = {page.id: page for page in pages}
+    if cache:
+        cache.entries = {key: value for key, value in cache.entries.items() if key in by_id}
     result = [
         issue("E_ID_DUPLICATE", key, "ID встречается несколько раз.")
         for key, count in Counter(p.id for p in pages).items()
         if count > 1
     ]
     for page in pages:
-        result.extend(validate_page(page, registry))
-        for edge in edges(page):
+        local, links = (
+            cache.local(page, registry) if cache else (validate_page(page, registry), edges(page))
+        )
+        result.extend(local)
+        for edge in links:
             if edge.dst not in by_id:
                 result.append(
                     issue(

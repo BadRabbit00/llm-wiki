@@ -6,6 +6,9 @@ import Stemmer
 def normalize(text: str) -> str:
     ru, en = Stemmer.Stemmer("russian"), Stemmer.Stemmer("english")
     words = re.findall(r"\w+", text.lower().replace("ё", "е"))
+    # Fold visual lookalikes in identifiers (1С/1C, 1СERP), never ordinary Russian words.
+    lookalikes = str.maketrans("авекмнорстух", "abekmhopctyx")
+    words = [word.translate(lookalikes) if re.search(r"[0-9a-z]", word) else word for word in words]
     return " ".join(str((ru if re.search("[а-я]", word) else en).stemWord(word)) for word in words)
 
 

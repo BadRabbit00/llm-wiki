@@ -4,7 +4,11 @@ import hashlib
 import io
 import json
 import re
+import subprocess
+import sys
+import tempfile
 import zipfile
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO
@@ -24,6 +28,48 @@ if TYPE_CHECKING:
 
 def safe_name(filename: str) -> str:
     name = filename.replace("\\", "/").rsplit("/", 1)[-1]
+    transliteration = dict(
+        zip(
+            "абвгдеёжзийклмнопрстуфхцчшщъыьэюя",
+            [
+                "a",
+                "b",
+                "v",
+                "g",
+                "d",
+                "e",
+                "yo",
+                "zh",
+                "z",
+                "i",
+                "y",
+                "k",
+                "l",
+                "m",
+                "n",
+                "o",
+                "p",
+                "r",
+                "s",
+                "t",
+                "u",
+                "f",
+                "kh",
+                "ts",
+                "ch",
+                "sh",
+                "shch",
+                "",
+                "y",
+                "",
+                "e",
+                "yu",
+                "ya",
+            ],
+            strict=True,
+        )
+    )
+    name = "".join(transliteration.get(char.lower(), char) for char in name)
     name = re.sub(r"[^A-Za-z0-9._-]", "_", name)
     while ".." in name:
         name = name.replace("..", "-")
@@ -39,10 +85,20 @@ def validate_signature(data: bytes, extension: str, max_size: int) -> None:
             text = data.decode("utf-8-sig")
             valid = not any(ord(c) < 32 and c not in "\t\r\n" for c in text)
             if extension == "json":
-                json.loads(text)
+                stack: list[Iterator[Any]] = [iter([json.loads(text)])]
+                while stack:
+                    try:
+                        value = next(stack[-1])
+                    except StopIteration:
+                        stack.pop()
+                        continue
+                    if isinstance(value, (dict, list)):
+                        if len(stack) > 128:
+                            raise ValueError("JSON nesting exceeds 128 levels")
+                        stack.append(iter(value.values() if isinstance(value, dict) else value))
             elif extension in {"yaml", "yml"}:
                 load_yaml(text)
-        except (UnicodeError, ValueError, WikiError):
+        except (UnicodeError, ValueError, WikiError, RecursionError):
             valid = False
     elif extension == "pdf":
         valid = data.startswith(b"%PDF-")
@@ -99,6 +155,9 @@ class Raw:
         validate_signature(data, extension, maximum)
         digest = hashlib.sha256(data).hexdigest()
         with write_lock(self.config.state_dir, self.config.lock_timeout):
+            repo = GitRepo(self.config.wiki_root)
+            repo.ensure_main()
+            self.rt.sync_index()
             with self.rt.index.connect() as db:
                 duplicate = db.execute(
                     "SELECT * FROM raw_files WHERE sha256=? ORDER BY path LIMIT 1", (digest,)
@@ -106,25 +165,36 @@ class Raw:
             if duplicate:
                 self.rt.state.audit(actor.name, "raw.duplicate", duplicate["path"])
                 return {**dict(duplicate), "duplicate": True, "trust": "untrusted_external"}
-            repo = GitRepo(self.config.wiki_root)
-            repo.ensure_main()
             path = f"raw/{category}/{datetime.now(UTC).year}/{digest[:8]}-{name}"
             fs = SafeFS(self.config.wiki_root)
             if fs.path(path).exists():
                 raise WikiError(
                     "E_RAW_EXISTS", "Такой путь уже существует; сырьё неизменяемо.", status=409
                 )
-            fs.write(path, data)
-            repo.commit(f"Add raw source {path}", actor.name)
+            with repo.transaction([path]):
+                fs.write(path, data)
+                repo.commit(f"Add raw source {path}", actor.name, [path])
             self.rt.indexer.reindex([path])
             self.rt.state.audit(actor.name, "raw.upload", path)
             with self.rt.state.connect() as db:
                 db.execute(
-                    "INSERT INTO raw_notes VALUES (?,?,?,?)", (digest, note, actor.name, path)
+                    "INSERT INTO raw_notes VALUES (?,?,?,?,?)",
+                    (
+                        digest,
+                        note,
+                        actor.name,
+                        path,
+                        filename.replace("\\", "/").rsplit("/", 1)[-1][:255],
+                    ),
                 )
             with self.rt.index.connect() as db:
                 row = db.execute("SELECT * FROM raw_files WHERE path=?", (path,)).fetchone()
-        return {**dict(row), "duplicate": False, "trust": "untrusted_external"}
+        return {
+            **dict(row),
+            "original_name": filename.replace("\\", "/").rsplit("/", 1)[-1][:255],
+            "duplicate": False,
+            "trust": "untrusted_external",
+        }
 
     def records(self, actor: Principal, pending: bool = False) -> list[dict[str, Any]]:
         self.require_clearance(actor)
@@ -132,8 +202,17 @@ class Raw:
             rows = db.execute("""SELECT r.*, EXISTS (
                 SELECT 1 FROM pages p WHERE p.type='source' AND json_extract(p.extra,'$.raw_sha256')=r.sha256
                 ) AS processed FROM raw_files r ORDER BY path""").fetchall()
+        names = {
+            row["path"]: row["original_name"]
+            for row in self.rt.state.rows("SELECT path,original_name FROM raw_notes")
+        }
         return [
-            {**dict(row), "processed": bool(row["processed"]), "trust": "untrusted_external"}
+            {
+                **dict(row),
+                "original_name": names.get(row["path"]),
+                "processed": bool(row["processed"]),
+                "trust": "untrusted_external",
+            }
             for row in rows
             if not pending or not row["processed"]
         ]
@@ -162,14 +241,8 @@ class Raw:
         try:
             if extension in {".txt", ".md", ".csv", ".json", ".yaml", ".yml"}:
                 text = file.read_text(encoding="utf-8-sig")
-            elif extension == ".pdf":
-                from pypdf import PdfReader
-
-                text = "\n\n".join(page.extract_text() or "" for page in PdfReader(str(file)).pages)
-            elif extension == ".docx":
-                from docx import Document
-
-                text = "\n".join(paragraph.text for paragraph in Document(str(file)).paragraphs)
+            elif extension in {".pdf", ".docx"}:
+                text = self._extract(file)
             else:
                 raise WikiError(
                     "E_TEXT_UNAVAILABLE",
@@ -189,3 +262,37 @@ class Raw:
             "text": text,
             "trust": "untrusted_external",
         }
+
+    def _extract(self, file: Path) -> str:
+        try:
+            with tempfile.TemporaryDirectory(prefix="wikisvc-extract-") as directory:
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "wikisvc.services.extract_worker",
+                        str(file),
+                        str(self.config.extract_memory_mb),
+                        str(self.config.extract_max_chars),
+                        str(self.config.extract_timeout_seconds),
+                    ],
+                    cwd=directory,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    timeout=self.config.extract_timeout_seconds,
+                    check=False,
+                )
+        except subprocess.TimeoutExpired as exc:
+            raise WikiError("E_TEXT_LIMIT", "Превышено время извлечения текста.") from exc
+        if result.returncode == 2:
+            raise WikiError(
+                "E_EXTRACTOR_UNAVAILABLE",
+                "Установите необязательные pypdf / python-docx.",
+                status=400,
+            )
+        if result.returncode != 0:
+            raise WikiError(
+                "E_TEXT_INVALID", "Не удалось извлечь текст в пределах ограничений ресурсов."
+            )
+        return result.stdout.decode("utf-8")

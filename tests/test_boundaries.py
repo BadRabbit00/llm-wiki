@@ -189,6 +189,9 @@ def test_rate_limit_and_request_body(config: Settings) -> None:
         client.headers["Authorization"] = "Bearer " + token
         assert client.get("/api/v1/pages").status_code == 200
         assert client.get("/api/v1/pages").status_code == 429
+        client.headers["Authorization"] = "Bearer " + auth.create(
+            "size-check", "writer", "restricted"
+        )
         assert (
             client.post("/api/v1/proposals", content=b"x" * (1024 * 1024 + 65537)).status_code
             == 413

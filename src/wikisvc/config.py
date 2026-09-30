@@ -1,7 +1,7 @@
 """Environment-based service configuration."""
 
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,7 +24,10 @@ class Settings(BaseSettings):
     relation_priority: str = "governed_by,depends_on,uses,reads,writes,automates"
     allowed_raw_ext: str = "pdf,docx,xlsx,md,txt,csv,json,yaml,yml,png,jpg,jpeg"
     rate_limit_per_min: int = Field(default=0, ge=0)
-    log_level: str = "INFO"
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    extract_timeout_seconds: int = Field(default=15, ge=1, le=300)
+    extract_memory_mb: int = Field(default=512, ge=128, le=4096)
+    extract_max_chars: int = Field(default=2_000_000, ge=1000, le=10_000_000)
     secret_entropy_threshold: float = Field(default=4.5, gt=0)
     lock_timeout: float = Field(default=30.0, gt=0)
 

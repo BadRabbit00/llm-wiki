@@ -1,2 +1,6 @@
-# Добавляйте разрешённые теги, например finance, integration.
-[]
+# Стартовые теги. Администратор может расширить список и выполнить reindex --full.
+- finance
+- integration
+- operations
+- engineering
+- security

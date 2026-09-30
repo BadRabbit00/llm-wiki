@@ -93,3 +93,4 @@ class Proposal(BaseModel):
     created_at: str
     updated_at: str
     decided_by: str | None = None
+    last_editor: str | None = None

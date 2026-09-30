@@ -30,6 +30,7 @@ def review(
     with write_lock(config.state_dir, config.lock_timeout):
         repo = GitRepo(config.wiki_root)
         repo.ensure_main()
+        runtime.sync_index()
         page = runtime.pages.page(page_id, actor)
         fs = SafeFS(config.wiki_root)
         page = parse_page(fs.read(page.path), page.path)
@@ -37,12 +38,14 @@ def review(
         if verified:
             page.frontmatter.verified_at = now()
             page.frontmatter.verified_by = actor.name
-        fs.write(page.path, render(page.frontmatter.model_dump(mode="json"), page.body_md))
-        repo.commit(
-            f"{'Verify' if verified else 'Mark outdated'} {page_id}"
-            + (": " + reason if reason else ""),
-            actor.name,
-        )
+        with repo.transaction([page.path]):
+            fs.write(page.path, render(page.frontmatter.model_dump(mode="json"), page.body_md))
+            repo.commit(
+                f"{'Verify' if verified else 'Mark outdated'} {page_id}"
+                + (": " + reason if reason else ""),
+                actor.name,
+                [page.path],
+            )
         runtime.indexer.reindex([page.path])
         runtime.state.audit(
             actor.name, "page.verify" if verified else "page.mark-outdated", page_id

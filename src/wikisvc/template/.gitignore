@@ -1,2 +1,5 @@
 .DS_Store
 *.swp
+.obsidian/
+inbox/*
+!inbox/.gitkeep

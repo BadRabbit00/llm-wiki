@@ -133,14 +133,12 @@ class Pages:
         return result
 
     def index(self, actor: Principal) -> str:
+        from wikisvc.services.generators import render_index
+
         with self.db.connect() as db:
             pages = [
                 row
                 for row in db.execute("SELECT * FROM pages ORDER BY type,id")
                 if can_read(actor, row["sensitivity"])
             ]
-        return (
-            "# Индекс вики\n\n"
-            + "\n".join(f"- [[{row['id']}|{row['title']}]] — {row['summary']}" for row in pages)
-            + "\n"
-        )
+        return render_index([row_page(row) for row in pages])

@@ -24,7 +24,7 @@
             fastapi uvicorn pydantic pydantic-settings ruamel-yaml pystemmer
             python-multipart typer httpx mcp
           ];
-          dev = with py.pkgs; [ pytest pytest-cov hypothesis mypy ];
+          dev = with py.pkgs; [ pytest pytest-cov hypothesis mypy pypdf python-docx ];
         in { inherit pkgs py runtime dev; };
     in {
       packages = eachSystem (system:

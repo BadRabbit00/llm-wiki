@@ -36,12 +36,20 @@ class StateDB:
                 PRIMARY KEY(pid,path));
             CREATE TABLE IF NOT EXISTS proposal_clearance (
                 pid TEXT PRIMARY KEY, clearance TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS proposal_editors (
+                pid TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY(pid,name));
             CREATE TABLE IF NOT EXISTS raw_notes (
                 sha256 TEXT PRIMARY KEY, note TEXT NOT NULL, author TEXT NOT NULL, path TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS rate_limits (
                 name TEXT NOT NULL, minute INTEGER NOT NULL, count INTEGER NOT NULL,
                 PRIMARY KEY(name,minute));
             """)
+            if "last_editor" not in {row[1] for row in db.execute("PRAGMA table_info(proposals)")}:
+                db.execute("ALTER TABLE proposals ADD COLUMN last_editor TEXT")
+            if "original_name" not in {
+                row[1] for row in db.execute("PRAGMA table_info(raw_notes)")
+            }:
+                db.execute("ALTER TABLE raw_notes ADD COLUMN original_name TEXT")
         self.path.chmod(0o600)
 
     @contextmanager

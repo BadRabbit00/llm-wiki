@@ -100,7 +100,10 @@ class Search:
                         via="graph",
                         snippet={"heading": "", "text": node["summary"]},
                     )
+        results = sorted(hits.values(), key=lambda hit: (-hit["score"], hit["id"]))[:k]
+        for hit in results:
+            hit.pop("score")
         return {
             "query": query,
-            "results": sorted(hits.values(), key=lambda hit: (-hit["score"], hit["id"]))[:k],
+            "results": results,
         }
