@@ -1,0 +1,16 @@
+type: system
+prefix: sys
+path_template: systems/{slug}.md
+title_ru: Система
+required_sections:
+- Назначение
+- Доступ и интеграция
+- Ограничения
+extra_fields: {}
+allowed_relations:
+- integrates_with
+- owned_by
+- part_of
+- depends_on
+- related
+template: "## Назначение\n\n\n## Доступ и интеграция\n\n\n## Ограничения\n"

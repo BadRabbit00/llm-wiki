@@ -1,0 +1,18 @@
+type: pattern
+prefix: pat
+path_template: engineering/patterns/{slug}.md
+title_ru: Паттерн
+required_sections:
+- Проблема
+- Решение
+- Пример
+- Когда не применять
+extra_fields: {}
+allowed_relations:
+- part_of
+- depends_on
+- governed_by
+- implements
+- supersedes
+- related
+template: "## Проблема\n\n\n## Решение\n\n\n## Пример\n\n\n## Когда не применять\n"

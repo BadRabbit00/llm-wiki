@@ -1,0 +1,14 @@
+type: stack
+prefix: stack
+path_template: engineering/stack/{slug}.md
+title_ru: Стек
+required_sections:
+- Правило
+- Обоснование
+extra_fields: {}
+allowed_relations:
+- part_of
+- depends_on
+- supersedes
+- related
+template: "## Правило\n\n\n## Обоснование\n"

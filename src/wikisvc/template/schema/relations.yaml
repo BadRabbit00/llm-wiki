@@ -1,0 +1,127 @@
+automates:
+  inverse: automated_by
+  symmetric: false
+  from:
+  - app
+  to:
+  - process
+  same_type: false
+integrates_with:
+  inverse: integrates_with
+  symmetric: true
+  from:
+  - app
+  - system
+  to:
+  - system
+  same_type: false
+reads:
+  inverse: read_by
+  symmetric: false
+  from:
+  - app
+  to:
+  - entity
+  - system
+  same_type: false
+writes:
+  inverse: written_by
+  symmetric: false
+  from:
+  - app
+  to:
+  - entity
+  - system
+  same_type: false
+stored_in:
+  inverse: stores
+  symmetric: false
+  from:
+  - entity
+  to:
+  - system
+  same_type: false
+owned_by:
+  inverse: owns
+  symmetric: false
+  from:
+  - process
+  - system
+  - app
+  to:
+  - role
+  same_type: false
+participates_in:
+  inverse: has_participant
+  symmetric: false
+  from:
+  - role
+  to:
+  - process
+  same_type: false
+part_of:
+  inverse: has_part
+  symmetric: false
+  from: []
+  to: []
+  same_type: true
+depends_on:
+  inverse: required_by
+  symmetric: false
+  from: []
+  to: []
+  same_type: false
+governed_by:
+  inverse: governs
+  symmetric: false
+  from:
+  - app
+  - process
+  - playbook
+  - pattern
+  to:
+  - convention
+  - security
+  - adr
+  - stack
+  same_type: false
+implements:
+  inverse: implemented_by
+  symmetric: false
+  from:
+  - app
+  - pattern
+  to:
+  - adr
+  - pattern
+  same_type: false
+supersedes:
+  inverse: superseded_by
+  symmetric: false
+  from:
+  - adr
+  - convention
+  - pattern
+  - stack
+  to:
+  - adr
+  - convention
+  - pattern
+  - stack
+  same_type: true
+caused_by:
+  inverse: causes
+  symmetric: false
+  from:
+  - lesson
+  to:
+  - system
+  - app
+  - process
+  same_type: false
+related:
+  inverse: related
+  symmetric: true
+  from: []
+  to: []
+  same_type: false

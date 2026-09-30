@@ -1,0 +1,21 @@
+type: lesson
+prefix: les
+path_template: lessons/{slug}.md
+title_ru: Урок
+required_sections:
+- Что случилось
+- Причина
+- Как избежать
+extra_fields:
+  severity:
+    required: true
+    enum:
+    - low
+    - medium
+    - high
+allowed_relations:
+- part_of
+- depends_on
+- caused_by
+- related
+template: "## Что случилось\n\n\n## Причина\n\n\n## Как избежать\n"

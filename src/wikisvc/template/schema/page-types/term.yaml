@@ -1,0 +1,12 @@
+type: term
+prefix: term
+path_template: domain/glossary/{slug}.md
+title_ru: Термин
+required_sections:
+- Определение
+extra_fields: {}
+allowed_relations:
+- part_of
+- depends_on
+- related
+template: "## Определение\n"

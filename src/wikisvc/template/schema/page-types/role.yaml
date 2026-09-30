@@ -1,0 +1,13 @@
+type: role
+prefix: role
+path_template: domain/roles/{slug}.md
+title_ru: Роль
+required_sections:
+- Обязанности
+extra_fields: {}
+allowed_relations:
+- participates_in
+- part_of
+- depends_on
+- related
+template: "## Обязанности\n"

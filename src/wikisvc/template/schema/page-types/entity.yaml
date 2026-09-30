@@ -1,0 +1,15 @@
+type: entity
+prefix: ent
+path_template: data/{slug}.md
+title_ru: Сущность
+required_sections:
+- Описание
+- Поля
+- Правила
+extra_fields: {}
+allowed_relations:
+- stored_in
+- part_of
+- depends_on
+- related
+template: "## Описание\n\n\n## Поля\n\n\n## Правила\n"

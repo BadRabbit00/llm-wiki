@@ -1,0 +1,21 @@
+type: adr
+prefix: adr
+path_template: decisions/{slug}.md
+title_ru: Решение
+required_sections:
+- Контекст
+- Решение
+- Последствия
+extra_fields:
+  adr_status:
+    required: true
+    enum:
+    - proposed
+    - accepted
+    - superseded
+allowed_relations:
+- part_of
+- depends_on
+- supersedes
+- related
+template: "## Контекст\n\n\n## Решение\n\n\n## Последствия\n"

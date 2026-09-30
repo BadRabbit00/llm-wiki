@@ -1,0 +1,23 @@
+type: source
+prefix: src
+path_template: sources/{slug}.md
+title_ru: Источник
+required_sections:
+- Кратко
+- Ключевые факты
+- Что изменилось в вики
+extra_fields:
+  raw_path:
+    required: true
+    pattern: raw/[^\\]+
+    enum: []
+  raw_sha256:
+    required: true
+    pattern: '[a-f0-9]{64}'
+  ingested_at:
+    required: true
+allowed_relations:
+- part_of
+- depends_on
+- related
+template: "## Кратко\n\n\n## Ключевые факты\n\n\n## Что изменилось в вики\n"

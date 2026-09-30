@@ -1,0 +1,16 @@
+type: playbook
+prefix: pb
+path_template: playbooks/{slug}.md
+title_ru: Сценарий
+required_sections:
+- Когда применять
+- Предусловия
+- Шаги
+- Проверка результата
+extra_fields: {}
+allowed_relations:
+- part_of
+- depends_on
+- governed_by
+- related
+template: "## Когда применять\n\n\n## Предусловия\n\n\n## Шаги\n\n\n## Проверка результата\n"

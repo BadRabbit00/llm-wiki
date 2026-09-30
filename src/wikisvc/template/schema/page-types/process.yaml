@@ -1,0 +1,18 @@
+type: process
+prefix: proc
+path_template: domain/processes/{slug}.md
+title_ru: Бизнес-процесс
+required_sections:
+- Цель
+- Шаги
+- Участники
+- Входы и выходы
+- Исключения
+extra_fields: {}
+allowed_relations:
+- owned_by
+- part_of
+- depends_on
+- governed_by
+- related
+template: "## Цель\n\n\n## Шаги\n\n\n## Участники\n\n\n## Входы и выходы\n\n\n## Исключения\n"

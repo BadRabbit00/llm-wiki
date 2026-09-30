@@ -1,0 +1,31 @@
+type: app
+prefix: app
+path_template: apps/{slug}/index.md
+title_ru: Приложение
+required_sections:
+- Задача
+- Архитектура
+- Интеграции
+- Статус
+extra_fields:
+  app_status:
+    required: true
+    enum:
+    - idea
+    - dev
+    - prod
+    - retired
+  owner:
+    pattern: role-[a-z0-9]+(?:-[a-z0-9]+)*
+allowed_relations:
+- automates
+- integrates_with
+- reads
+- writes
+- owned_by
+- part_of
+- depends_on
+- governed_by
+- implements
+- related
+template: "## Задача\n\n\n## Архитектура\n\n\n## Интеграции\n\n\n## Статус\n"

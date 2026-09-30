@@ -1,0 +1,14 @@
+type: app-doc
+prefix: appdoc
+path_template: apps/{parent_slug}/{slug}.md
+title_ru: Документ приложения
+required_sections: []
+extra_fields:
+  parent:
+    required: true
+    pattern: app-[a-z0-9]+(?:-[a-z0-9]+)*
+allowed_relations:
+- part_of
+- depends_on
+- related
+template: ''
