@@ -101,11 +101,28 @@ def inbox(services: Services, actor: Reviewer) -> dict[str, Any]:
             cursor = result["next_cursor"]
             if not cursor:
                 break
+    jobs: dict[str, Any] = {"available": False, "unfinished": None}
+    agent_dir = services.settings.wikiagent_state_dir
+    if agent_dir and (agent_dir / "agent.db").is_file():
+        import sqlite3
+        from contextlib import closing
+
+        from wikisvc.index.graph import clearance_values
+
+        levels = clearance_values(actor)
+        with closing(
+            sqlite3.connect((agent_dir / "agent.db").resolve().as_uri() + "?mode=ro", uri=True)
+        ) as db:
+            unfinished = db.execute(
+                f"SELECT COUNT(*) FROM jobs WHERE status NOT IN ('done','cancelled','failed') AND clearance IN ({','.join('?' for _ in levels)})",
+                levels,
+            ).fetchone()[0]
+        jobs = {"available": True, "unfinished": unfinished}
     return {
         "proposals": proposals,
         "pending_sources": pending,
         "candidates_by_source": dict(candidates),
         "open_findings": len(services.findings.all(actor, "open")),
-        "jobs": {"available": False, "unfinished": None},
+        "jobs": jobs,
         "lint": dict(Counter(i.code for i in services.lint.run(actor))),
     }

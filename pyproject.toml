@@ -18,9 +18,10 @@ documents = ["pypdf", "python-docx"]
 
 [project.scripts]
 wikisvc = "wikisvc.cli:app"
+wikiagent = "wikiagent.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/wikisvc"]
+packages = ["src/wikisvc", "src/wikiagent"]
 
 [tool.ruff]
 line-length = 100

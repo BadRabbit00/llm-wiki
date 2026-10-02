@@ -1,0 +1,64 @@
+{
+  "input": "Это уже есть",
+  "initial_pages": [
+    {
+      "id": "rule-existing",
+      "type": "rule",
+      "title": "Правило HTTP",
+      "summary": "Используй requests для HTTP запросов Python.",
+      "body_md": "HTTP запросы выполняются синхронно через requests.",
+      "lifecycle": "active",
+      "level": "should",
+      "applies_to": [
+        "lang:python"
+      ]
+    }
+  ],
+  "scopes": [
+    "*",
+    "lang:python",
+    "framework:fastapi"
+  ],
+  "expected": {
+    "actions": [
+      "noop_duplicate"
+    ],
+    "questions": []
+  },
+  "fake": {
+    "route": {
+      "intent": "intake"
+    },
+    "extract_claims": {
+      "claims": [
+        {
+          "id": "rule-new",
+          "text": "Использовать только async код Python",
+          "title": "Асинхронный Python",
+          "thesis": "Используй только асинхронный код в обработчиках Python.",
+          "category": "architecture",
+          "scopes_guess": [
+            "lang:python"
+          ],
+          "level_guess": "should",
+          "aliases": [
+            "асинхронный код",
+            "async Python"
+          ],
+          "rationale": "Избегаем блокировки обработчиков."
+        }
+      ]
+    },
+    "classify": {
+      "relations": [
+        {
+          "relation": "duplicate_of",
+          "target": "rule-existing",
+          "confidence": 0.95,
+          "quote": "Используй requests для HTTP запросов Python.",
+          "reason": "Сравнение приведённых требований."
+        }
+      ]
+    }
+  }
+}

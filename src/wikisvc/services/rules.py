@@ -125,6 +125,19 @@ class Rules:
             if before:
                 for node in self.rt.graph.impact(before.id, actor, rels=IMPACT_RELS)["nodes"]:
                     pages[node["id"]] = node
+            if after:
+                for rel, targets in after.frontmatter.relations.items():
+                    if rel not in IMPACT_RELS:
+                        continue
+                    for target in targets:
+                        try:
+                            for node in self.rt.graph.impact(target, actor, rels=IMPACT_RELS)[
+                                "nodes"
+                            ]:
+                                pages[node["id"]] = node
+                        except WikiError as exc:
+                            if exc.status != 404:
+                                raise
         rules = []
         with self.rt.index.connect() as db:
             for row in db.execute("SELECT * FROM pages WHERE type='rule'"):

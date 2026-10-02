@@ -44,9 +44,10 @@ def create_server(runtime: Runtime) -> FastMCP:
         profile: str | None = None,
         scopes: list[str] | None = None,
         budget_tokens: int | None = None,
+        explain: bool = False,
     ) -> dict[str, Any]:
         """Перед задачей получи компактные действующие правила проекта; подробности открывай по ID."""
-        return runtime.policies.compile(actor(), profile, scopes, budget_tokens)
+        return runtime.policies.compile(actor(), profile, scopes, budget_tokens, explain=explain)
 
     @server.tool()
     @checked
@@ -194,4 +195,13 @@ def create_server(runtime: Runtime) -> FastMCP:
         )
         return {"issues": result["items"], "next_cursor": result["next_cursor"]}
 
+    from wikisvc.tool_contracts import definitions
+
+    contracts = {
+        definition["function"]["name"]: definition["function"]["parameters"]
+        for definition in definitions("chat")
+    }
+    for tool in server._tool_manager.list_tools():
+        if tool.name in contracts:
+            tool.parameters = contracts[tool.name]
     return server

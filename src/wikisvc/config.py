@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     index_dir: Path
     bind_host: str = "127.0.0.1"
     cors_origins: str = ""
+    wikiagent_state_dir: Path | None = None
     bind_port: int = Field(default=8787, ge=1, le=65535)
     max_upload_mb: int = Field(default=25, ge=1, le=1024)
     proposal_ttl_days: int = Field(default=14, ge=1)

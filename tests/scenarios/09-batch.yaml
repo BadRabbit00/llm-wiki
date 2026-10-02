@@ -1,0 +1,119 @@
+{
+  "input": "Пять правил за раз",
+  "initial_pages": [],
+  "scopes": [
+    "*",
+    "lang:python",
+    "framework:fastapi"
+  ],
+  "expected": {
+    "actions": [
+      "create_rule",
+      "create_rule",
+      "create_rule",
+      "create_rule",
+      "create_rule"
+    ],
+    "questions": []
+  },
+  "fake": {
+    "route": {
+      "intent": "intake"
+    },
+    "extract_claims": {
+      "claims": [
+        {
+          "id": "rule-item-0",
+          "text": "Использовать только async код Python",
+          "title": "Асинхронный Python",
+          "thesis": "Используй только асинхронный код в обработчиках Python.",
+          "category": "architecture",
+          "scopes_guess": [
+            "lang:python"
+          ],
+          "level_guess": "should",
+          "aliases": [
+            "асинхронный код",
+            "async Python"
+          ],
+          "rationale": "Избегаем блокировки обработчиков."
+        },
+        {
+          "id": "rule-item-1",
+          "text": "Использовать только async код Python",
+          "title": "Асинхронный Python",
+          "thesis": "Используй только асинхронный код в обработчиках Python.",
+          "category": "architecture",
+          "scopes_guess": [
+            "lang:python"
+          ],
+          "level_guess": "should",
+          "aliases": [
+            "асинхронный код",
+            "async Python"
+          ],
+          "rationale": "Избегаем блокировки обработчиков."
+        },
+        {
+          "id": "rule-item-2",
+          "text": "Использовать только async код Python",
+          "title": "Асинхронный Python",
+          "thesis": "Используй только асинхронный код в обработчиках Python.",
+          "category": "architecture",
+          "scopes_guess": [
+            "lang:python"
+          ],
+          "level_guess": "should",
+          "aliases": [
+            "асинхронный код",
+            "async Python"
+          ],
+          "rationale": "Избегаем блокировки обработчиков."
+        },
+        {
+          "id": "rule-item-3",
+          "text": "Использовать только async код Python",
+          "title": "Асинхронный Python",
+          "thesis": "Используй только асинхронный код в обработчиках Python.",
+          "category": "architecture",
+          "scopes_guess": [
+            "lang:python"
+          ],
+          "level_guess": "should",
+          "aliases": [
+            "асинхронный код",
+            "async Python"
+          ],
+          "rationale": "Избегаем блокировки обработчиков."
+        },
+        {
+          "id": "rule-item-4",
+          "text": "Использовать только async код Python",
+          "title": "Асинхронный Python",
+          "thesis": "Используй только асинхронный код в обработчиках Python.",
+          "category": "architecture",
+          "scopes_guess": [
+            "lang:python"
+          ],
+          "level_guess": "should",
+          "aliases": [
+            "асинхронный код",
+            "async Python"
+          ],
+          "rationale": "Избегаем блокировки обработчиков."
+        }
+      ]
+    },
+    "classify": {
+      "relations": [
+        {
+          "relation": "new",
+          "target": null,
+          "confidence": 0.95,
+          "quote": "",
+          "reason": "Сравнение приведённых требований."
+        }
+      ]
+    }
+  }
+}

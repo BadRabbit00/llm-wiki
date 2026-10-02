@@ -1,0 +1,54 @@
+{
+  "input": "Неоднозначная область",
+  "initial_pages": [],
+  "scopes": [
+    "*",
+    "lang:python",
+    "framework:fastapi"
+  ],
+  "expected": {
+    "actions": [
+      "create_rule"
+    ],
+    "questions": [
+      "scope"
+    ]
+  },
+  "fake": {
+    "route": {
+      "intent": "intake"
+    },
+    "extract_claims": {
+      "claims": [
+        {
+          "id": "rule-new",
+          "text": "Использовать только async код Python",
+          "title": "Асинхронный Python",
+          "thesis": "Используй только асинхронный код в обработчиках Python.",
+          "category": "architecture",
+          "scopes_guess": [
+            "lang:python"
+          ],
+          "level_guess": "should",
+          "aliases": [
+            "асинхронный код",
+            "async Python"
+          ],
+          "rationale": "Избегаем блокировки обработчиков.",
+          "ambiguous_scope": true
+        }
+      ]
+    },
+    "classify": {
+      "relations": [
+        {
+          "relation": "new",
+          "target": null,
+          "confidence": 0.95,
+          "quote": "",
+          "reason": "Сравнение приведённых требований."
+        }
+      ]
+    }
+  }
+}
