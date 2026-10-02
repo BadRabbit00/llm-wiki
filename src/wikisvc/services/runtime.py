@@ -8,6 +8,7 @@ from wikisvc.index.search import Search
 from wikisvc.services.auth import Auth
 from wikisvc.services.lint import Lint
 from wikisvc.services.pages import Pages
+from wikisvc.services.policies import Policies
 from wikisvc.services.proposals import Proposals
 from wikisvc.services.raw import Raw
 from wikisvc.services.schema import Schema
@@ -28,7 +29,8 @@ class Runtime:
         self.auth = Auth(self.state, settings.rate_limit_per_min)
         self.indexer = Indexer(settings.wiki_root, self.index, self.registry)
         self.indexer.validation.entropy_threshold = settings.secret_entropy_threshold
-        self.pages = Pages(settings.wiki_root, self.index)
+        self.pages = Pages(settings.wiki_root, self.index, self.state)
+        self.policies = Policies(self)
         self.search = Search(self.index, settings.boosts())
         self.graph = Graph(self.index)
         self.context = Context(self.index, self.pages, settings.relation_priority.split(","))

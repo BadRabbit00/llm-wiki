@@ -1,7 +1,7 @@
 """Command line entry point."""
 
 from pathlib import Path
-from typing import cast
+from typing import Annotated, cast
 
 import typer
 
@@ -13,6 +13,77 @@ tokens = typer.Typer(no_args_is_help=True)
 app.add_typer(tokens, name="token")
 schema_commands = typer.Typer(no_args_is_help=True)
 app.add_typer(schema_commands, name="schema")
+policy_commands = typer.Typer(no_args_is_help=True)
+app.add_typer(policy_commands, name="policies")
+scope_commands = typer.Typer(no_args_is_help=True)
+app.add_typer(scope_commands, name="scopes")
+
+
+def cli_policies(profile: str) -> dict[str, object]:
+    from wikisvc.domain.models import Principal
+    from wikisvc.services.runtime import Runtime
+    from wikisvc.storage.lock import write_lock
+
+    rt = Runtime(settings())
+    with write_lock(rt.settings.state_dir, rt.settings.lock_timeout):
+        rt.sync_index()
+    return rt.policies.compile(
+        Principal(name="cli", role="admin", clearance="restricted", kind="human"),
+        profile=profile,
+        count_usage=False,
+    )
+
+
+@policy_commands.command("export")
+def policies_export(
+    profile: Annotated[str, typer.Option()], out: Annotated[Path, typer.Option()]
+) -> None:
+    from wikisvc.services.policies import export_block
+
+    result = cli_policies(profile)
+    export_block(out, result)
+    typer.echo(f"Exported version {result['version']} to {out}")
+
+
+@policy_commands.command("check")
+def policies_check(
+    profile: Annotated[str, typer.Option()], file: Annotated[Path, typer.Option()]
+) -> None:
+    from wikisvc.services.policies import BLOCK
+
+    matches = BLOCK.findall(file.read_text()) if file.exists() else []
+    if matches != [cli_policies(profile)["version"]]:
+        typer.echo("Policy block is missing or outdated")
+        raise typer.Exit(1)
+    typer.echo("Policy block is current")
+
+
+@scope_commands.command("add")
+def scopes_add(value: str) -> None:
+    import re
+
+    from wikisvc.domain.errors import WikiError
+    from wikisvc.services.migrations import yaml_text
+    from wikisvc.services.runtime import Runtime
+    from wikisvc.storage.gitrepo import GitRepo
+    from wikisvc.storage.lock import write_lock
+    from wikisvc.storage.safefs import SafeFS
+
+    if not re.fullmatch(r"[a-z][a-z0-9-]*:[a-z0-9][a-z0-9.-]*", value):
+        raise WikiError("E_SCOPE_UNKNOWN", "Область должна иметь вид lang:python.")
+    rt = Runtime(settings())
+    with write_lock(rt.settings.state_dir, rt.settings.lock_timeout):
+        repo = GitRepo(rt.settings.wiki_root)
+        repo.ensure_main()
+        if value not in rt.registry.scopes:
+            with repo.transaction(["schema/scopes.yaml"]):
+                SafeFS(repo.root).write(
+                    "schema/scopes.yaml", yaml_text([*rt.registry.scopes, value])
+                )
+                repo.commit(f"Add scope {value}", "cli", ["schema/scopes.yaml"])
+            rt.reindex()
+            rt.state.audit("cli", "scope.add", value)
+    typer.echo(value)
 
 
 @schema_commands.command("upgrade")

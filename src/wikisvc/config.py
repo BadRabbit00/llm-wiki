@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     max_upload_mb: int = Field(default=25, ge=1, le=1024)
     proposal_ttl_days: int = Field(default=14, ge=1)
     context_budget_default: int = Field(default=12000, ge=1, le=60000)
+    chars_per_token: float = Field(default=2.5, ge=1, le=10)
+    policy_category_order: str = (
+        "code-style,architecture,logging,errors,security,testing,stack,git,build-ci,docs,process"
+    )
     embeddings_enabled: bool = False
     embeddings_provider: str = "none"
     status_boost: str = "verified=1.2,draft=1.0,outdated=0.5"

@@ -40,6 +40,16 @@ def create_server(runtime: Runtime) -> FastMCP:
 
     @server.tool()
     @checked
+    def get_policies(
+        profile: str | None = None,
+        scopes: list[str] | None = None,
+        budget_tokens: int | None = None,
+    ) -> dict[str, Any]:
+        """Перед задачей получи компактные действующие правила проекта; подробности открывай по ID."""
+        return runtime.policies.compile(actor(), profile, scopes, budget_tokens)
+
+    @server.tool()
+    @checked
     def get_instructions() -> dict[str, str]:
         """Вызови до любой другой работы с вики: правила и сценарии ingest/query/lint/new-app."""
         actor()

@@ -93,6 +93,14 @@ class Lint:
                 for raw in self.rt.raw.records(actor, pending=True)
             )
         unique = {(value.code, value.page, value.message): value for value in issues}
+        for profile in self.rt.registry.profiles:
+            if self.rt.policies.compile(actor, profile=profile, count_usage=False)["over_budget"]:
+                problem = issue(
+                    "W_PROFILE_OVER_BUDGET",
+                    None,
+                    f"Обязательные правила профиля {profile} превышают бюджет.",
+                )
+                unique[(problem.code, problem.page, problem.message)] = problem
         return sorted(
             unique.values(),
             key=lambda item: (item.severity != "error", item.code, item.page or "", item.message),

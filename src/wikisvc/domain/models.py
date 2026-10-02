@@ -77,6 +77,12 @@ class Principal(BaseModel):
     name: str
     role: Role
     clearance: Sensitivity
+    person: str | None = None
+    kind: Literal["agent", "human"] = "agent"
+
+    @property
+    def identity(self) -> str:
+        return self.person or self.name
 
 
 class Proposal(BaseModel):

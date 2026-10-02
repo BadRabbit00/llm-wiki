@@ -65,7 +65,7 @@ def test_roundtrip(body: str) -> None:
     metadata = {"id": "term-test", "tags": ["тест"], "relations": {"related": ["term-other"]}}
     parsed, result = parse(render(metadata, body))
     assert parsed == metadata
-    assert result.strip() == body.strip()
+    assert result.strip() == body.replace("\r\n", "\n").strip()
 
 
 def test_all_paths(registry: Registry) -> None:

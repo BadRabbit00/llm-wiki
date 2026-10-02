@@ -242,6 +242,9 @@ class Indexer:
                 "INSERT OR REPLACE INTO meta VALUES ('index_commit',?)",
                 (GitRepo(self.root).head(),),
             )
+            db.execute(
+                "INSERT INTO meta VALUES ('generation','1') ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1"
+            )
         return issues
 
     @staticmethod

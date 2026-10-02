@@ -43,6 +43,10 @@ class StateDB:
             CREATE TABLE IF NOT EXISTS rate_limits (
                 name TEXT NOT NULL, minute INTEGER NOT NULL, count INTEGER NOT NULL,
                 PRIMARY KEY(name,minute));
+            CREATE TABLE IF NOT EXISTS rule_usage (
+                rule_id TEXT NOT NULL, day TEXT NOT NULL, delivered INTEGER NOT NULL DEFAULT 0,
+                opened INTEGER NOT NULL DEFAULT 0, violations INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(rule_id,day));
             """)
             if "last_editor" not in {row[1] for row in db.execute("PRAGMA table_info(proposals)")}:
                 db.execute("ALTER TABLE proposals ADD COLUMN last_editor TEXT")
@@ -80,3 +84,12 @@ class StateDB:
     def rows(self, sql: str, parameters: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
         with self.connect() as db:
             return [dict(row) for row in db.execute(sql, parameters)]
+
+    def usage(self, ids: list[str], field: str) -> None:
+        if field not in {"delivered", "opened", "violations"}:
+            raise ValueError("Invalid usage field")
+        with self.connect() as db:
+            db.executemany(
+                f"INSERT INTO rule_usage(rule_id,day,{field}) VALUES (?,?,1) ON CONFLICT(rule_id,day) DO UPDATE SET {field}={field}+1",
+                [(page_id, now()[:10]) for page_id in ids],
+            )

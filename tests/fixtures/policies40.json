@@ -1,0 +1,1191 @@
+[
+  {
+    "frontmatter": {
+      "id": "rule-policy-00",
+      "type": "rule",
+      "title": "Правило проекта 0",
+      "summary": "Соблюдай правило 0 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "must",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:python"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01",
+      "owner": "platform-lead",
+      "enforced_by": [
+        "tool:ruff"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-01",
+      "type": "rule",
+      "title": "Правило проекта 1",
+      "summary": "Соблюдай правило 1 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "must",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:python"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01",
+      "owner": "platform-lead"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-02",
+      "type": "rule",
+      "title": "Правило проекта 2",
+      "summary": "Соблюдай правило 2 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "must",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:python"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01",
+      "owner": "platform-lead"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-03",
+      "type": "rule",
+      "title": "Правило проекта 3",
+      "summary": "Соблюдай правило 3 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:python"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-04",
+      "type": "rule",
+      "title": "Правило проекта 4",
+      "summary": "Соблюдай правило 4 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:python"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-05",
+      "type": "rule",
+      "title": "Правило проекта 5",
+      "summary": "Соблюдай правило 5 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:python"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-06",
+      "type": "rule",
+      "title": "Правило проекта 6",
+      "summary": "Соблюдай правило 6 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:python"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01",
+      "enforced_by": [
+        "tool:ruff"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-07",
+      "type": "rule",
+      "title": "Правило проекта 7",
+      "summary": "Соблюдай правило 7 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:python"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-08",
+      "type": "rule",
+      "title": "Правило проекта 8",
+      "summary": "Соблюдай правило 8 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:python"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-09",
+      "type": "rule",
+      "title": "Правило проекта 9",
+      "summary": "Соблюдай правило 9 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "restricted",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:python"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-10",
+      "type": "rule",
+      "title": "Правило проекта 10",
+      "summary": "Соблюдай правило 10 для .NET и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:dotnet"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-11",
+      "type": "rule",
+      "title": "Правило проекта 11",
+      "summary": "Соблюдай правило 11 для .NET и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:dotnet"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-12",
+      "type": "rule",
+      "title": "Правило проекта 12",
+      "summary": "Соблюдай правило 12 для .NET и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:dotnet"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-13",
+      "type": "rule",
+      "title": "Правило проекта 13",
+      "summary": "Соблюдай правило 13 для .NET и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:dotnet"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-14",
+      "type": "rule",
+      "title": "Правило проекта 14",
+      "summary": "Соблюдай правило 14 для .NET и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:dotnet"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-15",
+      "type": "rule",
+      "title": "Правило проекта 15",
+      "summary": "Соблюдай правило 15 для .NET и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:dotnet"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-16",
+      "type": "rule",
+      "title": "Правило проекта 16",
+      "summary": "Соблюдай правило 16 для .NET и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:dotnet"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-17",
+      "type": "rule",
+      "title": "Правило проекта 17",
+      "summary": "Соблюдай правило 17 для .NET и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:dotnet"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-18",
+      "type": "rule",
+      "title": "Правило проекта 18",
+      "summary": "Соблюдай правило 18 для .NET и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:dotnet"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-19",
+      "type": "rule",
+      "title": "Правило проекта 19",
+      "summary": "Соблюдай правило 19 для .NET и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "lang:dotnet"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-20",
+      "type": "rule",
+      "title": "Правило проекта 20",
+      "summary": "Соблюдай правило 20 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-21",
+      "type": "rule",
+      "title": "Правило проекта 21",
+      "summary": "Соблюдай правило 21 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-22",
+      "type": "rule",
+      "title": "Правило проекта 22",
+      "summary": "Соблюдай правило 22 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-23",
+      "type": "rule",
+      "title": "Правило проекта 23",
+      "summary": "Соблюдай правило 23 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-24",
+      "type": "rule",
+      "title": "Правило проекта 24",
+      "summary": "Соблюдай правило 24 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "should",
+      "lifecycle": "active",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-25",
+      "type": "rule",
+      "title": "Правило проекта 25",
+      "summary": "Соблюдай правило 25 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "active",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-26",
+      "type": "rule",
+      "title": "Правило проекта 26",
+      "summary": "Соблюдай правило 26 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "active",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-27",
+      "type": "rule",
+      "title": "Правило проекта 27",
+      "summary": "Соблюдай правило 27 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "active",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-28",
+      "type": "rule",
+      "title": "Правило проекта 28",
+      "summary": "Соблюдай правило 28 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "active",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-29",
+      "type": "rule",
+      "title": "Правило проекта 29",
+      "summary": "Соблюдай правило 29 для Python и проверяй корректность результата.",
+      "status": "verified",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "active",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ],
+      "verified_by": "fixture",
+      "verified_at": "2026-01-01"
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-30",
+      "type": "rule",
+      "title": "Правило проекта 30",
+      "summary": "Соблюдай правило 30 для Python и проверяй корректность результата.",
+      "status": "draft",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "candidate",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-31",
+      "type": "rule",
+      "title": "Правило проекта 31",
+      "summary": "Соблюдай правило 31 для Python и проверяй корректность результата.",
+      "status": "draft",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "candidate",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-32",
+      "type": "rule",
+      "title": "Правило проекта 32",
+      "summary": "Соблюдай правило 32 для Python и проверяй корректность результата.",
+      "status": "draft",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "candidate",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-33",
+      "type": "rule",
+      "title": "Правило проекта 33",
+      "summary": "Соблюдай правило 33 для Python и проверяй корректность результата.",
+      "status": "draft",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "candidate",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-34",
+      "type": "rule",
+      "title": "Правило проекта 34",
+      "summary": "Соблюдай правило 34 для Python и проверяй корректность результата.",
+      "status": "draft",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "candidate",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-35",
+      "type": "rule",
+      "title": "Правило проекта 35",
+      "summary": "Соблюдай правило 35 для Python и проверяй корректность результата.",
+      "status": "draft",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "candidate",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-36",
+      "type": "rule",
+      "title": "Правило проекта 36",
+      "summary": "Соблюдай правило 36 для Python и проверяй корректность результата.",
+      "status": "draft",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "candidate",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-37",
+      "type": "rule",
+      "title": "Правило проекта 37",
+      "summary": "Соблюдай правило 37 для Python и проверяй корректность результата.",
+      "status": "draft",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "candidate",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-38",
+      "type": "rule",
+      "title": "Правило проекта 38",
+      "summary": "Соблюдай правило 38 для Python и проверяй корректность результата.",
+      "status": "draft",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "candidate",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  },
+  {
+    "frontmatter": {
+      "id": "rule-policy-39",
+      "type": "rule",
+      "title": "Правило проекта 39",
+      "summary": "Соблюдай правило 39 для Python и проверяй корректность результата.",
+      "status": "draft",
+      "sensitivity": "internal",
+      "created": "2026-01-01",
+      "updated": "2026-01-01",
+      "category": "code-style",
+      "level": "idea",
+      "lifecycle": "candidate",
+      "applies_to": [
+        "*"
+      ],
+      "origin": "team",
+      "priority": 3,
+      "aliases": [
+        "правило",
+        "rule"
+      ],
+      "sources": [
+        "src-example-1"
+      ]
+    },
+    "body_md": "## Правило\n\nПрименяй правило в проекте.\n\n## Обоснование\n\nСогласованная практика.\n\n## Примеры\n\nПример применения."
+  }
+]

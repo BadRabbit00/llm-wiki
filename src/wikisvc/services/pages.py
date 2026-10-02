@@ -13,6 +13,7 @@ from wikisvc.index.graph import Graph
 from wikisvc.index.indexer import row_page
 from wikisvc.services.auth import can_read
 from wikisvc.storage.gitrepo import GitRepo
+from wikisvc.storage.state_db import StateDB
 
 
 def paginate(
@@ -38,8 +39,8 @@ def paginate(
 
 
 class Pages:
-    def __init__(self, root: Path, db: IndexDB) -> None:
-        self.root, self.db = root, db
+    def __init__(self, root: Path, db: IndexDB, state: StateDB | None = None) -> None:
+        self.root, self.db, self.state = root, db, state
 
     def page(self, page_id: str, actor: Principal) -> Page:
         check_id(page_id)
@@ -76,6 +77,8 @@ class Pages:
         self, page_id: str, actor: Principal, include: str = "", format: str = "json"
     ) -> dict[str, Any] | str:
         page = self.page(page_id, actor)
+        if page.frontmatter.type == "rule" and actor.kind == "agent" and self.state:
+            self.state.usage([page_id], "opened")
         if format == "markdown":
             return render(page.frontmatter.model_dump(mode="json"), page.body_md)
         if format != "json":
