@@ -4,14 +4,17 @@ from wikisvc.domain.errors import WikiError
 from wikisvc.domain.markdown import sections
 from wikisvc.domain.models import Principal
 from wikisvc.index.db import IndexDB
-from wikisvc.index.graph import Graph
+from wikisvc.index.graph import Graph, GraphStore
 from wikisvc.services.pages import Pages
 from wikisvc.storage.state_db import now
 
 
 class Context:
-    def __init__(self, db: IndexDB, pages: Pages, priority: list[str]) -> None:
+    def __init__(
+        self, db: IndexDB, pages: Pages, priority: list[str], graph: GraphStore | None = None
+    ) -> None:
         self.db, self.pages, self.priority = db, pages, priority
+        self.graph = graph or Graph(db)
 
     def get(
         self,
@@ -24,7 +27,7 @@ class Context:
         if not 1 <= depth <= 3 or not 1 <= budget_chars <= 60000:
             raise WikiError("E_REQUEST_INVALID", "depth: 1–3; budget_chars: 1–60000.", status=400)
         root = self.pages.page(page_id, actor)
-        graph = Graph(self.db).neighbors(page_id, actor, depth, rels)
+        graph = self.graph.neighbors(page_id, actor, depth, rels)
 
         def order(node: dict[str, Any]) -> tuple[int, int, int, str]:
             rel_names = [edge["rel"] for edge in graph["edges"] if edge["dst"] == node["id"]]

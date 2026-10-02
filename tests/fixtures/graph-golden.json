@@ -1,0 +1,1382 @@
+{
+  "neighbors": {
+    "nodes": [
+      {
+        "id": "app-example-1",
+        "type": "app",
+        "title": "Приложение 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "verified",
+        "distance": 0
+      },
+      {
+        "id": "ent-example-1",
+        "type": "entity",
+        "title": "Сущность 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 1
+      },
+      {
+        "id": "proc-example-1",
+        "type": "process",
+        "title": "Бизнес-процесс 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 1
+      },
+      {
+        "id": "rule-stack-example-1",
+        "type": "rule",
+        "title": "Стек 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 1
+      },
+      {
+        "id": "src-example-1",
+        "type": "source",
+        "title": "Источник 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 1
+      },
+      {
+        "id": "sys-example-1",
+        "type": "system",
+        "title": "Система 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 1
+      },
+      {
+        "id": "adr-0001-example-1",
+        "type": "adr",
+        "title": "Решение 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "adr-0002-example-2",
+        "type": "adr",
+        "title": "Adr guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "app-example-2",
+        "type": "app",
+        "title": "App guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "verified",
+        "distance": 2
+      },
+      {
+        "id": "appdoc-example-1-notes",
+        "type": "app-doc",
+        "title": "Документ приложения 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "appdoc-example-2-notes",
+        "type": "app-doc",
+        "title": "App-Doc guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "ent-example-2",
+        "type": "entity",
+        "title": "Entity guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "les-example-1",
+        "type": "lesson",
+        "title": "Урок 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "les-example-2",
+        "type": "lesson",
+        "title": "Lesson guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "pat-example-1",
+        "type": "pattern",
+        "title": "Паттерн 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "pat-example-2",
+        "type": "pattern",
+        "title": "Pattern guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "pb-example-1",
+        "type": "playbook",
+        "title": "Сценарий 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "pb-example-2",
+        "type": "playbook",
+        "title": "Playbook guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "proc-example-2",
+        "type": "process",
+        "title": "Process guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "role-example-1",
+        "type": "role",
+        "title": "Роль 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "role-example-2",
+        "type": "role",
+        "title": "Role guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "rule-conv-example-1",
+        "type": "rule",
+        "title": "Соглашение 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "rule-conv-example-2",
+        "type": "rule",
+        "title": "Convention guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "rule-sec-example-1",
+        "type": "rule",
+        "title": "Безопасность 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "rule-sec-example-2",
+        "type": "rule",
+        "title": "Security guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "rule-stack-example-2",
+        "type": "rule",
+        "title": "Stack guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "rule-test-example-1",
+        "type": "rule",
+        "title": "Тестирование 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "rule-test-example-2",
+        "type": "rule",
+        "title": "Testing guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "sys-example-2",
+        "type": "system",
+        "title": "System guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "term-example-1",
+        "type": "term",
+        "title": "Термин 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 2
+      },
+      {
+        "id": "term-example-2",
+        "type": "term",
+        "title": "Term guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft",
+        "distance": 2
+      }
+    ],
+    "edges": [
+      {
+        "src": "adr-0001-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "adr-0002-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "ent-example-1",
+        "rel": "reads",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "proc-example-1",
+        "rel": "automates",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "rule-stack-example-1",
+        "rel": "governed_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "sys-example-1",
+        "rel": "depends_on",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "sys-example-1",
+        "rel": "integrates_with",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "ent-example-1",
+        "rel": "reads",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "proc-example-1",
+        "rel": "automates",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "rule-stack-example-1",
+        "rel": "governed_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "sys-example-1",
+        "rel": "depends_on",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "sys-example-1",
+        "rel": "integrates_with",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "appdoc-example-1-notes",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "appdoc-example-2-notes",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "ent-example-1",
+        "dst": "app-example-1",
+        "rel": "read_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "ent-example-1",
+        "dst": "app-example-2",
+        "rel": "read_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "ent-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "ent-example-1",
+        "dst": "sys-example-1",
+        "rel": "stored_in",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "ent-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "ent-example-2",
+        "dst": "sys-example-1",
+        "rel": "stored_in",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "les-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "les-example-1",
+        "dst": "sys-example-1",
+        "rel": "caused_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "les-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "les-example-2",
+        "dst": "sys-example-1",
+        "rel": "caused_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "pat-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "pat-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "pb-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "pb-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "app-example-1",
+        "rel": "automated_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "app-example-2",
+        "rel": "automated_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "role-example-1",
+        "rel": "has_participant",
+        "kind": "inverse"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "role-example-1",
+        "rel": "owned_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "role-example-2",
+        "rel": "has_participant",
+        "kind": "inverse"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "sys-example-1",
+        "rel": "depends_on",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "proc-example-2",
+        "dst": "role-example-1",
+        "rel": "owned_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "proc-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "proc-example-2",
+        "dst": "sys-example-1",
+        "rel": "depends_on",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "role-example-1",
+        "dst": "proc-example-1",
+        "rel": "owns",
+        "kind": "inverse"
+      },
+      {
+        "src": "role-example-1",
+        "dst": "proc-example-1",
+        "rel": "participates_in",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "role-example-1",
+        "dst": "proc-example-2",
+        "rel": "owns",
+        "kind": "inverse"
+      },
+      {
+        "src": "role-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "role-example-2",
+        "dst": "proc-example-1",
+        "rel": "participates_in",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "role-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-conv-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-conv-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-sec-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-sec-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-stack-example-1",
+        "dst": "app-example-1",
+        "rel": "governs",
+        "kind": "inverse"
+      },
+      {
+        "src": "rule-stack-example-1",
+        "dst": "app-example-2",
+        "rel": "governs",
+        "kind": "inverse"
+      },
+      {
+        "src": "rule-stack-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-stack-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-test-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-test-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "app-example-1",
+        "rel": "integrates_with",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "app-example-1",
+        "rel": "required_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "app-example-2",
+        "rel": "integrates_with",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "app-example-2",
+        "rel": "required_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "ent-example-1",
+        "rel": "stores",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "ent-example-2",
+        "rel": "stores",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "les-example-1",
+        "rel": "causes",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "les-example-2",
+        "rel": "causes",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "proc-example-1",
+        "rel": "required_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "proc-example-2",
+        "rel": "required_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "sys-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "term-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "term-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      }
+    ]
+  },
+  "out": {
+    "nodes": [
+      {
+        "id": "app-example-1",
+        "type": "app",
+        "title": "Приложение 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "verified",
+        "distance": 0
+      },
+      {
+        "id": "rule-stack-example-1",
+        "type": "rule",
+        "title": "Стек 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft",
+        "distance": 1
+      }
+    ],
+    "edges": [
+      {
+        "src": "app-example-1",
+        "dst": "rule-stack-example-1",
+        "rel": "governed_by",
+        "kind": "frontmatter"
+      }
+    ]
+  },
+  "path": {
+    "nodes": [
+      "app-example-1",
+      "sys-example-1"
+    ],
+    "edges": [
+      {
+        "src": "app-example-1",
+        "dst": "sys-example-1",
+        "rel": "depends_on",
+        "kind": "frontmatter"
+      }
+    ]
+  },
+  "export": {
+    "nodes": [
+      {
+        "id": "adr-0001-example-1",
+        "type": "adr",
+        "title": "Решение 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "adr-0002-example-2",
+        "type": "adr",
+        "title": "Adr guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "app-example-1",
+        "type": "app",
+        "title": "Приложение 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "verified"
+      },
+      {
+        "id": "app-example-2",
+        "type": "app",
+        "title": "App guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "verified"
+      },
+      {
+        "id": "appdoc-example-1-notes",
+        "type": "app-doc",
+        "title": "Документ приложения 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "appdoc-example-2-notes",
+        "type": "app-doc",
+        "title": "App-Doc guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "ent-example-1",
+        "type": "entity",
+        "title": "Сущность 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "ent-example-2",
+        "type": "entity",
+        "title": "Entity guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "les-example-1",
+        "type": "lesson",
+        "title": "Урок 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "les-example-2",
+        "type": "lesson",
+        "title": "Lesson guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "pat-example-1",
+        "type": "pattern",
+        "title": "Паттерн 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "pat-example-2",
+        "type": "pattern",
+        "title": "Pattern guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "pb-example-1",
+        "type": "playbook",
+        "title": "Сценарий 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "pb-example-2",
+        "type": "playbook",
+        "title": "Playbook guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "proc-example-1",
+        "type": "process",
+        "title": "Бизнес-процесс 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "proc-example-2",
+        "type": "process",
+        "title": "Process guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "role-example-1",
+        "type": "role",
+        "title": "Роль 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "role-example-2",
+        "type": "role",
+        "title": "Role guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "rule-conv-example-1",
+        "type": "rule",
+        "title": "Соглашение 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "rule-conv-example-2",
+        "type": "rule",
+        "title": "Convention guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "rule-sec-example-1",
+        "type": "rule",
+        "title": "Безопасность 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "rule-sec-example-2",
+        "type": "rule",
+        "title": "Security guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "rule-stack-example-1",
+        "type": "rule",
+        "title": "Стек 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "rule-stack-example-2",
+        "type": "rule",
+        "title": "Stack guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "rule-test-example-1",
+        "type": "rule",
+        "title": "Тестирование 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "rule-test-example-2",
+        "type": "rule",
+        "title": "Testing guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "src-example-1",
+        "type": "source",
+        "title": "Источник 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "src-example-2",
+        "type": "source",
+        "title": "Source guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "sys-example-1",
+        "type": "system",
+        "title": "Система 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "sys-example-2",
+        "type": "system",
+        "title": "System guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "term-broken",
+        "type": "term",
+        "title": "term-broken",
+        "summary": "Специальная страница для проверки ограничений доступа.",
+        "status": "draft"
+      },
+      {
+        "id": "term-example-1",
+        "type": "term",
+        "title": "Термин 1",
+        "summary": "Описание счетов, интеграций и правил работы компании.",
+        "status": "draft"
+      },
+      {
+        "id": "term-example-2",
+        "type": "term",
+        "title": "Term guide 2",
+        "summary": "Company invoice processing, engineering rules and knowledge.",
+        "status": "draft"
+      },
+      {
+        "id": "term-orphan",
+        "type": "term",
+        "title": "term-orphan",
+        "summary": "Специальная страница для проверки ограничений доступа.",
+        "status": "draft"
+      }
+    ],
+    "edges": [
+      {
+        "src": "adr-0001-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "adr-0002-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "ent-example-1",
+        "rel": "reads",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "proc-example-1",
+        "rel": "automates",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "rule-stack-example-1",
+        "rel": "governed_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "sys-example-1",
+        "rel": "depends_on",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-1",
+        "dst": "sys-example-1",
+        "rel": "integrates_with",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "ent-example-1",
+        "rel": "reads",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "proc-example-1",
+        "rel": "automates",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "rule-stack-example-1",
+        "rel": "governed_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "sys-example-1",
+        "rel": "depends_on",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "app-example-2",
+        "dst": "sys-example-1",
+        "rel": "integrates_with",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "appdoc-example-1-notes",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "appdoc-example-2-notes",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "ent-example-1",
+        "dst": "app-example-1",
+        "rel": "read_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "ent-example-1",
+        "dst": "app-example-2",
+        "rel": "read_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "ent-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "ent-example-1",
+        "dst": "sys-example-1",
+        "rel": "stored_in",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "ent-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "ent-example-2",
+        "dst": "sys-example-1",
+        "rel": "stored_in",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "les-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "les-example-1",
+        "dst": "sys-example-1",
+        "rel": "caused_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "les-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "les-example-2",
+        "dst": "sys-example-1",
+        "rel": "caused_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "pat-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "pat-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "pb-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "pb-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "app-example-1",
+        "rel": "automated_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "app-example-2",
+        "rel": "automated_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "role-example-1",
+        "rel": "has_participant",
+        "kind": "inverse"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "role-example-1",
+        "rel": "owned_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "role-example-2",
+        "rel": "has_participant",
+        "kind": "inverse"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "proc-example-1",
+        "dst": "sys-example-1",
+        "rel": "depends_on",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "proc-example-2",
+        "dst": "role-example-1",
+        "rel": "owned_by",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "proc-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "proc-example-2",
+        "dst": "sys-example-1",
+        "rel": "depends_on",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "role-example-1",
+        "dst": "proc-example-1",
+        "rel": "owns",
+        "kind": "inverse"
+      },
+      {
+        "src": "role-example-1",
+        "dst": "proc-example-1",
+        "rel": "participates_in",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "role-example-1",
+        "dst": "proc-example-2",
+        "rel": "owns",
+        "kind": "inverse"
+      },
+      {
+        "src": "role-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "role-example-2",
+        "dst": "proc-example-1",
+        "rel": "participates_in",
+        "kind": "frontmatter"
+      },
+      {
+        "src": "role-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-conv-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-conv-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-sec-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-sec-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-stack-example-1",
+        "dst": "app-example-1",
+        "rel": "governs",
+        "kind": "inverse"
+      },
+      {
+        "src": "rule-stack-example-1",
+        "dst": "app-example-2",
+        "rel": "governs",
+        "kind": "inverse"
+      },
+      {
+        "src": "rule-stack-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-stack-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-test-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "rule-test-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "app-example-1",
+        "rel": "integrates_with",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "app-example-1",
+        "rel": "required_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "app-example-2",
+        "rel": "integrates_with",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "app-example-2",
+        "rel": "required_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "ent-example-1",
+        "rel": "stores",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "ent-example-2",
+        "rel": "stores",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "les-example-1",
+        "rel": "causes",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "les-example-2",
+        "rel": "causes",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "proc-example-1",
+        "rel": "required_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "proc-example-2",
+        "rel": "required_by",
+        "kind": "inverse"
+      },
+      {
+        "src": "sys-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "sys-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "term-example-1",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      },
+      {
+        "src": "term-example-2",
+        "dst": "src-example-1",
+        "rel": "cites",
+        "kind": "citation"
+      }
+    ]
+  }
+}

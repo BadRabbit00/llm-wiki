@@ -50,6 +50,24 @@ def create_server(runtime: Runtime) -> FastMCP:
 
     @server.tool()
     @checked
+    def get_rule(id: str) -> dict[str, Any]:
+        """Прочитай правило и краткие тезисы связанных правил (до 600 токенов)."""
+        return runtime.rules.get(id, actor())
+
+    @server.tool()
+    @checked
+    def rules_related(q: str, scopes: list[str] | None = None, limit: int = 10) -> dict[str, Any]:
+        """Подбери действующие, снятые и кандидатные правила и затронутые страницы."""
+        return runtime.rules.related(q, actor(), scopes, limit)
+
+    @server.tool()
+    @checked
+    def graph_impact(id: str, depth: int = 2, rels: list[str] | None = None) -> dict[str, Any]:
+        """Найди страницы, зависящие от правила, с расстоянием и связью."""
+        return runtime.graph.impact(id, actor(), depth, rels)
+
+    @server.tool()
+    @checked
     def get_instructions() -> dict[str, str]:
         """Вызови до любой другой работы с вики: правила и сценарии ingest/query/lint/new-app."""
         actor()
@@ -64,10 +82,18 @@ def create_server(runtime: Runtime) -> FastMCP:
         status: str | None = None,
         k: int = 10,
         expand: bool = False,
+        lifecycle: list[str] | None = None,
     ) -> dict[str, Any]:
         """Найди страницы по русским/английским словам, фразам и префиксам; expand добавляет соседей графа."""
         return runtime.search.search(
-            q, actor(), type_name=type, tag=tag, status=status, k=k, expand=expand
+            q,
+            actor(),
+            type_name=type,
+            tag=tag,
+            status=status,
+            k=k,
+            expand=expand,
+            lifecycle=lifecycle,
         )
 
     @server.tool()

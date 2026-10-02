@@ -9,7 +9,7 @@ from wikisvc.domain.markdown import render
 from wikisvc.domain.models import Page, Principal
 from wikisvc.domain.validate import parse_page
 from wikisvc.index.db import IndexDB
-from wikisvc.index.graph import Graph
+from wikisvc.index.graph import Graph, GraphStore
 from wikisvc.index.indexer import row_page
 from wikisvc.services.auth import can_read
 from wikisvc.storage.gitrepo import GitRepo
@@ -39,8 +39,11 @@ def paginate(
 
 
 class Pages:
-    def __init__(self, root: Path, db: IndexDB, state: StateDB | None = None) -> None:
+    def __init__(
+        self, root: Path, db: IndexDB, state: StateDB | None = None, graph: GraphStore | None = None
+    ) -> None:
         self.root, self.db, self.state = root, db, state
+        self.graph = graph or Graph(db)
 
     def page(self, page_id: str, actor: Principal) -> Page:
         check_id(page_id)
@@ -59,7 +62,13 @@ class Pages:
         q_title: str | None = None,
         limit: int = 50,
         cursor: str | None = None,
+        lifecycle: list[str] | None = None,
     ) -> dict[str, Any]:
+        import json
+
+        from wikisvc.index.search import lifecycles
+
+        allowed_lifecycle = lifecycles(lifecycle)
         with self.db.connect() as db:
             rows = db.execute(
                 "SELECT * FROM pages WHERE (? IS NULL OR type=?) AND (? IS NULL OR status=?) AND (? IS NULL OR EXISTS (SELECT 1 FROM json_each(pages.tags) WHERE value=?)) ORDER BY id",
@@ -69,6 +78,10 @@ class Pages:
             {key: row[key] for key in ("id", "type", "title", "summary", "status", "updated")}
             for row in rows
             if can_read(actor, row["sensitivity"])
+            and (
+                row["type"] != "rule"
+                or json.loads(row["extra"]).get("lifecycle") in allowed_lifecycle
+            )
             and (not q_title or q_title.casefold() in row["title"].casefold())
         ]
         return paginate(result, limit, cursor)
@@ -90,7 +103,7 @@ class Pages:
                 "E_REQUEST_INVALID", "include: backlinks,neighbors,history.", status=400
             )
         if options & {"backlinks", "neighbors"}:
-            graph = Graph(self.db).neighbors(page_id, actor)
+            graph = self.graph.neighbors(page_id, actor)
             if "neighbors" in options:
                 result["neighbors"] = graph
             if "backlinks" in options:

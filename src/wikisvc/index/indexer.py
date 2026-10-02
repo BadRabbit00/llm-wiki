@@ -12,7 +12,7 @@ from wikisvc.domain.models import Edge, Frontmatter, LintIssue, Page
 from wikisvc.domain.registry import Registry
 from wikisvc.domain.validate import ValidationCache, issue, parse_page, validate_set
 from wikisvc.index.db import IndexDB
-from wikisvc.index.normalize import normalize
+from wikisvc.index.normalize import expand_synonyms, normalize
 from wikisvc.storage.gitrepo import GitRepo
 from wikisvc.storage.safefs import SafeFS
 
@@ -115,16 +115,12 @@ class Indexer:
         issues = failures + validate_set(all_pages, self.registry, self.validation)
         with self.db.connect() as db:
             if selected is None:
-                for table in ("chunks_fts", "embeddings", "chunks", "pages"):
+                for table in ("chunks_fts", "chunks", "pages"):
                     db.execute(f"DELETE FROM {table}")
             else:
                 for path in selected:
                     db.execute(
                         "DELETE FROM chunks_fts WHERE rowid IN (SELECT chunk_id FROM chunks JOIN pages ON pages.id=chunks.page_id WHERE pages.path=?)",
-                        (path,),
-                    )
-                    db.execute(
-                        "DELETE FROM embeddings WHERE chunk_id IN (SELECT chunk_id FROM chunks JOIN pages ON pages.id=chunks.page_id WHERE pages.path=?)",
                         (path,),
                     )
                     db.execute("DELETE FROM pages WHERE path=?", (path,))
@@ -166,9 +162,12 @@ class Indexer:
                         "INSERT INTO chunks_fts(rowid,title,heading,text) VALUES (?,?,?,?)",
                         (
                             cursor.lastrowid,
-                            normalize(" ".join([fm.title, *fm.aliases])),
-                            normalize(heading),
-                            normalize(text),
+                            expand_synonyms(
+                                normalize(" ".join([fm.title, fm.summary, *fm.aliases])),
+                                self.registry.synonyms,
+                            ),
+                            expand_synonyms(normalize(heading), self.registry.synonyms),
+                            expand_synonyms(normalize(text), self.registry.synonyms),
                         ),
                     )
             if selected is None:

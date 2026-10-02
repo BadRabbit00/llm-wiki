@@ -22,8 +22,6 @@ class Settings(BaseSettings):
     policy_category_order: str = (
         "code-style,architecture,logging,errors,security,testing,stack,git,build-ci,docs,process"
     )
-    embeddings_enabled: bool = False
-    embeddings_provider: str = "none"
     status_boost: str = "verified=1.2,draft=1.0,outdated=0.5"
     relation_priority: str = "governed_by,depends_on,uses,reads,writes,automates"
     allowed_raw_ext: str = "pdf,docx,xlsx,md,txt,csv,json,yaml,yml,png,jpg,jpeg"

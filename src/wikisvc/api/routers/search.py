@@ -17,10 +17,22 @@ def search(
     status: str | None = None,
     sensitivity: str | None = None,
     k: int = 10,
-    mode: str = "hybrid",
+    mode: str = "bm25",
     expand: bool = False,
+    lifecycle: str | None = None,
 ) -> dict[str, Any]:
-    return services.search.search(q, actor, type, tag, status, sensitivity, k, mode, expand)
+    return services.search.search(
+        q,
+        actor,
+        type,
+        tag,
+        status,
+        sensitivity,
+        k,
+        mode,
+        expand,
+        lifecycle.split(",") if lifecycle else None,
+    )
 
 
 @router.get("/context/{page_id}")

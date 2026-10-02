@@ -93,6 +93,11 @@ def diff(pid: str, services: Services, actor: Reader) -> dict[str, Any]:
     return services.proposals.diff(pid, actor)
 
 
+@router.get("/{pid}/impact")
+def impact(pid: str, services: Services, actor: Reader) -> dict[str, Any]:
+    return services.rules.proposal_impact(pid, actor)
+
+
 @router.post("/{pid}/submit")
 def submit(pid: str, services: Services, actor: Writer) -> dict[str, Any]:
     return services.proposals.submit(pid, actor)

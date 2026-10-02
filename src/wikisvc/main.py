@@ -12,7 +12,18 @@ from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from wikisvc import __version__
-from wikisvc.api.routers import admin, graph, lint, pages, policies, proposals, raw, schema, search
+from wikisvc.api.routers import (
+    admin,
+    graph,
+    lint,
+    pages,
+    policies,
+    proposals,
+    raw,
+    rules,
+    schema,
+    search,
+)
 from wikisvc.config import Settings
 from wikisvc.domain.errors import WikiError
 from wikisvc.services.runtime import Runtime
@@ -183,6 +194,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     for router in (
         policies.router,
+        rules.router,
         pages.router,
         search.router,
         graph.router,

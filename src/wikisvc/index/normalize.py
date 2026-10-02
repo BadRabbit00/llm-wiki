@@ -1,4 +1,6 @@
 import re
+from functools import lru_cache
+from pathlib import Path
 
 import Stemmer
 
@@ -12,7 +14,22 @@ def normalize(text: str) -> str:
     return " ".join(str((ru if re.search("[а-я]", word) else en).stemWord(word)) for word in words)
 
 
-def match_query(query: str) -> str:
+@lru_cache(maxsize=1)
+def stopwords() -> set[str]:
+    return set(normalize(Path(__file__).with_name("stopwords.txt").read_text()).split())
+
+
+def expand_synonyms(text: str, synonyms: list[list[str]]) -> str:
+    words = set(text.split())
+    additions = set()
+    for group in synonyms:
+        normalized = {normalize(value) for value in group}
+        if words & normalized:
+            additions.update(normalized - words)
+    return text + (" " + " ".join(sorted(additions)) if additions else "")
+
+
+def match_query(query: str, synonyms: list[list[str]] | None = None, operator: str = "AND") -> str:
     terms: list[str] = []
     for match in re.finditer(r'"([^"\n]+)"|(\S+)', query):
         phrase, word = match.groups()
@@ -23,9 +40,22 @@ def match_query(query: str) -> str:
         if phrase:
             terms.append('"' + normalized + '"')
         else:
-            words = normalized.split()
+            words = [word for word in normalized.split() if word not in stopwords()]
             terms.extend(
-                '"' + value + '"' + ("*" if raw.endswith("*") and pos == len(words) - 1 else "")
+                "("
+                + " OR ".join(
+                    '"'
+                    + synonym
+                    + '"'
+                    + ("*" if raw.endswith("*") and pos == len(words) - 1 else "")
+                    for synonym in expand_synonyms(value, synonyms or []).split()
+                )
+                + ")"
+                if synonyms
+                else '"'
+                + value
+                + '"'
+                + ("*" if raw.endswith("*") and pos == len(words) - 1 else "")
                 for pos, value in enumerate(words)
             )
-    return " AND ".join(terms)
+    return (" OR " if operator == "OR" else " AND ").join(terms)

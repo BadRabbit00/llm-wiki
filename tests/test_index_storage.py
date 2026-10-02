@@ -23,7 +23,7 @@ def test_normalizer_and_query() -> None:
     assert normalize("Выгрузки счетов") == normalize("выгрузка счёта")
     assert normalize("running exports") == normalize("run export")
     assert match_query('"выгрузки счетов" банк*') == '"выгрузк счет" AND "банк"*'
-    assert match_query('" OR * : ; --') == '"or"'
+    assert match_query('" OR * : ; --') == ""
     assert match_query("   ") == ""
 
 

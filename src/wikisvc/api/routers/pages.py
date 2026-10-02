@@ -36,8 +36,18 @@ def list_pages(
     q_title: str | None = None,
     limit: int = 50,
     cursor: str | None = None,
+    lifecycle: str | None = None,
 ) -> dict[str, Any]:
-    return services.pages.list_pages(actor, type, status, tag, q_title, limit, cursor)
+    return services.pages.list_pages(
+        actor,
+        type,
+        status,
+        tag,
+        q_title,
+        limit,
+        cursor,
+        lifecycle.split(",") if lifecycle else None,
+    )
 
 
 @router.get("/pages/{page_id}")
