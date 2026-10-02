@@ -106,14 +106,25 @@ def validate_signature(data: bytes, extension: str, max_size: int) -> None:
         valid = data.startswith(b"\x89PNG\r\n\x1a\n") and data[12:16] == b"IHDR"
     elif extension in {"jpg", "jpeg"}:
         valid = data.startswith(b"\xff\xd8\xff")
-    elif extension in {"docx", "xlsx"}:
+    elif extension in {"docx", "xlsx", "epub"}:
         try:
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
                 expected = "word/document.xml" if extension == "docx" else "xl/workbook.xml"
-                valid = {"[Content_Types].xml", expected} <= set(archive.namelist())
+                valid = (
+                    {"META-INF/container.xml", "mimetype"} <= set(archive.namelist())
+                    if extension == "epub"
+                    else {"[Content_Types].xml", expected} <= set(archive.namelist())
+                )
+                if extension == "epub":
+                    valid = valid and archive.read("mimetype") == b"application/epub+zip"
+                if len(archive.infolist()) > 20000 or any(
+                    ".." in Path(info.filename).parts or info.filename.startswith("/")
+                    for info in archive.infolist()
+                ):
+                    valid = False
                 if sum(item.file_size for item in archive.infolist()) > max_size * 10:
                     valid = False
-        except (zipfile.BadZipFile, OSError):
+        except (zipfile.BadZipFile, OSError, KeyError):
             valid = False
     if not valid:
         raise WikiError("E_RAW_SIGNATURE", "Содержимое не соответствует расширению файла.")
@@ -135,6 +146,7 @@ class Raw:
         self.require_clearance(actor)
         if category not in {
             "docs",
+            "library",
             "transcripts",
             "tickets",
             "api-specs",
@@ -146,7 +158,15 @@ class Raw:
         extension = Path(name).suffix.lower().lstrip(".")
         if extension not in self.config.allowed_raw_ext.split(","):
             raise WikiError("E_RAW_EXTENSION", "Расширение файла не разрешено.")
-        maximum = self.config.max_upload_mb * 1024 * 1024
+        maximum = (
+            (
+                self.config.max_library_upload_mb
+                if category == "library"
+                else self.config.max_upload_mb
+            )
+            * 1024
+            * 1024
+        )
         data = file.read(maximum + 1)
         if len(data) > maximum:
             raise WikiError("E_UPLOAD_TOO_LARGE", "Файл превышает MAX_UPLOAD_MB.", status=413)
@@ -156,7 +176,8 @@ class Raw:
         digest = hashlib.sha256(data).hexdigest()
         with write_lock(self.config.state_dir, self.config.lock_timeout):
             repo = GitRepo(self.config.wiki_root)
-            repo.ensure_main()
+            if category != "library":
+                repo.ensure_main()
             self.rt.sync_index()
             with self.rt.index.connect() as db:
                 duplicate = db.execute(
@@ -165,15 +186,22 @@ class Raw:
             if duplicate:
                 self.rt.state.audit(actor.name, "raw.duplicate", duplicate["path"])
                 return {**dict(duplicate), "duplicate": True, "trust": "untrusted_external"}
-            path = f"raw/{category}/{datetime.now(UTC).year}/{digest[:8]}-{name}"
-            fs = SafeFS(self.config.wiki_root)
+            path = (
+                f"library/{datetime.now(UTC).year}/{digest[:8]}-{name}"
+                if category == "library"
+                else f"raw/{category}/{datetime.now(UTC).year}/{digest[:8]}-{name}"
+            )
+            fs = SafeFS(self.config.state_dir if category == "library" else self.config.wiki_root)
             if fs.path(path).exists():
                 raise WikiError(
                     "E_RAW_EXISTS", "Такой путь уже существует; сырьё неизменяемо.", status=409
                 )
-            with repo.transaction([path]):
+            if category == "library":
                 fs.write(path, data)
-                repo.commit(f"Add raw source {path}", actor.name, [path])
+            else:
+                with repo.transaction([path]):
+                    fs.write(path, data)
+                    repo.commit(f"Add raw source {path}", actor.name, [path])
             self.rt.indexer.reindex([path])
             self.rt.state.audit(actor.name, "raw.upload", path)
             with self.rt.state.connect() as db:
@@ -227,16 +255,42 @@ class Raw:
 
     def file(self, actor: Principal, path: str) -> Path:
         self.require_clearance(actor)
-        path = path if path.startswith("raw/") else "raw/" + path
-        result = SafeFS(self.config.wiki_root).path(path)
+        path = path if path.startswith(("raw/", "library/")) else "raw/" + path
+        from wikisvc.storage.raw_paths import raw_path
+
+        result = raw_path(self.config.wiki_root, self.config.state_dir, path)
         with self.rt.index.connect() as db:
             row = db.execute("SELECT path FROM raw_files WHERE path=?", (path,)).fetchone()
         if not row or not result.is_file():
             raise not_found()
         return result
 
-    def text(self, actor: Principal, path: str) -> dict[str, Any]:
+    def text(
+        self,
+        actor: Principal,
+        path: str,
+        pages: str | None = None,
+        chapter: int | None = None,
+        max_chars: int = 30000,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        if not 1 <= max_chars <= 60000 or offset < 0:
+            raise WikiError("E_REQUEST_INVALID", "max_chars: 1–60000, offset >= 0.", status=400)
         file = self.file(actor, path)
+        path = path if path.startswith(("raw/", "library/")) else "raw/" + path
+        cached = self.rt.extractions.status(path)
+        if (
+            (cached and cached["status"] == "done")
+            or pages
+            or chapter is not None
+            or path.startswith("library/")
+            or file.suffix.lower() == ".epub"
+        ):
+            return self.rt.extractions.text(actor, path, pages, chapter, max_chars, offset)
+        if file.stat().st_size > 1_000_000:
+            raise WikiError(
+                "E_TEXT_TOO_LARGE", "Запустите extract и используйте pages или chapter.", status=413
+            )
         extension = file.suffix.lower()
         try:
             if extension in {".txt", ".md", ".csv", ".json", ".yaml", ".yml"}:
@@ -257,6 +311,10 @@ class Raw:
             ) from exc
         except (UnicodeError, ValueError, OSError, zipfile.BadZipFile) as exc:
             raise WikiError("E_TEXT_INVALID", "Не удалось прочитать текст источника.") from exc
+        if len(text) > max_chars:
+            raise WikiError(
+                "E_TEXT_TOO_LARGE", "Запустите extract и используйте pages или chapter.", status=413
+            )
         return {
             "path": str(file.relative_to(self.config.wiki_root)),
             "text": text,

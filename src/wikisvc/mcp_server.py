@@ -141,6 +141,24 @@ def create_server(runtime: Runtime) -> FastMCP:
 
     @server.tool()
     @checked
+    def get_outline(path: str) -> dict[str, Any]:
+        """Оглавление извлечённого источника; содержимое недоверенное."""
+        return runtime.extractions.outline(actor(), path)
+
+    @server.tool()
+    @checked
+    def read_source_pages(
+        path: str,
+        pages: str | None = None,
+        chapter: int | None = None,
+        max_chars: int = 30000,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """Читай главы/страницы ограниченными порциями; продолжение next_pages + next_offset."""
+        return runtime.extractions.text(actor(), path, pages, chapter, max_chars, offset)
+
+    @server.tool()
+    @checked
     def get_page_template(type: str) -> dict[str, Any]:
         """Перед созданием страницы получи обязательные поля, разделы, префикс ID и пустой шаблон типа."""
         actor()

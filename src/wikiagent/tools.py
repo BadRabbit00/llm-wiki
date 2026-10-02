@@ -23,8 +23,8 @@ def execute(client: WikiClient, mode: str, name: str, arguments: dict[str, Any])
         raise WikiError("E_AGENT_TOOL_ARGUMENTS", "Некорректные аргументы инструмента.")
     values = {key: arguments[key] for key in paths}
     if any(
-        not isinstance(v, str) or "/" in v or ".." in v or "?" in v or "%" in v
-        for v in values.values()
+        not isinstance(v, str) or ("/" in v and key != "path") or ".." in v or "?" in v or "%" in v
+        for key, v in values.items()
     ):
         raise WikiError("E_AGENT_TOOL_ARGUMENTS", "Некорректный идентификатор.")
     options: dict[str, Any] = {}

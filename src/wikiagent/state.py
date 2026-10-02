@@ -81,12 +81,13 @@ class AgentState:
     ) -> None:
         with self.connect() as db:
             db.execute(
-                "UPDATE jobs SET status=?,progress=COALESCE(?,progress),error=?,updated_at=? WHERE id=?",
+                "UPDATE jobs SET status=?,progress=COALESCE(?,progress),error=?,updated_at=? WHERE id=? AND (status!='cancelled' OR ?='pending')",
                 (
                     status,
                     json.dumps(progress) if progress is not None else None,
                     error,
                     now(),
                     job_id,
+                    status,
                 ),
             )

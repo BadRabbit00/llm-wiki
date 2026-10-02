@@ -11,6 +11,14 @@ CONTRACTS: dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], tuple[str
         ("q", "type", "tag", "status", "k", "expand", "lifecycle"),
         (),
     ),
+    "get_outline": ("GET", "/raw/{path}/outline", ("path",), (), ()),
+    "read_source_pages": (
+        "GET",
+        "/raw/{path}/text",
+        ("path",),
+        ("pages", "chapter", "max_chars", "offset"),
+        (),
+    ),
     "get_page": ("GET", "/pages/{id}", ("id",), ("include",), ()),
     "get_rule": ("GET", "/rules/{id}", ("id",), (), ()),
     "get_context": ("GET", "/context/{id}", ("id",), ("depth", "rels", "budget_chars"), ()),
@@ -67,7 +75,17 @@ def definitions(mode: str) -> list[dict[str, Any]]:
         for key in (*paths, *query, *body):
             properties[key] = (
                 {"type": "integer"}
-                if key in ("k", "depth", "limit", "budget_chars", "budget_tokens")
+                if key
+                in (
+                    "k",
+                    "depth",
+                    "limit",
+                    "budget_chars",
+                    "budget_tokens",
+                    "chapter",
+                    "max_chars",
+                    "offset",
+                )
                 else {"type": "boolean"}
                 if key in ("explain", "expand")
                 else {"type": "object", "additionalProperties": True}

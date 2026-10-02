@@ -36,6 +36,7 @@ class Lint:
                 for row in db.execute("SELECT * FROM issues ORDER BY page,data")
                 if row["page"] in pages or actor.clearance == "restricted"
             ]
+        issues.extend(self.rt.extractions.citation_issues(list(pages.values())))
         all_edges = [edge for page in pages.values() for edge in edges(page) if edge.dst in pages]
         linked = {
             page_id

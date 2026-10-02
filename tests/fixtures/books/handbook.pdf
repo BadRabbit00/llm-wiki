@@ -1,0 +1,258 @@
+%PDF-1.3
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 6
+/Kids [ 4 0 R 9 0 R 11 0 R 15 0 R 17 0 R 21 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+/Outlines 8 0 R
+>>
+endobj
+4 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 <<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+>>
+>>
+/MediaBox [ 0.0 0.0 600 800 ]
+/Parent 2 0 R
+/Contents 5 0 R
+>>
+endobj
+5 0 obj
+<<
+/Length 168
+>>
+stream
+BT /F1 12 Tf 16 TL 50 750 Td (Sample handbook) Tj T* (Chapter 1) Tj T* (Use structured logs for every operation.) Tj T* (Original explanation number 1.) Tj T* (1) Tj ET
+endstream
+endobj
+6 0 obj
+<<
+/D [ 4 0 R /Fit ]
+/S /GoTo
+>>
+endobj
+7 0 obj
+<<
+/A 6 0 R
+/Title (Chapter 1)
+/Parent 8 0 R
+/Count 0
+/Next 14 0 R
+>>
+endobj
+8 0 obj
+<<
+/First 7 0 R
+/Count 3
+/Last 20 0 R
+>>
+endobj
+9 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 <<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+>>
+>>
+/MediaBox [ 0.0 0.0 600 800 ]
+/Parent 2 0 R
+/Contents 10 0 R
+>>
+endobj
+10 0 obj
+<<
+/Length 168
+>>
+stream
+BT /F1 12 Tf 16 TL 50 750 Td (Sample handbook) Tj T* (Example 2) Tj T* (Use structured logs for every operation.) Tj T* (Original explanation number 2.) Tj T* (2) Tj ET
+endstream
+endobj
+11 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 <<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+>>
+>>
+/MediaBox [ 0.0 0.0 600 800 ]
+/Parent 2 0 R
+/Contents 12 0 R
+>>
+endobj
+12 0 obj
+<<
+/Length 176
+>>
+stream
+BT /F1 12 Tf 16 TL 50 750 Td (Sample handbook) Tj T* (Chapter 2) Tj T* (Use asynchronous HTTP clients in async handlers.) Tj T* (Original explanation number 3.) Tj T* (3) Tj ET
+endstream
+endobj
+13 0 obj
+<<
+/D [ 11 0 R /Fit ]
+/S /GoTo
+>>
+endobj
+14 0 obj
+<<
+/A 13 0 R
+/Title (Chapter 2)
+/Prev 7 0 R
+/Parent 8 0 R
+/Count 0
+/Next 20 0 R
+>>
+endobj
+15 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 <<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+>>
+>>
+/MediaBox [ 0.0 0.0 600 800 ]
+/Parent 2 0 R
+/Contents 16 0 R
+>>
+endobj
+16 0 obj
+<<
+/Length 176
+>>
+stream
+BT /F1 12 Tf 16 TL 50 750 Td (Sample handbook) Tj T* (Example 4) Tj T* (Use asynchronous HTTP clients in async handlers.) Tj T* (Original explanation number 4.) Tj T* (4) Tj ET
+endstream
+endobj
+17 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 <<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+>>
+>>
+/MediaBox [ 0.0 0.0 600 800 ]
+/Parent 2 0 R
+/Contents 18 0 R
+>>
+endobj
+18 0 obj
+<<
+/Length 171
+>>
+stream
+BT /F1 12 Tf 16 TL 50 750 Td (Sample handbook) Tj T* (Chapter 3) Tj T* (Keep type hints on public Python functions.) Tj T* (Original explanation number 5.) Tj T* (5) Tj ET
+endstream
+endobj
+19 0 obj
+<<
+/D [ 17 0 R /Fit ]
+/S /GoTo
+>>
+endobj
+20 0 obj
+<<
+/A 19 0 R
+/Title (Chapter 3)
+/Prev 14 0 R
+/Parent 8 0 R
+/Count 0
+>>
+endobj
+21 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 <<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+>>
+>>
+/MediaBox [ 0.0 0.0 600 800 ]
+/Parent 2 0 R
+/Contents 22 0 R
+>>
+endobj
+22 0 obj
+<<
+/Length 171
+>>
+stream
+BT /F1 12 Tf 16 TL 50 750 Td (Sample handbook) Tj T* (Example 6) Tj T* (Keep type hints on public Python functions.) Tj T* (Original explanation number 6.) Tj T* (6) Tj ET
+endstream
+endobj
+xref
+0 23
+0000000000 65535 f 
+0000000015 00000 n 
+0000000054 00000 n 
+0000000147 00000 n 
+0000000212 00000 n 
+0000000393 00000 n 
+0000000612 00000 n 
+0000000660 00000 n 
+0000000745 00000 n 
+0000000801 00000 n 
+0000000983 00000 n 
+0000001203 00000 n 
+0000001386 00000 n 
+0000001614 00000 n 
+0000001664 00000 n 
+0000001763 00000 n 
+0000001946 00000 n 
+0000002174 00000 n 
+0000002357 00000 n 
+0000002580 00000 n 
+0000002630 00000 n 
+0000002717 00000 n 
+0000002900 00000 n 
+trailer
+<<
+/Size 23
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+3123
+%%EOF

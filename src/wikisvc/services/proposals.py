@@ -294,9 +294,11 @@ class Proposals:
             return
         extra = page.frontmatter.model_extra or {}
         path = extra.get("raw_path", "")
-        if not isinstance(path, str) or not path.startswith("raw/"):
-            raise WikiError("E_PATH_UNSAFE", "raw_path должен находиться в raw/.")
-        file = SafeFS(self.config.wiki_root).path(path)
+        if not isinstance(path, str) or not path.startswith(("raw/", "library/")):
+            raise WikiError("E_PATH_UNSAFE", "raw_path должен находиться в raw/ или library/.")
+        from wikisvc.storage.raw_paths import raw_path
+
+        file = raw_path(self.config.wiki_root, self.config.state_dir, path)
         with self.rt.index.connect() as db:
             row = db.execute("SELECT sha256 FROM raw_files WHERE path=?", (path,)).fetchone()
         if not file.is_file() or not row or row[0] != extra.get("raw_sha256"):
@@ -375,6 +377,8 @@ class Proposals:
             ):
                 raise not_found()
         self._source(page)
+        overlay[page.id] = page
+        require_valid(self.rt.extractions.citation_issues(list(overlay.values()), {page.id}))
         fs = SafeFS(self.worktree(proposal.pid))
         if fs.path(page.path).exists() and parse_page(fs.read(page.path)).id != page.id:
             raise WikiError("E_ID_DUPLICATE", "Путь занят другой страницей.")
@@ -489,6 +493,9 @@ class Proposals:
             if i.severity == "error"
             and (i.page in changed or (i.code, i.page, i.message) not in baseline)
         ]
+        citation_problems = self.rt.extractions.citation_issues(self._overlay(proposal))
+        errors.extend(i for i in citation_problems if i.severity == "error" and i.page in changed)
+        issues.extend(citation_problems)
         warnings = [i for i in issues if i.severity == "warning" and i.page in changed]
         for _, page in self._changes(proposal):
             if page:
@@ -730,6 +737,13 @@ class Proposals:
                         and (problem.code, problem.page, problem.message) not in prior_errors
                     ]
                     require_valid(merged_errors)
+                    require_valid(
+                        [
+                            i
+                            for i in self.rt.extractions.citation_issues(merged)
+                            if i.page in targets
+                        ]
+                    )
                     generate(
                         self.config.wiki_root,
                         f"Принято {pid}: {proposal.title}",

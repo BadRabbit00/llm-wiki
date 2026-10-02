@@ -61,7 +61,7 @@ class BodyLimit:
                 await self.reject(exc, scope, receive, send)
                 return
         maximum = (
-            self.config.max_upload_mb * 1024 * 1024 + 65536
+            max(self.config.max_upload_mb, self.config.max_library_upload_mb) * 1024 * 1024 + 65536
             if scope["method"] == "POST" and scope["path"].rstrip("/") == "/api/v1/raw"
             else 1024 * 1024
         )
@@ -125,7 +125,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             runtime.indexer.reindex()
             runtime.proposals.expire()
         app.state.runtime = runtime
-        yield
+        runtime.extractions.recover()
+        try:
+            yield
+        finally:
+            runtime.extractions.close()
 
     app = FastAPI(title="wikisvc", version=__version__, lifespan=lifespan)
     app.add_middleware(BodyLimit, config=config)

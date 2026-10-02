@@ -54,6 +54,10 @@ class StateDB:
                 explanation TEXT NOT NULL, evidence TEXT NOT NULL, proposal_pid TEXT,
                 run_id TEXT, fingerprint TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
                 reason TEXT, updated_at TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS extractions (
+                path TEXT PRIMARY KEY,sha256 TEXT NOT NULL,status TEXT NOT NULL,pages INTEGER NOT NULL DEFAULT 0,
+                chars INTEGER NOT NULL DEFAULT 0,error TEXT,started_at TEXT,finished_at TEXT);
+            CREATE TABLE IF NOT EXISTS outline_overrides(sha256 TEXT PRIMARY KEY,outline TEXT NOT NULL,author TEXT NOT NULL,updated_at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS violations (
                 rule_id TEXT NOT NULL, note TEXT NOT NULL, ref TEXT NOT NULL,
                 author TEXT NOT NULL, created_at TEXT NOT NULL);

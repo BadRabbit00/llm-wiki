@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     cors_origins: str = ""
     wikiagent_state_dir: Path | None = None
     bind_port: int = Field(default=8787, ge=1, le=65535)
+    max_library_upload_mb: int = Field(default=200, ge=1, le=1024)
+    extract_job_max_chars: int = Field(default=50_000_000, ge=1000, le=200_000_000)
+    extract_job_timeout: int = Field(default=600, ge=1, le=7200)
+    outline_fallback_pages: int = Field(default=15, ge=1, le=100)
     max_upload_mb: int = Field(default=25, ge=1, le=1024)
     proposal_ttl_days: int = Field(default=14, ge=1)
     context_budget_default: int = Field(default=12000, ge=1, le=60000)
@@ -26,7 +30,7 @@ class Settings(BaseSettings):
     )
     status_boost: str = "verified=1.2,draft=1.0,outdated=0.5"
     relation_priority: str = "governed_by,depends_on,uses,reads,writes,automates"
-    allowed_raw_ext: str = "pdf,docx,xlsx,md,txt,csv,json,yaml,yml,png,jpg,jpeg"
+    allowed_raw_ext: str = "pdf,epub,docx,xlsx,md,txt,csv,json,yaml,yml,png,jpg,jpeg"
     rate_limit_per_min: int = Field(default=0, ge=0)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     extract_timeout_seconds: int = Field(default=15, ge=1, le=300)

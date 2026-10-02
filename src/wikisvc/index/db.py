@@ -46,6 +46,8 @@ class IndexDB:
             CREATE TABLE IF NOT EXISTS issues (path TEXT NOT NULL, page TEXT, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
             """)
+            if "storage" not in {r[1] for r in db.execute("PRAGMA table_info(raw_files)")}:
+                db.execute("ALTER TABLE raw_files ADD COLUMN storage TEXT NOT NULL DEFAULT 'git'")
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:

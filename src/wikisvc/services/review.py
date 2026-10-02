@@ -119,6 +119,7 @@ def review_rule(
             if (i.code, i.page, i.message) not in baseline
         ]
         require_valid(issues)
+        require_valid([i for i in runtime.extractions.citation_issues(merged) if i.page == page_id])
         paths = [page.path, "wiki/index.md", "wiki/log.md"]
         with repo.transaction(paths):
             SafeFS(config.wiki_root).write(

@@ -81,8 +81,11 @@ def chunks(body: str, limit: int = 1500) -> list[tuple[str, str]]:
 
 
 class Indexer:
-    def __init__(self, root: Path, db: IndexDB, registry: Registry) -> None:
+    def __init__(
+        self, root: Path, db: IndexDB, registry: Registry, state_dir: Path | None = None
+    ) -> None:
         self.root, self.db, self.registry = root, db, registry
+        self.state_dir = state_dir
         self.validation = ValidationCache()
 
     def pages(self) -> list[Page]:
@@ -205,6 +208,12 @@ class Indexer:
                 if paths is None
                 else {p for p in paths if p.startswith("raw/")}
             )
+            if self.state_dir:
+                raw_paths.update(
+                    SafeFS(self.state_dir).files("library/**/*")
+                    if paths is None
+                    else [p for p in paths if p.startswith("library/")]
+                )
             if paths is None:
                 for row in db.execute("SELECT path FROM raw_files").fetchall():
                     if row[0] not in raw_paths:
@@ -213,7 +222,9 @@ class Indexer:
                 if Path(path).name == ".gitkeep":
                     continue
                 try:
-                    raw = fs.path(path)
+                    from wikisvc.storage.raw_paths import raw_path
+
+                    raw = raw_path(self.root, self.state_dir or self.root, path)
                     if not raw.is_file():
                         db.execute("DELETE FROM raw_files WHERE path=?", (path,))
                         continue
@@ -226,13 +237,14 @@ class Indexer:
                         continue
                     data = raw.read_bytes()
                     db.execute(
-                        "INSERT OR REPLACE INTO raw_files VALUES (?,?,?,?,?)",
+                        "INSERT OR REPLACE INTO raw_files VALUES (?,?,?,?,?,?)",
                         (
                             path,
                             hashlib.sha256(data).hexdigest(),
                             len(data),
                             mimetypes.guess_type(path)[0] or "application/octet-stream",
                             modified,
+                            "local" if path.startswith("library/") else "git",
                         ),
                     )
                 except (WikiError, OSError):

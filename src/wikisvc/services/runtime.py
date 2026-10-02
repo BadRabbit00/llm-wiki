@@ -6,6 +6,7 @@ from wikisvc.index.graph import GraphStore, SqliteGraphStore
 from wikisvc.index.indexer import Indexer
 from wikisvc.index.search import Search
 from wikisvc.services.auth import Auth
+from wikisvc.services.extractions import Extractions
 from wikisvc.services.findings import Findings
 from wikisvc.services.lint import Lint
 from wikisvc.services.pages import Pages
@@ -29,7 +30,7 @@ class Runtime:
         self.state = StateDB(settings.state_dir)
         self.index = IndexDB(settings.index_dir)
         self.auth = Auth(self.state, settings.rate_limit_per_min)
-        self.indexer = Indexer(settings.wiki_root, self.index, self.registry)
+        self.indexer = Indexer(settings.wiki_root, self.index, self.registry, settings.state_dir)
         self.indexer.validation.entropy_threshold = settings.secret_entropy_threshold
         self.graph: GraphStore = SqliteGraphStore(self.index)
         self.pages = Pages(settings.wiki_root, self.index, self.state, self.graph)
@@ -43,6 +44,7 @@ class Runtime:
         self.rules = Rules(self)
         self.findings = Findings(self)
         self.raw = Raw(self)
+        self.extractions = Extractions(self)
         self.lint = Lint(self)
         self.schema = Schema(self)
         with write_lock(settings.state_dir, settings.lock_timeout):

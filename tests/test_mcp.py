@@ -35,7 +35,7 @@ def test_mcp_stdio_lifecycle(config: Settings) -> None:
         ):
             await session.initialize()
             tools = {tool.name for tool in (await session.list_tools()).tools}
-            assert len(tools) == 18 and not any(
+            assert len(tools) == 20 and not any(
                 "accept" in name or "reject" in name for name in tools
             )
 

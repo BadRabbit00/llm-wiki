@@ -23,12 +23,23 @@ def extract(file: Path) -> Iterable[str]:
 
 def main() -> int:
     file = Path(sys.argv[1])
-    memory, maximum, seconds = map(int, sys.argv[2:])
+    memory, maximum, seconds = map(int, sys.argv[2:5])
     resource.setrlimit(resource.RLIMIT_AS, (memory * 1024 * 1024, memory * 1024 * 1024))
     resource.setrlimit(resource.RLIMIT_CPU, (seconds, seconds))
     resource.setrlimit(resource.RLIMIT_FSIZE, (1024 * 1024, 1024 * 1024))
     resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
     try:
+        if len(sys.argv) > 5 and sys.argv[5] == "--pages":
+            import json
+
+            from wikisvc.services.document_pages import batch
+
+            result = batch(file, int(sys.argv[6]), int(sys.argv[7]))
+            output = json.dumps(result, ensure_ascii=False)
+            if len(output) > maximum:
+                return 3
+            sys.stdout.buffer.write(output.encode("utf-8"))
+            return 0
         parts: list[str] = []
         length = 0
         for part in extract(file):
