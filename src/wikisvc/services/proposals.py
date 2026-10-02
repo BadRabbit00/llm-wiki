@@ -295,6 +295,29 @@ class Proposals:
             verified_at=None,
         )
         metadata.setdefault("sensitivity", "internal")
+        if metadata.get("type") == "rule":
+            protected = (
+                "lifecycle",
+                "level",
+                "priority",
+                "owner",
+                "deprecated_reason",
+                "verified_by",
+                "verified_at",
+            )
+            saved = existing.frontmatter.model_dump() if existing else {}
+            for field in protected:
+                metadata.pop(field, None)
+                if existing and field in saved:
+                    metadata[field] = saved[field]
+            if existing is None:
+                metadata.update(
+                    lifecycle="candidate",
+                    level="should",
+                    priority=3,
+                    verified_by=None,
+                    verified_at=None,
+                )
         page = parse_page(render(metadata, body))
         if not can_read(actor, page.frontmatter.sensitivity):
             raise not_found()

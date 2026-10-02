@@ -69,7 +69,7 @@ def test_roundtrip(body: str) -> None:
 
 
 def test_all_paths(registry: Registry) -> None:
-    assert len(registry.page_types) == 16
+    assert len(registry.page_types) == 13
     for kind, definition in registry.page_types.items():
         page_id = definition.prefix + "-example"
         extra = {}
@@ -189,7 +189,7 @@ def test_safe_filesystem_and_init(tmp_path: Path) -> None:
     initialize(root)
     fs = SafeFS(root)
     assert fs.read("CLAUDE.md") == fs.read("AGENTS.md")
-    assert len(fs.files("schema/page-types/*.yaml")) == 16
+    assert len(fs.files("schema/page-types/*.yaml")) == 13
     for path in ["../outside", "/etc/passwd", "a/../../bad", "a\\bad", "bad\0"]:
         with pytest.raises(WikiError):
             fs.path(path)

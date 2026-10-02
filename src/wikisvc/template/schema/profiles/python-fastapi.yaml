@@ -1,0 +1,4 @@
+id: python-fastapi
+title: Python-сервис на FastAPI
+scopes: ["lang:python", "framework:fastapi", "app:service"]
+budget_tokens: 2000

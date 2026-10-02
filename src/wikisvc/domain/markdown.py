@@ -119,7 +119,25 @@ def edges(page: Page) -> list[Edge]:
         for m in re.finditer(r"\[\[([^\]|\n]+)(?:\|[^\]\n]*)?\]\]", clean)
     )
     result.update(
-        Edge(src=page.id, dst=m[1], rel="cites", kind="citation")
-        for m in re.finditer(r"\[@([^\]\n]+)\]", clean)
+        Edge(src=page.id, dst=c.source, rel="cites", kind="citation") for c in citations(clean)
     )
     return sorted(result, key=lambda edge: (edge.src, edge.dst, edge.rel, edge.kind))
+
+
+@dataclass(frozen=True)
+class Citation:
+    source: str
+    unit: str | None = None
+    start: int | None = None
+    end: int | None = None
+    quote: str | None = None
+
+
+def citations(text: str) -> list[Citation]:
+    return [
+        Citation(m[1], m[2], int(m[3]) if m[3] else None, int(m[4] or m[3]) if m[3] else None, m[5])
+        for m in re.finditer(
+            r'\[@(src-[a-z0-9-]+)(?:\s+(стр\.|гл\.)\s+(\d+)(?:-(\d+))?\s+"([^"\n]+)")?\]',
+            without_code(text),
+        )
+    ]

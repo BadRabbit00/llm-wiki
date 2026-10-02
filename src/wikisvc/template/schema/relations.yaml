@@ -80,10 +80,8 @@ governed_by:
   - playbook
   - pattern
   to:
-  - convention
-  - security
+  - rule
   - adr
-  - stack
   same_type: false
 implements:
   inverse: implemented_by
@@ -100,14 +98,12 @@ supersedes:
   symmetric: false
   from:
   - adr
-  - convention
+  - rule
   - pattern
-  - stack
   to:
   - adr
-  - convention
+  - rule
   - pattern
-  - stack
   same_type: true
 caused_by:
   inverse: causes
@@ -125,3 +121,19 @@ related:
   from: []
   to: []
   same_type: false
+refines:
+  inverse: refined_by
+  symmetric: false
+  from:
+  - rule
+  to:
+  - rule
+  same_type: true
+conflicts_with:
+  inverse: conflicts_with
+  symmetric: true
+  from:
+  - rule
+  to:
+  - rule
+  same_type: true

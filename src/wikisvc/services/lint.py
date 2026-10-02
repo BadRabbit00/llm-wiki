@@ -46,7 +46,7 @@ class Lint:
             for page_id in (edge.src, edge.dst)
         }
         for page in pages.values():
-            if page.id not in linked:
+            if page.id not in linked and page.frontmatter.type != "rule":
                 issues.append(
                     issue(
                         "W_ORPHAN",

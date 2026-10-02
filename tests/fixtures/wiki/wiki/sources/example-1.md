@@ -15,6 +15,7 @@ verified_at:
 raw_path: raw/docs/example.txt
 raw_sha256: 018b72ec42e953a43e1317bba6bf0659b3758eea6f8fbeb7017376ad64833b84
 ingested_at: '2026-02-01T00:00:00+00:00'
+kind: doc
 ---
 
 ## Кратко

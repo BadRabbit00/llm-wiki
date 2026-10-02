@@ -1,8 +1,8 @@
 ---
-id: sec-example-2
-type: security
-title: Security guide 2
-summary: Company invoice processing, engineering rules and knowledge.
+id: rule-sec-example-1
+type: rule
+title: Безопасность 1
+summary: Описание счетов, интеграций и правил работы компании.
 status: draft
 sensitivity: internal
 tags: []
@@ -12,17 +12,36 @@ sources:
 relations: {}
 created: '2026-01-01T00:00:00+00:00'
 updated: '2026-02-01T00:00:00+00:00'
-verified_at:
+verified_at: '2026-01-01'
+category: security
+level: should
+lifecycle: active
+applies_to:
+- '*'
+origin: team
+priority: 3
+verified_by: fixture
 ---
 
 ## Правило
 
-Invoice exports and processing. Engineering design with reliable integration.
+## Правило
+
+Выгрузка счёта и проверка интеграции. Подтверждённые факты источника.
 
 Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. 
 
 ## Обоснование
 
-Invoice exports and processing. Engineering design with reliable integration.
+Выгрузка счёта и проверка интеграции. Подтверждённые факты источника.
 
 Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела.
+
+
+## Обоснование
+
+Практика компании.
+
+## Примеры
+
+Пример внедрения.

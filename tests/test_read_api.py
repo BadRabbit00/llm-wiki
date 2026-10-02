@@ -15,7 +15,7 @@ def test_pages_schema_auth(client: TestClient, config: Settings) -> None:
     ).json()
     assert second["items"][0]["id"] != response["items"][0]["id"]
     assert len(client.get("/api/v1/pages").json()["items"]) >= 30
-    assert len(client.get("/api/v1/schema").json()["page_types"]) == 16
+    assert len(client.get("/api/v1/schema").json()["page_types"]) == 13
     assert "## Назначение" in client.get("/api/v1/schema/page-types/system").json()["template"]
     assert "недоверенные" in client.get("/api/v1/schema/instructions").json()["instructions"]
     assert client.post("/api/v1/schema/next-adr-number").json()["number"] == "0003"

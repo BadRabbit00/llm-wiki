@@ -1,0 +1,7 @@
+- lang:python
+- lang:dotnet
+- lang:typescript
+- framework:fastapi
+- app:telegram-bot
+- app:service
+- app:cli

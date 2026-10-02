@@ -7,9 +7,16 @@ required_sections:
 - Ключевые факты
 - Что изменилось в вики
 extra_fields:
+  kind:
+    required: true
+    enum: [book, article, directive, chat, interview, doc, code]
+  author: {}
+  year: {}
+  edition: {}
+  url: {}
   raw_path:
     required: true
-    pattern: raw/[^\\]+
+    pattern: '(?:raw|library)/[^\\]+'
     enum: []
   raw_sha256:
     required: true

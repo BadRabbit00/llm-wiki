@@ -1,0 +1,38 @@
+type: rule
+prefix: rule
+path_template: rules/{slug}.md
+title_ru: Правило
+summary_max: 160
+sources_required: false
+required_sections: [Правило, Обоснование, Примеры]
+extra_fields:
+  category:
+    required: true
+    enum: [code-style, architecture, logging, errors, security, testing, stack, git, build-ci, docs, process]
+  level:
+    required: true
+    enum: [must, should, idea]
+  lifecycle:
+    required: true
+    enum: [candidate, active, deprecated]
+  applies_to:
+    type: list
+    required: true
+    min_items: 1
+  priority:
+    type: int
+    min: 1
+    max: 5
+    default: 3
+  origin:
+    required: true
+    enum: [management, team, book, article, chat, code]
+  owner:
+    max_length: 128
+  enforced_by:
+    type: list
+    item_pattern: '(?:tool|ci):[A-Za-z0-9_.-]+|none'
+  deprecated_reason:
+    max_length: 200
+allowed_relations: [refines, conflicts_with, supersedes, depends_on, related, part_of]
+template: "## Правило\n\n\n## Обоснование\n\n\n## Примеры\n"

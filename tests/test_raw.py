@@ -48,6 +48,7 @@ def test_upload_pending_ingest(client: TestClient, config: Settings) -> None:
         "frontmatter": {
             "id": "src-upload",
             "type": "source",
+            "kind": "doc",
             "title": "Новый источник",
             "summary": "Источник новых внешних фактов для базы знаний.",
             "raw_path": raw["path"],

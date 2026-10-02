@@ -17,7 +17,7 @@ relations:
   reads:
   - ent-example-1
   governed_by:
-  - stack-example-1
+  - rule-stack-example-1
   depends_on:
   - sys-example-1
 created: '2026-01-01T00:00:00+00:00'

@@ -11,6 +11,46 @@ from wikisvc.domain.models import Role, Sensitivity
 app = typer.Typer(no_args_is_help=True)
 tokens = typer.Typer(no_args_is_help=True)
 app.add_typer(tokens, name="token")
+schema_commands = typer.Typer(no_args_is_help=True)
+app.add_typer(schema_commands, name="schema")
+
+
+@schema_commands.command("upgrade")
+def schema_upgrade() -> None:
+    """Install policy schema additions; content changes require migrate-rules proposals."""
+    import json
+
+    from wikisvc.domain.models import Principal
+    from wikisvc.services.migrations import upgrade_schema
+    from wikisvc.services.runtime import Runtime
+
+    typer.echo(
+        json.dumps(
+            upgrade_schema(
+                Runtime(settings()), Principal(name="cli", role="admin", clearance="restricted")
+            ),
+            ensure_ascii=False,
+        )
+    )
+
+
+@app.command("migrate-rules")
+def migrate_rule_pages(dry_run: bool = False) -> None:
+    """Preview legacy conversion or create a draft proposal with WIKI_TOKEN."""
+    import json
+    import os
+
+    from wikisvc.domain.models import Principal
+    from wikisvc.services.migrations import migrate_rules
+    from wikisvc.services.runtime import Runtime
+
+    rt = Runtime(settings())
+    actor = (
+        Principal(name="cli-preview", role="writer", clearance="restricted")
+        if dry_run
+        else rt.auth.authenticate(os.environ.get("WIKI_TOKEN", ""))
+    )
+    typer.echo(json.dumps(migrate_rules(rt, actor, dry_run), ensure_ascii=False, indent=2))
 
 
 def settings() -> Settings:

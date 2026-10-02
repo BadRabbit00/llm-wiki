@@ -1,8 +1,8 @@
 ---
-id: stack-example-1
-type: stack
-title: Стек 1
-summary: Описание счетов, интеграций и правил работы компании.
+id: rule-stack-example-2
+type: rule
+title: Stack guide 2
+summary: Company invoice processing, engineering rules and knowledge.
 status: draft
 sensitivity: internal
 tags: []
@@ -12,17 +12,36 @@ sources:
 relations: {}
 created: '2026-01-01T00:00:00+00:00'
 updated: '2026-02-01T00:00:00+00:00'
-verified_at:
+verified_at: '2026-01-01'
+category: stack
+level: should
+lifecycle: active
+applies_to:
+- '*'
+origin: team
+priority: 3
+verified_by: fixture
 ---
 
 ## Правило
 
-Выгрузка счёта и проверка интеграции. Подтверждённые факты источника.
+## Правило
+
+Invoice exports and processing. Engineering design with reliable integration.
 
 Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. 
 
 ## Обоснование
 
-Выгрузка счёта и проверка интеграции. Подтверждённые факты источника.
+Invoice exports and processing. Engineering design with reliable integration.
 
 Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела. Детали раздела.
+
+
+## Обоснование
+
+Практика компании.
+
+## Примеры
+
+Пример внедрения.

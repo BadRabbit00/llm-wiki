@@ -33,6 +33,14 @@ def apply_patch(
             op = operation["op"]
             if op == "set_field":
                 field = operation["field"]
+                if field in ("verified_at", "verified_by") or (
+                    metadata.get("type") == "rule"
+                    and field
+                    in ("lifecycle", "level", "priority", "owner", "status", "deprecated_reason")
+                ):
+                    raise WikiError(
+                        "E_FIELD_PROTECTED", "Поле правила меняется только решением ревьюера."
+                    )
                 if field in ("id", "type", "created", "updated", "verified_at", "verified_by"):
                     raise WikiError("E_PATCH_FIELD", "Это поле меняет только сервис.")
                 result[field] = operation["value"]
