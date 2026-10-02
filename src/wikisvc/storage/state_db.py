@@ -47,7 +47,43 @@ class StateDB:
                 rule_id TEXT NOT NULL, day TEXT NOT NULL, delivered INTEGER NOT NULL DEFAULT 0,
                 opened INTEGER NOT NULL DEFAULT 0, violations INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY(rule_id,day));
+            CREATE TABLE IF NOT EXISTS proposal_notes (pid TEXT PRIMARY KEY, data TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS findings (
+                id TEXT PRIMARY KEY, kind TEXT NOT NULL, severity TEXT NOT NULL,
+                status TEXT NOT NULL, pages TEXT NOT NULL, summary TEXT NOT NULL,
+                explanation TEXT NOT NULL, evidence TEXT NOT NULL, proposal_pid TEXT,
+                run_id TEXT, fingerprint TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
+                reason TEXT, updated_at TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS violations (
+                rule_id TEXT NOT NULL, note TEXT NOT NULL, ref TEXT NOT NULL,
+                author TEXT NOT NULL, created_at TEXT NOT NULL);
             """)
+            migrations = {
+                "tokens": {
+                    "person": "TEXT",
+                    "kind": "TEXT NOT NULL DEFAULT 'agent'",
+                    "expires_at": "TEXT",
+                },
+                "proposals": {
+                    "kind": "TEXT NOT NULL DEFAULT 'manual'",
+                    "author_identity": "TEXT",
+                    "author_kind": "TEXT NOT NULL DEFAULT 'agent'",
+                    "accepted_commit": "TEXT",
+                    "reverted_commit": "TEXT",
+                },
+                "proposal_editors": {"identity": "TEXT"},
+            }
+            for table, fields in migrations.items():
+                existing = {row[1] for row in db.execute(f"PRAGMA table_info({table})")}
+                for field, definition in fields.items():
+                    if field not in existing:
+                        db.execute(f"ALTER TABLE {table} ADD COLUMN {field} {definition}")
+            db.execute(
+                "UPDATE proposals SET author_identity=COALESCE((SELECT person FROM tokens WHERE name=author),author) WHERE author_identity IS NULL"
+            )
+            db.execute(
+                "UPDATE proposal_editors SET identity=COALESCE((SELECT person FROM tokens WHERE tokens.name=proposal_editors.name),name) WHERE identity IS NULL"
+            )
             if "last_editor" not in {row[1] for row in db.execute("PRAGMA table_info(proposals)")}:
                 db.execute("ALTER TABLE proposals ADD COLUMN last_editor TEXT")
             if "original_name" not in {

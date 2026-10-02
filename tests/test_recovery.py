@@ -88,7 +88,7 @@ def test_failed_commit_restores_files(
     client: TestClient, config: Settings, monkeypatch: pytest.MonkeyPatch, operation: str
 ) -> None:
     rt = client.app.state.runtime
-    actor = Principal(name="reviewer", role="reviewer", clearance="restricted")
+    actor = Principal(name="reviewer", role="reviewer", clearance="restricted", kind="human")
     pid = proposal(client)
     repo = GitRepo(
         config.state_dir / "worktrees" / pid if operation in {"put", "delete"} else config.wiki_root

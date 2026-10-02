@@ -91,7 +91,14 @@ class Proposal(BaseModel):
     description: str
     author: str
     status: Literal[
-        "draft", "submitted", "changes_requested", "accepted", "rejected", "conflict", "abandoned"
+        "draft",
+        "submitted",
+        "changes_requested",
+        "accepted",
+        "rejected",
+        "conflict",
+        "abandoned",
+        "reverted",
     ]
     base_commit: str
     branch: str
@@ -100,3 +107,8 @@ class Proposal(BaseModel):
     updated_at: str
     decided_by: str | None = None
     last_editor: str | None = None
+    kind: Literal["manual", "chat", "book", "heal"] = "manual"
+    author_identity: str | None = None
+    author_kind: Literal["agent", "human"] = "agent"
+    accepted_commit: str | None = None
+    reverted_commit: str | None = None

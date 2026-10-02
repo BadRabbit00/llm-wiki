@@ -6,6 +6,7 @@ from wikisvc.index.graph import GraphStore, SqliteGraphStore
 from wikisvc.index.indexer import Indexer
 from wikisvc.index.search import Search
 from wikisvc.services.auth import Auth
+from wikisvc.services.findings import Findings
 from wikisvc.services.lint import Lint
 from wikisvc.services.pages import Pages
 from wikisvc.services.policies import Policies
@@ -40,6 +41,7 @@ class Runtime:
         )
         self.proposals = Proposals(self)
         self.rules = Rules(self)
+        self.findings = Findings(self)
         self.raw = Raw(self)
         self.lint = Lint(self)
         self.schema = Schema(self)

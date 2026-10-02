@@ -144,3 +144,136 @@ class Rules:
             if set(profile.scopes) & scopes or "*" in scopes
         ]
         return {"pid": pid, "pages": list(pages.values()), "rules": rules, "profiles": profiles}
+
+    def list_rules(
+        self,
+        actor: Principal,
+        category: str | None = None,
+        level: str | None = None,
+        lifecycle: list[str] | None = None,
+        applies_to: list[str] | None = None,
+        origin: str | None = None,
+        source: str | None = None,
+        q: str | None = None,
+        sort: str = "id",
+        limit: int = 50,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        from wikisvc.domain.validate import overlaps
+        from wikisvc.index.search import lifecycles
+        from wikisvc.services.pages import paginate
+
+        allowed = lifecycles(lifecycle)
+        if sort not in ("id", "priority", "updated", "delivered", "opened", "violations"):
+            raise WikiError("E_REQUEST_INVALID", "Неизвестный порядок правил.", status=400)
+        matching = (
+            {
+                h["id"]
+                for h in self.rt.search.search(q, actor, type_name="rule", k=50, lifecycle=allowed)[
+                    "results"
+                ]
+            }
+            if q
+            else None
+        )
+        usage = {
+            row["rule_id"]: row
+            for row in self.rt.state.rows(
+                "SELECT rule_id,SUM(delivered) delivered,SUM(opened) opened,SUM(violations) violations FROM rule_usage GROUP BY rule_id"
+            )
+        }
+        result = []
+        with self.rt.index.connect() as db:
+            for row in db.execute("SELECT * FROM pages WHERE type='rule' ORDER BY id"):
+                if not can_read(actor, row["sensitivity"]):
+                    continue
+                page = row_page(row)
+                item = brief(page)
+                extra = page.frontmatter.model_extra or {}
+                if (
+                    item["lifecycle"] not in allowed
+                    or (category and item["category"] != category)
+                    or (level and item["level"] != level)
+                    or (applies_to and not overlaps(applies_to, item["applies_to"]))
+                    or (origin and item["origin"] != origin)
+                    or (source and source not in page.frontmatter.sources)
+                    or (matching is not None and page.id not in matching)
+                ):
+                    continue
+                item.update(
+                    sources=page.frontmatter.sources,
+                    priority=extra.get("priority", 3),
+                    updated=page.frontmatter.updated,
+                    **{
+                        key: usage.get(page.id, {}).get(key, 0)
+                        for key in ("delivered", "opened", "violations")
+                    },
+                )
+                result.append(item)
+        result.sort(
+            key=lambda p: (p[sort], p["id"]),
+            reverse=sort in ("updated", "delivered", "opened", "violations"),
+        )
+        return paginate(result, limit, cursor)
+
+    def stats(self, actor: Principal, days: int = 30) -> dict[str, Any]:
+        from datetime import UTC, datetime, timedelta
+
+        from wikisvc.services.auth import require_role
+
+        require_role(actor, "reviewer")
+        if not 1 <= days <= 3650:
+            raise WikiError("E_REQUEST_INVALID", "days: 1–3650.", status=400)
+        start = (datetime.now(UTC) - timedelta(days=days - 1)).date().isoformat()
+        usage = {
+            row["rule_id"]: row
+            for row in self.rt.state.rows(
+                "SELECT rule_id,SUM(delivered) delivered,SUM(opened) opened,SUM(violations) violations FROM rule_usage WHERE day>=? GROUP BY rule_id",
+                (start,),
+            )
+        }
+        rows = []
+        for page in self.rt.indexer.pages():
+            if page.frontmatter.type == "rule" and can_read(actor, page.frontmatter.sensitivity):
+                rows.append(
+                    {
+                        **brief(page),
+                        **{
+                            k: usage.get(page.id, {}).get(k, 0)
+                            for k in ("delivered", "opened", "violations")
+                        },
+                    }
+                )
+        return {
+            "days": days,
+            "items": rows,
+            "never_opened": [p["id"] for p in rows if p["delivered"] and not p["opened"]],
+            "often_violated": [p["id"] for p in rows if p["violations"] >= 3],
+        }
+
+    def violations(self, actor: Principal, items: list[dict[str, str]]) -> dict[str, int]:
+        from wikisvc.domain.secrets import secret_kinds
+        from wikisvc.services.auth import require_role
+        from wikisvc.storage.lock import write_lock
+        from wikisvc.storage.state_db import now
+
+        require_role(actor, "writer")
+        with write_lock(self.rt.settings.state_dir, self.rt.settings.lock_timeout):
+            for item in items:
+                if self.rt.pages.page(item["rule_id"], actor).frontmatter.type != "rule":
+                    raise not_found()
+                if secret_kinds(
+                    item["note"] + "\n" + item["ref"], self.rt.settings.secret_entropy_threshold
+                ):
+                    raise WikiError("E_SECRET_DETECTED", "Нарушение содержит возможный секрет.")
+            with self.rt.state.connect() as db:
+                for item in items:
+                    db.execute(
+                        "INSERT INTO violations VALUES (?,?,?,?,?)",
+                        (item["rule_id"], item["note"], item["ref"], actor.name, now()),
+                    )
+                    db.execute(
+                        "INSERT INTO rule_usage(rule_id,day,violations) VALUES (?,?,1) ON CONFLICT(rule_id,day) DO UPDATE SET violations=violations+1",
+                        (item["rule_id"], now()[:10]),
+                    )
+        return {"recorded": len(items)}

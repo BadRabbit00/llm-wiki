@@ -1,9 +1,10 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body, Header
 from pydantic import BaseModel, Field
 
 from wikisvc.api.deps import Reader, Reviewer, Services, Writer
+from wikisvc.api.routers.rules import Deprecate, Promote
 from wikisvc.domain.markdown import parse
 
 router = APIRouter(prefix="/proposals")
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/proposals")
 class CreateProposal(BaseModel):
     title: str
     description: str = ""
+    kind: Literal["manual", "chat", "book", "heal"] = "manual"
 
 
 class PutPage(BaseModel):
@@ -32,7 +34,7 @@ class Comment(BaseModel):
 
 @router.post("")
 def create(payload: CreateProposal, services: Services, actor: Writer) -> dict[str, Any]:
-    return services.proposals.create(actor, payload.title, payload.description)
+    return services.proposals.create(actor, payload.title, payload.description, payload.kind)
 
 
 @router.get("")
@@ -43,8 +45,9 @@ def list_proposals(
     author: str | None = None,
     limit: int = 50,
     cursor: str | None = None,
+    kind: str | None = None,
 ) -> dict[str, Any]:
-    return services.proposals.list_proposals(actor, status, author, limit, cursor)
+    return services.proposals.list_proposals(actor, status, author, limit, cursor, kind)
 
 
 @router.get("/{pid}")
@@ -103,9 +106,41 @@ def submit(pid: str, services: Services, actor: Writer) -> dict[str, Any]:
     return services.proposals.submit(pid, actor)
 
 
+class PromoteItem(Promote):
+    id: str
+
+
+class DeprecateItem(Deprecate):
+    id: str
+
+
+class Accept(BaseModel):
+    promote: list[PromoteItem] = Field(default_factory=list, max_length=100)
+    deprecate: list[DeprecateItem] = Field(default_factory=list, max_length=100)
+
+
 @router.post("/{pid}/accept")
-def accept(pid: str, services: Services, actor: Reviewer) -> dict[str, Any]:
-    return services.proposals.decide(pid, actor, "accepted")
+def accept(
+    pid: str, services: Services, actor: Reviewer, payload: Accept | None = None
+) -> dict[str, Any]:
+    body = payload or Accept()
+    return services.proposals.decide(
+        pid,
+        actor,
+        "accepted",
+        promote=[i.model_dump(exclude_none=True) for i in body.promote],
+        deprecate=[i.model_dump() for i in body.deprecate],
+    )
+
+
+@router.post("/{pid}/revert")
+def revert(pid: str, services: Services, actor: Reviewer) -> dict[str, Any]:
+    return services.proposals.revert(pid, actor)
+
+
+@router.put("/{pid}/notes")
+def notes(pid: str, payload: dict[str, Any], services: Services, actor: Writer) -> dict[str, Any]:
+    return services.proposals.put_notes(pid, actor, payload)
 
 
 @router.post("/{pid}/reject")

@@ -147,9 +147,9 @@ def create_server(runtime: Runtime) -> FastMCP:
 
     @server.tool()
     @checked
-    def create_proposal(title: str, description: str = "") -> dict[str, Any]:
+    def create_proposal(title: str, description: str = "", kind: str = "manual") -> dict[str, Any]:
         """Открой предложение правок. Основная ветка меняется только после принятия человеком."""
-        return runtime.proposals.create(actor("writer"), title, description)
+        return runtime.proposals.create(actor("writer"), title, description, kind)
 
     @server.tool()
     @checked

@@ -24,7 +24,7 @@ from wikisvc.domain.validate import (
     validate_set,
 )
 from wikisvc.index.indexer import read_pages
-from wikisvc.services.auth import can_read, require_role
+from wikisvc.services.auth import can_read, require_human, require_role
 from wikisvc.services.generators import generate
 from wikisvc.services.pages import Pages, paginate
 from wikisvc.storage.gitrepo import GitRepo
@@ -121,10 +121,24 @@ class Proposals:
                     proposal.pid,
                 ),
             )
+            if status in ("accepted", "rejected"):
+                db.execute(
+                    "UPDATE findings SET status=?,reason=?,updated_at=? WHERE proposal_pid=?",
+                    (
+                        "resolved" if status == "accepted" else "dismissed",
+                        comment,
+                        now(),
+                        proposal.pid,
+                    ),
+                )
         self.rt.state.audit(actor.name, "proposal." + status, proposal.pid)
 
-    def create(self, actor: Principal, title: str, description: str = "") -> dict[str, Any]:
+    def create(
+        self, actor: Principal, title: str, description: str = "", kind: str = "manual"
+    ) -> dict[str, Any]:
         require_role(actor, "writer")
+        if kind not in ("manual", "chat", "book", "heal"):
+            raise WikiError("E_REQUEST_INVALID", "kind: manual, chat, book, heal.", status=400)
         if not 3 <= len(title) <= 200 or len(description) > 12000 or "\n" in title:
             raise WikiError(
                 "E_REQUEST_INVALID",
@@ -142,6 +156,9 @@ class Proposals:
                 title=title,
                 description=description,
                 author=actor.name,
+                kind=kind,  # type: ignore[arg-type]
+                author_identity=actor.identity,
+                author_kind=actor.kind,
                 status="draft",
                 base_commit=self.repo.head(),
                 branch="proposal/" + pid,
@@ -152,8 +169,8 @@ class Proposals:
             try:
                 with self.rt.state.connect() as db:
                     db.execute(
-                        "INSERT INTO proposals VALUES (:pid,:title,:description,:author,:status,"
-                        ":base_commit,:branch,:review_comment,:created_at,:updated_at,:decided_by,:last_editor)",
+                        "INSERT INTO proposals (pid,title,description,author,status,base_commit,branch,review_comment,created_at,updated_at,decided_by,last_editor,kind,author_identity,author_kind) VALUES (:pid,:title,:description,:author,:status,"
+                        ":base_commit,:branch,:review_comment,:created_at,:updated_at,:decided_by,:last_editor,:kind,:author_identity,:author_kind)",
                         proposal.model_dump(),
                     )
                     db.execute(
@@ -178,7 +195,26 @@ class Proposals:
                 if (page := after or before) is not None
             ],
             "validation": json.loads(validation[0]["result"]) if validation else None,
+            "notes": self.notes(pid),
         }
+
+    def notes(self, pid: str) -> dict[str, Any] | None:
+        rows = self.rt.state.rows("SELECT data FROM proposal_notes WHERE pid=?", (pid,))
+        return json.loads(rows[0]["data"]) if rows else None
+
+    def put_notes(self, pid: str, actor: Principal, notes: dict[str, Any]) -> dict[str, Any]:
+        with write_lock(self.config.state_dir, self.config.lock_timeout):
+            proposal = self._proposal(pid, actor, editing=True)
+            if proposal.author != actor.name:
+                raise WikiError("E_FORBIDDEN", "Заметки может менять только автор.", status=403)
+            data = json.dumps(notes, ensure_ascii=False)
+            if len(data) > 100000:
+                raise WikiError("E_REQUEST_INVALID", "Заметки слишком велики.", status=400)
+            if secret_kinds(data, self.config.secret_entropy_threshold):
+                raise WikiError("E_SECRET_DETECTED", "В заметках найден возможный секрет.")
+            with self.rt.state.connect() as db:
+                db.execute("INSERT OR REPLACE INTO proposal_notes VALUES (?,?)", (pid, data))
+        return notes
 
     def list_proposals(
         self,
@@ -187,11 +223,12 @@ class Proposals:
         author: str | None = None,
         limit: int = 50,
         cursor: str | None = None,
+        kind: str | None = None,
     ) -> dict[str, Any]:
         result = []
         for row in self.rt.state.rows(
-            "SELECT pid FROM proposals WHERE (? IS NULL OR status=?) AND (? IS NULL OR author=?) ORDER BY created_at,pid",
-            (status, status, author, author),
+            "SELECT pid FROM proposals WHERE (? IS NULL OR status=?) AND (? IS NULL OR author=?) AND (? IS NULL OR kind=?) ORDER BY created_at,pid",
+            (status, status, author, author, kind, kind),
         ):
             try:
                 result.append(self._proposal(row["pid"], actor).model_dump())
@@ -231,7 +268,8 @@ class Proposals:
         with self.rt.state.connect() as db:
             db.execute("UPDATE proposals SET last_editor=? WHERE pid=?", (actor.name, proposal.pid))
             db.execute(
-                "INSERT OR IGNORE INTO proposal_editors VALUES (?,?)", (proposal.pid, actor.name)
+                "INSERT OR IGNORE INTO proposal_editors(pid,name,identity) VALUES (?,?,?)",
+                (proposal.pid, actor.name, actor.identity),
             )
             db.execute("DELETE FROM proposal_validation WHERE pid=?", (proposal.pid,))
 
@@ -558,11 +596,19 @@ class Proposals:
         }
 
     def decide(
-        self, pid: str, actor: Principal, decision: str, comment: str = ""
+        self,
+        pid: str,
+        actor: Principal,
+        decision: str,
+        comment: str = "",
+        promote: list[dict[str, Any]] | None = None,
+        deprecate: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         if decision not in {"accepted", "rejected", "changes_requested", "abandoned"}:
             raise WikiError("E_PROPOSAL_STATE", "Неизвестное решение.", status=400)
         require_role(actor, "writer" if decision == "abandoned" else "reviewer")
+        if decision != "abandoned":
+            require_human(actor)
         if len(comment) > 12000:
             raise WikiError("E_REQUEST_INVALID", "Недопустимый комментарий.")
         if secret_kinds(comment, self.config.secret_entropy_threshold):
@@ -571,18 +617,23 @@ class Proposals:
             proposal = self._proposal(pid, actor)
             if decision == "abandoned" and proposal.author != actor.name:
                 require_role(actor, "reviewer")
-            if proposal.status in ("accepted", "rejected", "abandoned") or (
-                decision in ("accepted", "changes_requested") and proposal.status != "submitted"
+            if proposal.status in ("accepted", "rejected", "abandoned", "reverted") or (
+                decision in ("accepted", "changes_requested")
+                and proposal.status != "submitted"
+                and not (
+                    decision == "accepted"
+                    and proposal.status == "draft"
+                    and proposal.author_kind == "agent"
+                )
             ):
                 raise WikiError("E_PROPOSAL_STATE", "Переход состояния недопустим.", status=409)
             if decision == "accepted":
                 editors = self.rt.state.rows(
-                    "SELECT name FROM proposal_editors WHERE pid=?", (pid,)
+                    "SELECT name,identity FROM proposal_editors WHERE pid=?", (pid,)
                 )
-                if actor.name in {
-                    proposal.author,
-                    proposal.last_editor,
-                    *(row["name"] for row in editors),
+                if actor.identity in {
+                    proposal.author_identity or proposal.author,
+                    *(row["identity"] or row["name"] for row in editors),
                 }:
                     self.rt.state.audit(
                         actor.name, "proposal.accept", pid, ok=False, detail="self-review"
@@ -615,13 +666,26 @@ class Proposals:
                     if i.severity == "error"
                 }
                 paths = self.repo.changed(proposal.base_commit, proposal.branch)
+                targets = {
+                    p.id for _, p in self._changes(proposal) if p and p.frontmatter.type == "rule"
+                }
+                requests = [("promote", item) for item in (promote or [])] + [
+                    ("deprecate", item) for item in (deprecate or [])
+                ]
+                target_ids = [item.get("id") for _, item in requests]
+                if any(target not in targets for target in target_ids) or len(
+                    set(target_ids)
+                ) != len(target_ids):
+                    raise WikiError(
+                        "E_RULE_NOT_IN_PROPOSAL",
+                        "Правило должно входить в предложение; решения не должны повторяться.",
+                    )
                 with self.repo.transaction([*paths, "wiki/index.md", "wiki/log.md"]):
                     try:
                         self.repo.run(
                             "merge", "--no-ff", "--no-commit", proposal.branch, author=actor.name
                         )
                     except subprocess.CalledProcessError as exc:
-                        self._status(proposal, "conflict", actor)
                         raise WikiError(
                             "E_MERGE_CONFLICT",
                             "Конфликт слияния; main не изменён.",
@@ -629,6 +693,32 @@ class Proposals:
                             status=409,
                         ) from exc
                     changed, parse_errors = read_pages(self.config.wiki_root, paths)
+                    from wikisvc.services.review import rule_decision
+
+                    fs = SafeFS(self.config.wiki_root)
+                    for index, page in enumerate(changed):
+                        if (
+                            page.frontmatter.type == "rule"
+                            and (page.frontmatter.model_extra or {}).get("lifecycle") == "active"
+                        ):
+                            metadata = page.frontmatter.model_dump(mode="json")
+                            metadata.update(
+                                status="verified", verified_by=actor.identity, verified_at=now()
+                            )
+                            changed[index] = parse_page(render(metadata, page.body_md), page.path)
+                    for operation, values in requests:
+                        index = next(i for i, p in enumerate(changed) if p.id == values["id"])
+                        changed[index] = rule_decision(
+                            changed[index],
+                            actor,
+                            operation,
+                            {k: v for k, v in values.items() if k != "id"},
+                        )
+                    for page in changed:
+                        fs.write(
+                            page.path,
+                            render(page.frontmatter.model_dump(mode="json"), page.body_md),
+                        )
                     merged = [p for p in prior_pages if p.path not in paths] + changed
                     merged_errors = [
                         problem
@@ -651,13 +741,110 @@ class Proposals:
                         actor.name,
                         [*paths, "wiki/index.md", "wiki/log.md"],
                     )
+                with self.rt.state.connect() as db:
+                    db.execute(
+                        "UPDATE proposals SET accepted_commit=? WHERE pid=?",
+                        (self.repo.head(), pid),
+                    )
+                self.rt.state.audit(
+                    actor.name,
+                    "proposal.rule-decisions",
+                    pid,
+                    detail=json.dumps({"promote": promote or [], "deprecate": deprecate or []}),
+                )
                 self._status(proposal, decision, actor, comment)
                 self.rt.indexer.reindex(self.repo.changed(base))
                 self.repo.remove_worktree(self.worktree(pid), proposal.branch)
             else:
+                if (
+                    decision == "rejected"
+                    and self.rt.state.rows("SELECT id FROM findings WHERE proposal_pid=?", (pid,))
+                    and not comment.strip()
+                ):
+                    raise WikiError(
+                        "E_REQUEST_INVALID", "Для отклонения находки нужна причина.", status=400
+                    )
                 self._status(proposal, decision, actor, comment)
                 if decision in ("rejected", "abandoned"):
                     self.repo.remove_worktree(self.worktree(pid), proposal.branch)
+        return self.get(pid, actor)
+
+    def revert(self, pid: str, actor: Principal) -> dict[str, Any]:
+        require_human(actor)
+        with write_lock(self.config.state_dir, self.config.lock_timeout):
+            proposal = self._proposal(pid, actor)
+            if proposal.status != "accepted" or not proposal.accepted_commit:
+                raise WikiError(
+                    "E_PROPOSAL_STATE", "Откат доступен только принятому предложению.", status=409
+                )
+            self._sync_main()
+            commit = proposal.accepted_commit
+            paths = [p.path for pair in self._changes(proposal) for p in pair if p]
+            later = set(
+                self.repo.run(
+                    "log", "--format=", "--name-only", commit + "..HEAD", "--", *sorted(set(paths))
+                ).splitlines()
+            )
+            overlap = sorted(set(paths) & later)
+            if overlap:
+                raise WikiError(
+                    "E_REVERT_CONFLICT",
+                    "Позднейшие коммиты затрагивают те же страницы.",
+                    details=[{"path": p} for p in overlap],
+                    status=409,
+                )
+            generated = ["wiki/index.md", "wiki/log.md"]
+            base = self.repo.head()
+            prior = self.rt.indexer.pages()
+            baseline = {
+                (i.code, i.page, i.message)
+                for i in validate_set(prior, self.rt.registry)
+                if i.severity == "error"
+            }
+            with self.repo.transaction([*paths, *generated]):
+                try:
+                    self.repo.run("revert", "-m", "1", "--no-commit", commit, author=actor.name)
+                except subprocess.CalledProcessError as exc:
+                    unresolved = set(
+                        self.repo.run("diff", "--name-only", "--diff-filter=U").splitlines()
+                    )
+                    if not unresolved or unresolved - set(generated):
+                        raise WikiError(
+                            "E_REVERT_CONFLICT",
+                            "Не удалось откатить страницы.",
+                            details=[{"path": p} for p in sorted(unresolved)],
+                            status=409,
+                        ) from exc
+                # Generated views are rebuilt from the reverted content, retaining the audit log.
+                self.repo.run(
+                    "restore", "--source", base, "--staged", "--worktree", "--", *generated
+                )
+                if (
+                    self.repo.git_path("REVERT_HEAD").exists()
+                    or self.repo.git_path("sequencer").exists()
+                ):
+                    self.repo.run("revert", "--quit")
+                changed, errors = read_pages(self.config.wiki_root, sorted(set(paths)))
+                merged = [p for p in prior if p.path not in paths] + changed
+                issues = validate_set(merged, self.rt.registry) + errors
+                require_valid([i for i in issues if (i.code, i.page, i.message) not in baseline])
+                generate(
+                    self.config.wiki_root,
+                    f"Отменено {pid}: {proposal.title}",
+                    actor.identity,
+                    merged,
+                )
+                reverted = self.repo.commit(
+                    "Revert proposal " + pid, actor.name, [*paths, *generated]
+                )
+            with self.rt.state.connect() as db:
+                db.execute("UPDATE proposals SET reverted_commit=? WHERE pid=?", (reverted, pid))
+                db.execute(
+                    "UPDATE findings SET status='open',updated_at=? WHERE proposal_pid=? AND status='resolved'",
+                    (now(), pid),
+                )
+            self._status(proposal, "reverted", actor)
+            self.rt.indexer.reindex(self.repo.changed(base))
         return self.get(pid, actor)
 
     def recover(self) -> None:
@@ -670,7 +857,26 @@ class Proposals:
         for row in self.rt.state.rows("SELECT * FROM proposals"):
             proposal = Proposal.model_validate(row)
             work = self.worktree(proposal.pid)
-            if proposal.status in ("accepted", "rejected", "abandoned"):
+            if proposal.status == "accepted":
+                reverted = self.repo.run(
+                    "log",
+                    "-1",
+                    "--format=%H",
+                    "--grep",
+                    f"^Revert proposal {proposal.pid}$",
+                    "main",
+                )
+                if reverted:
+                    with self.rt.state.connect() as db:
+                        db.execute(
+                            "UPDATE proposals SET status='reverted',reverted_commit=? WHERE pid=?",
+                            (reverted, proposal.pid),
+                        )
+                        db.execute(
+                            "UPDATE findings SET status='open' WHERE proposal_pid=? AND status='resolved'",
+                            (proposal.pid,),
+                        )
+            if proposal.status in ("accepted", "rejected", "abandoned", "reverted"):
                 if work.exists() or proposal.branch in branches:
                     self.repo.remove_worktree(work, proposal.branch)
                 continue
@@ -684,14 +890,17 @@ class Proposals:
             ).splitlines()
             with self.rt.state.connect() as db:
                 db.executemany(
-                    "INSERT OR IGNORE INTO proposal_editors VALUES (?,?)",
-                    [(proposal.pid, name) for name in set(authors)],
+                    "INSERT OR IGNORE INTO proposal_editors(pid,name,identity) VALUES (?,?,COALESCE((SELECT person FROM tokens WHERE name=?),?))",
+                    [(proposal.pid, name, name, name) for name in set(authors)],
                 )
                 if authors:
                     db.execute(
                         "UPDATE proposals SET last_editor=? WHERE pid=?", (authors[0], proposal.pid)
                     )
-            if proposal.status != "submitted" or branch.head() == proposal.base_commit:
+            if (
+                proposal.status not in ("draft", "submitted")
+                or branch.head() == proposal.base_commit
+            ):
                 continue
             try:
                 self.repo.run("merge-base", "--is-ancestor", proposal.branch, "main")
@@ -709,6 +918,19 @@ class Proposals:
             if not name:
                 continue
             actor = Principal(name=name, role="admin", clearance="restricted")
+            commit = self.repo.run(
+                "log",
+                "-1",
+                "--format=%H",
+                "--merges",
+                "--grep",
+                f"^Accept proposal {proposal.pid}$",
+                "main",
+            )
+            with self.rt.state.connect() as db:
+                db.execute(
+                    "UPDATE proposals SET accepted_commit=? WHERE pid=?", (commit, proposal.pid)
+                )
             self._status(proposal, "accepted", actor, "Recovered after committed merge")
             self.repo.remove_worktree(work, proposal.branch)
 

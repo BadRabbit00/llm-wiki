@@ -57,7 +57,11 @@ class GitRepo:
             )
 
     def commit(self, message: str, author: str, paths: list[str] | None = None) -> str:
-        self.run("add", "--all", "--", *(paths or self.managed))
+        selected = paths or list(self.managed)
+        cached = set(self.run("ls-files", "--cached", "--", *selected).splitlines())
+        add_paths = [p for p in selected if (self.root / p).exists() or p in cached]
+        if add_paths:
+            self.run("add", "--all", "--", *add_paths)
         if self.run("diff", "--cached", "--name-only"):
             options = (
                 []
@@ -72,25 +76,26 @@ class GitRepo:
 
     def recover(self) -> None:
         """Recover only paths owned by an interrupted service write, under write.lock."""
-        if self.git_path("MERGE_HEAD").exists():
-            self.run("merge", "--abort")
         journal = self.git_path("wikisvc-transaction.json")
-        if not journal.exists():
-            return
-        data = json.loads(journal.read_text())
-        # A successful Git commit is durable, even if the process died before cleanup.
-        if self.head() == data["head"]:
+        data = json.loads(journal.read_text()) if journal.exists() else None
+        # Restore journal-owned paths before abort: promoted rules may differ from
+        # the merge index, which would otherwise make `merge --abort` refuse.
+        if data and self.head() == data["head"]:
             for path in data["paths"]:
                 if self.run("ls-tree", "--name-only", data["head"], "--", path):
                     self.run(
                         "restore", "--source", data["head"], "--staged", "--worktree", "--", path
                     )
                 else:
-                    self.run("rm", "--cached", "--ignore-unmatch", "--", path)
+                    self.run("rm", "--cached", "--force", "--ignore-unmatch", "--", path)
                     from wikisvc.storage.safefs import SafeFS
 
                     SafeFS(self.root).path(path).unlink(missing_ok=True)
-        journal.unlink()
+        if self.git_path("MERGE_HEAD").exists():
+            self.run("merge", "--abort")
+        if self.git_path("REVERT_HEAD").exists() or self.git_path("sequencer").exists():
+            self.run("revert", "--abort")
+        journal.unlink(missing_ok=True)
 
     @contextmanager
     def transaction(self, paths: list[str]) -> Iterator[None]:

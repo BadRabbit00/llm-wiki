@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers
 from starlette.exceptions import HTTPException
+from starlette.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from wikisvc import __version__
@@ -20,6 +21,7 @@ from wikisvc.api.routers import (
     policies,
     proposals,
     raw,
+    review_queue,
     rules,
     schema,
     search,
@@ -127,6 +129,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="wikisvc", version=__version__, lifespan=lifespan)
     app.add_middleware(BodyLimit, config=config)
+    if config.cors_origins.strip():
+        origins = [origin.strip() for origin in config.cors_origins.split(",") if origin.strip()]
+        if "*" in origins:
+            raise ValueError("CORS_ORIGINS requires explicit origins")
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "If-Match"],
+        )
 
     @app.exception_handler(WikiError)
     def wiki_error(request: Request, exc: WikiError) -> JSONResponse:
@@ -194,6 +207,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     for router in (
         policies.router,
+        review_queue.router,
         rules.router,
         pages.router,
         search.router,

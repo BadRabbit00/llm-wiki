@@ -181,7 +181,12 @@ def reindex(full: bool = False) -> None:
 
 @tokens.command("create")
 def token_create(
-    name: str = typer.Option(...), role: str = "writer", clearance: str = "internal"
+    name: str = typer.Option(...),
+    role: str = "writer",
+    clearance: str = "internal",
+    person: str | None = None,
+    kind: str = "agent",
+    expires_at: str | None = None,
 ) -> None:
     """Issue a token; the plaintext is shown only once."""
     from wikisvc.services.auth import Auth
@@ -193,9 +198,18 @@ def token_create(
         "restricted",
     ):
         raise typer.BadParameter("Invalid role or clearance")
+    if kind not in ("agent", "human"):
+        raise typer.BadParameter("kind: agent or human")
+    from typing import Literal
+
     typer.echo(
         Auth(StateDB(settings().state_dir)).create(
-            name, cast(Role, role), cast(Sensitivity, clearance)
+            name,
+            cast(Role, role),
+            cast(Sensitivity, clearance),
+            person,
+            cast(Literal["agent", "human"], kind),
+            expires_at,
         )
     )
 
@@ -218,7 +232,7 @@ def token_list() -> None:
     from wikisvc.storage.state_db import StateDB
 
     rows = StateDB(settings().state_dir).rows(
-        "SELECT name,role,clearance,created_at,revoked_at FROM tokens ORDER BY name"
+        "SELECT name,role,clearance,person,kind,expires_at,created_at,revoked_at FROM tokens ORDER BY name"
     )
     typer.echo(json.dumps(rows, ensure_ascii=False, indent=2))
 

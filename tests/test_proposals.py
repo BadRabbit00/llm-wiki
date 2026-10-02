@@ -34,7 +34,7 @@ def payload(
 
 def reviewer(client: TestClient, config: Settings, name: str = "reviewer") -> None:
     client.headers["Authorization"] = "Bearer " + Auth(StateDB(config.state_dir)).create(
-        name, "reviewer", "restricted"
+        name, "reviewer", "restricted", kind="human"
     )
 
 
@@ -153,7 +153,7 @@ def test_self_review_and_conflict(client: TestClient, config: Settings) -> None:
     before = GitRepo(config.wiki_root).head()
     response = client.post(f"/api/v1/proposals/{second}/accept")
     assert response.status_code == 409, response.text
-    assert client.get(f"/api/v1/proposals/{second}").json()["status"] == "conflict"
+    assert client.get(f"/api/v1/proposals/{second}").json()["status"] == "submitted"
     assert GitRepo(config.wiki_root).head() == before
     GitRepo(config.wiki_root).ensure_main()
 
