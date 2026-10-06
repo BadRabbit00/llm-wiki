@@ -21,7 +21,7 @@ class JobRunner:
     ) -> None:
         self.state, self.client, self.models, self.chat = state, client, models, chat
         self.pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="wikiagent-job")
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.active: set[str] = set()
         self.stopping = threading.Event()
 
@@ -39,6 +39,16 @@ class JobRunner:
                 self.state.status(job_id, "pending")
                 self.pool.submit(self.run, job_id)
 
+    def heal(self, actor: dict[str, Any], scope: str, scheduled: bool = False) -> str:
+        with self.lock:
+            if self.state.rows(
+                "SELECT id FROM jobs WHERE kind='heal' AND status IN ('pending','running','waiting_chat')"
+            ):
+                raise WikiError("E_JOB_BUSY", "Самолечение уже выполняется.", status=409)
+            job_id = self.state.job("heal", actor, {"scope": scope, "scheduled": scheduled})
+            self.start(job_id)
+            return job_id
+
     def run(self, job_id: str) -> None:
         try:
             self.boundary(job_id)
@@ -46,6 +56,12 @@ class JobRunner:
             self.state.status(job_id, "running")
             if row["kind"] == "ingest_book":
                 IngestBook(self.client, self.models, self.state, self.boundary).run(
+                    job_id, json.loads(row["payload"])
+                )
+            elif row["kind"] == "heal":
+                from wikiagent.heal.run import Healer
+
+                Healer(self.client, self.models, self.state, self.chat, self.boundary).run(
                     job_id, json.loads(row["payload"])
                 )
             else:
@@ -64,7 +80,7 @@ class JobRunner:
 
     def recover(self) -> None:
         for row in self.state.rows(
-            "SELECT id FROM jobs WHERE status IN ('running','pending','paused')"
+            "SELECT id FROM jobs WHERE status IN ('running','pending','paused','waiting_chat')"
         ):
             self.start(row["id"])
 
@@ -74,9 +90,13 @@ class JobRunner:
 
     def get(self, job_id: str, actor: dict[str, Any]) -> dict[str, Any]:
         rows = self.state.rows("SELECT * FROM jobs WHERE id=?", (job_id,))
+        scheduled = bool(rows and json.loads(rows[0]["payload"]).get("scheduled"))
         if (
             not rows
-            or rows[0]["owner"] != (actor.get("person") or actor["name"])
+            or (
+                rows[0]["owner"] != (actor.get("person") or actor["name"])
+                and not (scheduled and actor["role"] in ("reviewer", "admin"))
+            )
             or ["public", "internal", "restricted"].index(actor["clearance"])
             < ["public", "internal", "restricted"].index(rows[0]["clearance"])
         ):

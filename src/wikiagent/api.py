@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from wikiagent.chat.loop import Chat
 from wikiagent.client import WikiClient
 from wikiagent.config import AgentConfig, load_config
+from wikiagent.heal.scheduler import Scheduler
 from wikiagent.jobs.runner import JobRunner
 from wikiagent.models import ModelClient
 from wikiagent.state import AgentState
@@ -40,6 +41,10 @@ class BookJob(BaseModel):
     scopes_hint: list[str] = Field(default_factory=list, max_length=20)
 
 
+class HealJob(BaseModel):
+    scope: Literal["changed", "full"] = "changed"
+
+
 def create_app(
     config: AgentConfig | None = None,
     client: WikiClient | None = None,
@@ -51,13 +56,16 @@ def create_app(
     models = models or ModelClient(config, state)
     chat = Chat(client, models, state)
     jobs = JobRunner(state, client, models, chat)
+    scheduler = Scheduler(jobs)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         jobs.recover()
+        scheduler.start()
         try:
             yield
         finally:
+            scheduler.close()
             jobs.close()
 
     app = FastAPI(title="wikiagent", lifespan=lifespan)
@@ -66,6 +74,7 @@ def create_app(
     app.state.agent_state = state
     app.state.client = client
     app.state.models = models
+    app.state.scheduler = scheduler
 
     def authorize(
         credentials: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())],
@@ -141,15 +150,25 @@ def create_app(
         jobs.start(job_id)
         return jobs.get(job_id, actor)
 
+    @app.post("/jobs/heal", status_code=202)
+    def heal(
+        payload: HealJob, actor: Annotated[dict[str, Any], Depends(authorize)]
+    ) -> dict[str, Any]:
+        return jobs.get(jobs.heal(actor, payload.scope), actor)
+
     @app.get("/jobs")
     def list_jobs(actor: Annotated[dict[str, Any], Depends(authorize)]) -> dict[str, Any]:
         return {
             "items": [
                 jobs.get(row["id"], actor)
                 for row in state.rows(
-                    "SELECT id FROM jobs WHERE owner=? ORDER BY created_at",
-                    (actor.get("person") or actor["name"],),
+                    "SELECT id FROM jobs WHERE owner=? OR (? AND json_extract(payload, '$.scheduled')=1) ORDER BY created_at",
+                    (actor.get("person") or actor["name"], actor["role"] in ("reviewer", "admin")),
                 )
+                if state.rows("SELECT clearance FROM jobs WHERE id=?", (row["id"],))[0]["clearance"]
+                in ["public", "internal", "restricted"][
+                    : ["public", "internal", "restricted"].index(actor["clearance"]) + 1
+                ]
             ]
         }
 
@@ -170,7 +189,15 @@ def create_app(
         job = jobs.get(job_id, actor)
         if job["status"] not in ("failed", "cancelled", "paused", "needs_outline"):
             raise WikiError("E_JOB_STATE", "Эту задачу нельзя возобновить.", status=409)
-        jobs.start(job_id)
+        with jobs.lock:
+            if job_id in jobs.active or (
+                job["kind"] == "heal"
+                and state.rows(
+                    "SELECT id FROM jobs WHERE kind='heal' AND status IN ('pending','running','waiting_chat')"
+                )
+            ):
+                raise WikiError("E_JOB_BUSY", "Дождитесь остановки текущей задачи.", status=409)
+            jobs.start(job_id)
         return jobs.get(job_id, actor)
 
     return app

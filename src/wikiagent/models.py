@@ -1,6 +1,5 @@
 import json
 import os
-import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -9,6 +8,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from wikiagent.config import AgentConfig
+from wikiagent.jobs.priority import PriorityGate
 from wikiagent.state import AgentState
 from wikisvc.domain.errors import WikiError
 from wikisvc.storage.state_db import now
@@ -36,7 +36,7 @@ class ModelClient:
     ) -> None:
         self.config, self.state = config, state
         self.http = http or httpx.Client(follow_redirects=False)
-        self.lock = threading.RLock()
+        self.gate = PriorityGate()
         self.calls = 0
         self.forbidden_attempts = 0
 
@@ -51,25 +51,29 @@ class ModelClient:
         headers = {}
         if model.token_env:
             headers["Authorization"] = "Bearer " + os.environ.get(model.token_env, "")
-        with self.lock:
+        with self.gate.enter(background=task.startswith("heal_")):
             with self.state.connect() as db:
                 db.execute(
                     "INSERT INTO model_calls VALUES (?,?,?,?)", (now()[:10], role, task, now())
                 )
             self.calls += 1
-            response = self.http.post(
-                model.base_url.rstrip("/") + "/chat/completions",
-                headers=headers,
-                timeout=model.timeout_seconds,
-                json={
-                    "model": model.model,
-                    "temperature": model.temperature,
-                    "messages": messages,
-                    **options,
-                },
-            )
-            response.raise_for_status()
-            result: dict[str, Any] = response.json()["choices"][0]["message"]
+            try:
+                response = self.http.post(
+                    model.base_url.rstrip("/") + "/chat/completions",
+                    headers=headers,
+                    timeout=model.timeout_seconds,
+                    json={
+                        "model": model.model,
+                        "temperature": model.temperature,
+                        "messages": messages,
+                        "max_tokens": min(4096, model.context // 4),
+                        **options,
+                    },
+                )
+                response.raise_for_status()
+                result: dict[str, Any] = response.json()["choices"][0]["message"]
+            except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
+                raise WikiError('E_MODEL_UNAVAILABLE', 'Модель недоступна или вернула неверный ответ HTTP.', status=502) from exc
             return result
 
     def structured[T: BaseModel](

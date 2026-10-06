@@ -66,7 +66,20 @@ class Findings:
                 "SELECT * FROM findings WHERE fingerprint=?", (fingerprint,)
             )
             if existing:
-                # Dismissal and resolution survive identical evidence being posted again.
+                # A healer may attach its completed proposal after creating the finding.
+                if (
+                    existing[0]["status"] == "open"
+                    and not existing[0]["proposal_pid"]
+                    and values.get("proposal_pid")
+                ):
+                    with self.rt.state.connect() as db:
+                        db.execute(
+                            "UPDATE findings SET proposal_pid=?,updated_at=? WHERE id=?",
+                            (values["proposal_pid"], now(), existing[0]["id"]),
+                        )
+                    existing = self.rt.state.rows(
+                        "SELECT * FROM findings WHERE fingerprint=?", (fingerprint,)
+                    )
                 return self.visible(existing[0], actor)
             row = {
                 "id": uuid.uuid4().hex,

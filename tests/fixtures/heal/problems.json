@@ -1,0 +1,12 @@
+[
+  {"summary":"Используй синхронный HTTP клиент в обработчиках Python.","level":"must","category":"architecture"},
+  {"summary":"Используй асинхронный HTTP клиент в обработчиках Python.","category":"architecture"},
+  {"summary":"Пиши структурированные события журнала в JSON формате.","category":"logging"},
+  {"summary":"Записывай события журнала только как объекты JSON.","category":"logging"},
+  {"summary":"Добавляй аннотации типов для публичных функций Python.","category":"code-style"},
+  {"summary":"Указывай тип результата всех публичных функций Python.","category":"code-style"},
+  {"summary":"Используй nullable reference types в проектах .NET.","category":"stack"},
+  {"summary":"Включай проверку nullable reference types в коде .NET.","category":"stack","applies_to":["lang:dotnet"]},
+  {"summary":"Повторяй запросы только согласно правилам обработки ошибок.","category":"errors","relations":{"depends_on":["rule-heal-09"]}},
+  {"summary":"Повторяй все неудачные запросы без ограничения попыток.","category":"errors","lifecycle":"deprecated","deprecated_reason":"Отменено из-за бесконечных повторов."}
+]

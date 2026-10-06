@@ -1,8 +1,9 @@
 import os
+import re
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from wikisvc.domain.markdown import load_yaml
 
@@ -40,6 +41,16 @@ class HealConfig(BaseModel):
     full_sweep_days: int = Field(default=7, ge=1)
     k_candidates: int = Field(default=8, ge=1, le=20)
     candidate_stale_days: int = Field(default=30, ge=1)
+
+    @field_validator("windows")
+    @classmethod
+    def valid_windows(cls, values: list[str]) -> list[str]:
+        if any(
+            not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d-(?:[01]\d|2[0-3]):[0-5]\d", value)
+            for value in values
+        ):
+            raise ValueError("windows use HH:MM-HH:MM in server local time")
+        return values
 
 
 class AgentConfig(BaseModel):

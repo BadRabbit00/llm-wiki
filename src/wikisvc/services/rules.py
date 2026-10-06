@@ -214,6 +214,7 @@ class Rules:
                 ):
                     continue
                 item.update(
+                    version=page.version,
                     sources=page.frontmatter.sources,
                     priority=extra.get("priority", 3),
                     updated=page.frontmatter.updated,
