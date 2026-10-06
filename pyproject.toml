@@ -4,17 +4,16 @@ build-backend = "hatchling.build"
 
 [project]
 name = "wikisvc"
-version = "0.1.0"
+version = "0.2.0"
 description = "Deterministic git-backed wiki service for agents"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi", "uvicorn", "pydantic>=2", "pydantic-settings", "ruamel.yaml",
-  "pystemmer", "python-multipart", "typer", "httpx", "mcp>=1.29,<2",
+  "pystemmer", "python-multipart", "typer", "httpx", "pypdf", "python-docx", "mcp>=1.29,<2",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "hypothesis", "mypy", "ruff"]
-documents = ["pypdf", "python-docx"]
 
 [project.scripts]
 wikisvc = "wikisvc.cli:app"
@@ -38,7 +37,7 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["wikisvc.domain", "wikisvc.index"]
+source = ["wikisvc.domain", "wikisvc.index", "wikisvc.services.policies", "wikiagent.planner"]
 
 [tool.coverage.report]
 show_missing = true

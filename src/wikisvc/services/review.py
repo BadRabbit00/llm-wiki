@@ -132,8 +132,6 @@ def review_rule(
         dependencies = runtime.graph.impact(page_id, actor)["nodes"]
     return {
         **runtime.pages.serialize(page),
-        "warnings": [
-            i.model_dump() for i in issues if i.severity == "warning" and i.page == page_id
-        ],
+        "warnings": [i.model_dump() for i in issues if i.severity != "error" and i.page == page_id],
         "dependencies": dependencies,
     }

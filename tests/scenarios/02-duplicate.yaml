@@ -1,5 +1,5 @@
 {
-  "input": "Это уже есть",
+  "input": "Мы используем requests для синхронных HTTP запросов Python.",
   "initial_pages": [
     {
       "id": "rule-existing",
@@ -33,10 +33,10 @@
       "claims": [
         {
           "id": "rule-new",
-          "text": "Использовать только async код Python",
-          "title": "Асинхронный Python",
-          "thesis": "Используй только асинхронный код в обработчиках Python.",
-          "category": "architecture",
+          "text": "Мы используем requests для синхронных HTTP запросов Python.",
+          "title": "HTTP запросы Python",
+          "thesis": "Используй requests для синхронных HTTP запросов Python.",
+          "category": "stack",
           "scopes_guess": [
             "lang:python"
           ],

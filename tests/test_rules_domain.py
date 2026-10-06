@@ -71,7 +71,10 @@ def test_typed_extra_fields(field: ExtraField, value: Any, valid: bool) -> None:
     ],
 )
 def test_rule_codes(registry: Registry, changes: dict[str, Any], code: str) -> None:
-    assert code in {i.code for i in validate_page(rule(registry, **changes), registry)}
+    issues = {i.code: i for i in validate_page(rule(registry, **changes), registry)}
+    assert code in issues
+    if code == "W_MUST_WITHOUT_ENFORCER":
+        assert issues[code].severity == "info"
 
 
 def test_rule_positive_and_length(registry: Registry) -> None:
@@ -180,3 +183,24 @@ def test_legacy_migration_is_preview_or_proposal(client: TestClient) -> None:
         "idea",
         "team",
     )
+
+
+def test_schema_upgrade_preserves_custom_instructions_unless_requested(client: TestClient) -> None:
+    from wikisvc.domain.models import Principal
+    from wikisvc.services.migrations import upgrade_schema
+    from wikisvc.storage.gitrepo import GitRepo
+    from wikisvc.storage.safefs import SafeFS
+
+    rt = client.app.state.runtime
+    fs, repo = SafeFS(rt.settings.wiki_root), GitRepo(rt.settings.wiki_root)
+    fs.write("AGENTS.md", "# Custom instructions\n")
+    repo.commit("Custom instructions", "fixture")
+    actor = Principal(name="admin", role="admin", clearance="restricted")
+    upgrade_schema(rt, actor)
+    assert fs.read("AGENTS.md") == "# Custom instructions\n"
+    first = upgrade_schema(rt, actor, refresh_instructions=True)
+    assert "get_policies" in fs.read("AGENTS.md")
+    assert first["updated"] == ["AGENTS.md"]
+    second = upgrade_schema(rt, actor, refresh_instructions=True)
+    assert second["commit"] == first["commit"] and not second["updated"]
+    repo.ensure_main()

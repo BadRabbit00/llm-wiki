@@ -1,0 +1,32 @@
+wikisvc:
+  base_url: http://127.0.0.1:8787
+  token_env: WIKIAGENT_TOKEN
+models:
+  planner: &local
+    base_url: http://127.0.0.1:18089/v1
+    model: wiki-gemma-12b
+    context: 16384
+    temperature: 0
+    structured: json_schema
+    timeout_seconds: 300
+  reviewer: *local
+  chat: *local
+limits:
+  max_tool_steps: 25
+  chapter_chunk_tokens: 4000
+  retries: 3
+  state_tokens: 1500
+heal:
+  enabled: true
+  idle_minutes: 15
+  windows: ["01:00-06:00"]
+  max_findings_per_run: 20
+  max_model_calls_per_run: 100
+  max_model_calls_per_day: 2000
+  confidence_threshold: 0.7
+  full_sweep_days: 7
+  k_candidates: 8
+  candidate_stale_days: 30
+bind_host: 127.0.0.1
+bind_port: 8788
+# state_dir по умолчанию берётся из WIKIAGENT_STATE_DIR, затем .wikiagent.

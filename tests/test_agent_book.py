@@ -44,6 +44,20 @@ def test_book_resume_without_duplicates(
     SafeFS(config.wiki_root).write(
         retired.path, render(retired.frontmatter.model_dump(mode="json"), retired.body_md)
     )
+    collision = make_page(
+        rt.registry,
+        "rule-architecture-use-structured-logs-for-every-operation",
+        "rule",
+        summary="Сохраняй историческое правило с отдельным смыслом.",
+        category="architecture",
+        level="should",
+        lifecycle="candidate",
+        applies_to=["lang:python"],
+        origin="team",
+    )
+    SafeFS(config.wiki_root).write(
+        collision.path, render(collision.frontmatter.model_dump(mode="json"), collision.body_md)
+    )
     GitRepo(config.wiki_root).commit("Retired candidate fixture", "fixtures")
     rt.reindex()
     raw = library(
@@ -138,6 +152,11 @@ def test_book_resume_without_duplicates(
     rules = [p for p in proposal["pages"] if p["type"] == "rule"]
     assert len(rules) == 2 and all(
         p["lifecycle"] == "candidate" and p["origin"] == "book" for p in rules
+    )
+    assert any(p["id"] == collision.id + "-2" for p in rules)
+    assert (
+        client.get("/api/v1/pages/" + collision.id).json()["summary"]
+        == collision.frontmatter.summary
     )
     assert report["conflicts"] and any(e["code"] == "SKIP_DEPRECATED" for e in report["errors"])
     assert client.get(f"/api/v1/proposals/{report['proposal']}/validate").json()["errors"] == []

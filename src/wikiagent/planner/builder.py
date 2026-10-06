@@ -162,15 +162,13 @@ class Builder:
         for n, item in enumerate(plan["items"], 1):
             item["n"] = n
         mutations = [i for i in plan["items"] if i["action"] not in ("noop_duplicate", "flag_page")]
-        if not mutations:
+        pid = (session.get("plan") or {}).get("proposal")
+        if not mutations and not pid and not plan["items"]:
             return {
                 **plan,
-                "proposal": session.get("plan", {}).get("proposal")
-                if session.get("plan")
-                else None,
+                "proposal": None,
                 "summary": "Новых правок не требуется.",
             }
-        pid = (session.get("plan") or {}).get("proposal")
         if pid and self.client.request("GET", "/proposals/" + pid)["status"] not in (
             "draft",
             "changes_requested",
@@ -217,6 +215,8 @@ class Builder:
         # A reply updates the same draft; retain earlier unresolved creations in its accept plan.
         promote_by_id = {i["id"]: i for i in previous.get("accept_body", {}).get("promote", [])}
         promote_by_id.update({i["id"]: i for i in promote})
+        deprecate_by_id = {i["id"]: i for i in previous.get("accept_body", {}).get("deprecate", [])}
+        deprecate_by_id.update({i["id"]: i for i in deprecate})
         result = {
             **plan,
             "proposal": pid,
@@ -224,8 +224,12 @@ class Builder:
             "validation": validation,
             "impact": impact,
             "summary": f"Предложение содержит {len(mutations)} правок; вопросов: {len(plan['questions'])}.",
-            "accept_body": {"promote": list(promote_by_id.values()), "deprecate": deprecate},
-            "needs_double_confirm": plan.get("touches_must", False)
+            "accept_body": {
+                "promote": list(promote_by_id.values()),
+                "deprecate": list(deprecate_by_id.values()),
+            },
+            "needs_double_confirm": previous.get("needs_double_confirm", False)
+            or plan.get("touches_must", False)
             or any(i.get("level") == "must" for i in mutations)
             or len({i["target"] for i in plan["items"]}) > 5,
             "preview_diff": self.client.request("GET", f"/proposals/{pid}/diff"),

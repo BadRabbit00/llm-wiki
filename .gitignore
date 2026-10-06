@@ -9,4 +9,7 @@ __pycache__/
 htmlcov/
 dist/
 result
+result-*
+.wikiagent/
+wikiagent.yaml
 *.egg-info/

@@ -87,7 +87,7 @@ def scopes_add(value: str) -> None:
 
 
 @schema_commands.command("upgrade")
-def schema_upgrade() -> None:
+def schema_upgrade(refresh_instructions: bool = False) -> None:
     """Install policy schema additions; content changes require migrate-rules proposals."""
     import json
 
@@ -98,7 +98,9 @@ def schema_upgrade() -> None:
     typer.echo(
         json.dumps(
             upgrade_schema(
-                Runtime(settings()), Principal(name="cli", role="admin", clearance="restricted")
+                Runtime(settings()),
+                Principal(name="cli", role="admin", clearance="restricted"),
+                refresh_instructions,
             ),
             ensure_ascii=False,
         )

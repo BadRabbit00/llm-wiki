@@ -1,0 +1,159 @@
+{
+  "scenarios": 12,
+  "models": {
+    "planner": "wiki-gemma-12b",
+    "reviewer": "wiki-gemma-12b",
+    "chat": "wiki-gemma-12b"
+  },
+  "prompt_version": "policy-layer-v2.3",
+  "production_ready": false,
+  "results": [
+    {
+      "scenario": "01-new",
+      "pass": false,
+      "actions": [
+        "create_rule"
+      ],
+      "questions": [
+        "owner"
+      ],
+      "error": null,
+      "model_calls": 2,
+      "seconds": 20.87
+    },
+    {
+      "scenario": "02-duplicate",
+      "pass": true,
+      "actions": [
+        "noop_duplicate"
+      ],
+      "questions": [],
+      "error": null,
+      "model_calls": 3,
+      "seconds": 28.31
+    },
+    {
+      "scenario": "03-refine",
+      "pass": true,
+      "actions": [
+        "create_rule"
+      ],
+      "questions": [],
+      "error": null,
+      "model_calls": 3,
+      "seconds": 27.01
+    },
+    {
+      "scenario": "04-scope",
+      "pass": true,
+      "actions": [
+        "patch_rule"
+      ],
+      "questions": [],
+      "error": null,
+      "model_calls": 3,
+      "seconds": 27.05
+    },
+    {
+      "scenario": "05-conflict_should",
+      "pass": true,
+      "actions": [
+        "create_rule"
+      ],
+      "questions": [
+        "conflict"
+      ],
+      "error": null,
+      "model_calls": 3,
+      "seconds": 31.25
+    },
+    {
+      "scenario": "06-conflict_must",
+      "pass": true,
+      "actions": [
+        "create_rule"
+      ],
+      "questions": [
+        "owner",
+        "conflict"
+      ],
+      "error": null,
+      "model_calls": 3,
+      "seconds": 31.33
+    },
+    {
+      "scenario": "07-pattern",
+      "pass": false,
+      "actions": [],
+      "questions": [],
+      "error": "E_MODEL_OUTPUT",
+      "model_calls": 5,
+      "seconds": 57.12
+    },
+    {
+      "scenario": "08-ambiguous",
+      "pass": true,
+      "actions": [
+        "create_rule"
+      ],
+      "questions": [
+        "scope"
+      ],
+      "error": null,
+      "model_calls": 2,
+      "seconds": 19.59
+    },
+    {
+      "scenario": "09-batch",
+      "pass": true,
+      "actions": [
+        "create_rule",
+        "create_rule",
+        "create_rule",
+        "create_rule",
+        "create_rule"
+      ],
+      "questions": [],
+      "error": null,
+      "model_calls": 2,
+      "seconds": 75.72
+    },
+    {
+      "scenario": "10-not_rule",
+      "pass": true,
+      "actions": [],
+      "questions": [],
+      "error": null,
+      "model_calls": 2,
+      "seconds": 16.49
+    },
+    {
+      "scenario": "11-reply",
+      "pass": true,
+      "actions": [
+        "supersede_rule"
+      ],
+      "questions": [],
+      "error": null,
+      "model_calls": 3,
+      "seconds": 31.48
+    },
+    {
+      "scenario": "12-cancel",
+      "pass": true,
+      "actions": [
+        "cancel"
+      ],
+      "questions": [],
+      "error": null,
+      "model_calls": 1,
+      "seconds": 1.9
+    }
+  ],
+  "completed": 12,
+  "accuracy": 0.8333333333333334,
+  "false_conflicts": 0,
+  "extra_questions_per_scenario": 0.08333333333333333,
+  "forbidden_attempts": 0,
+  "seconds": 368.14
+}

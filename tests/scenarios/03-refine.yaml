@@ -1,5 +1,5 @@
 {
-  "input": "Уточняем правило",
+  "input": "Уточнение к правилу requests для Python: задавай timeout=10 секунд при каждом HTTP запросе.",
   "initial_pages": [
     {
       "id": "rule-existing",
@@ -33,10 +33,10 @@
       "claims": [
         {
           "id": "rule-new",
-          "text": "Использовать только async код Python",
-          "title": "Асинхронный Python",
-          "thesis": "Используй только асинхронный код в обработчиках Python.",
-          "category": "architecture",
+          "text": "Уточнение к правилу requests для Python: задавай timeout=10 секунд при каждом HTTP запросе.",
+          "title": "HTTP запросы Python",
+          "thesis": "Задавай timeout=10 секунд для каждого HTTP запроса через requests в Python.",
+          "category": "stack",
           "scopes_guess": [
             "lang:python"
           ],

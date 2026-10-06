@@ -1,0 +1,105 @@
+{
+  "models": {
+    "planner": "wiki-gemma-12b",
+    "reviewer": "wiki-gemma-12b",
+    "chat": "wiki-gemma-12b"
+  },
+  "isolated_wiki": true,
+  "checks": {
+    "chat": {
+      "pass": true,
+      "status": "draft",
+      "items": [
+        {
+          "action": "create_rule",
+          "target": "rule-fastapi-async-handlers",
+          "thesis": "Используй FastAPI и только асинхронный код в обработчиках Python."
+        }
+      ],
+      "questions": [
+        {
+          "id": "conflict-rule-http-requests-sync",
+          "text": "Правило rule-http-requests-sync противоречит новому. Что сделать?",
+          "options": [
+            "Заменить новым",
+            "Развести области",
+            "Не добавлять новое"
+          ]
+        }
+      ],
+      "errors": []
+    },
+    "heal": {
+      "pass": true,
+      "status": "done",
+      "error": null,
+      "progress": {
+        "checked_pairs": 1,
+        "model_calls": 1,
+        "findings": [
+          "a802e04a34f14e959086c55f11d24f30",
+          "c5bc784098d74f45bd95ab6553541d8e",
+          "25d91069fca54e2287b20fdf0e266609",
+          "978d1bf4d28745e0b125120207566979"
+        ],
+        "discarded": [],
+        "budget_exhausted": false,
+        "retry_needed": false
+      },
+      "findings": [
+        {
+          "kind": "conflicts",
+          "summary": "Оба правила описывают использование HTTP-запросов в обработчиках Python, но дают противоположные инструкции: первое требует асинхронности и запрещает синхронные requests, второе предписывает использовать requests для синхронных запросов. Это прямой логический конфликт.",
+          "proposal_pid": "bf027a9f675045f3a18fa7f6f145746e"
+        },
+        {
+          "kind": "lint_W_SUMMARY_WEAK",
+          "summary": "Нужен содержательный summary.",
+          "proposal_pid": null
+        },
+        {
+          "kind": "lint_W_SUMMARY_WEAK",
+          "summary": "Нужен содержательный summary.",
+          "proposal_pid": null
+        },
+        {
+          "kind": "coverage_errors",
+          "summary": "Нет правил обработки ошибок для python-fastapi",
+          "proposal_pid": null
+        }
+      ]
+    },
+    "book": {
+      "pass": false,
+      "status": "awaiting_review",
+      "error": null,
+      "progress": {
+        "proposal": "4e5351eac52840aca5a06554259cf6c2",
+        "chapters_done": 3,
+        "chapters_total": 3,
+        "candidates": 0,
+        "errors": [
+          {
+            "chapter": 1,
+            "code": "E_MODEL_OUTPUT"
+          },
+          {
+            "chapter": 2,
+            "code": "E_MODEL_OUTPUT"
+          },
+          {
+            "chapter": 3,
+            "code": "E_MODEL_OUTPUT"
+          }
+        ],
+        "conflicts": []
+      },
+      "candidates": [],
+      "validation_errors": []
+    },
+    "authorization": {
+      "pass": true,
+      "forbidden_attempts": 0
+    }
+  }
+}

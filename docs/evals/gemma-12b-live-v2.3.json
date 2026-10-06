@@ -1,0 +1,109 @@
+{
+  "models": {
+    "planner": "wiki-gemma-12b",
+    "reviewer": "wiki-gemma-12b",
+    "chat": "wiki-gemma-12b"
+  },
+  "isolated_wiki": true,
+  "checks": {
+    "chat": {
+      "pass": true,
+      "status": "draft",
+      "items": [
+        {
+          "action": "create_rule",
+          "target": "rule-fastapi-async-handlers",
+          "thesis": "Используй FastAPI и только асинхронный код в обработчиках Python."
+        }
+      ],
+      "questions": [
+        {
+          "id": "conflict-rule-http-requests-sync",
+          "text": "Правило rule-http-requests-sync противоречит новому. Что сделать?",
+          "options": [
+            "Заменить новым",
+            "Развести области",
+            "Не добавлять новое"
+          ]
+        }
+      ],
+      "errors": []
+    },
+    "heal": {
+      "pass": true,
+      "status": "done",
+      "error": null,
+      "progress": {
+        "checked_pairs": 1,
+        "model_calls": 3,
+        "findings": [
+          "949c28ab286d42109db54fb6dd52b17c",
+          "13881f02dd5a4d3092340c1b88cb0e7c",
+          "befc6952d47048358ac844d64449ef81",
+          "456221fcce634d3dbf3dd1264d80b0a0"
+        ],
+        "discarded": [],
+        "budget_exhausted": false,
+        "retry_needed": false
+      },
+      "findings": [
+        {
+          "kind": "conflicts",
+          "summary": "Правила прямо противоречат друг другу: первое правило запрещает использование синхронных requests, а второе предписывает использовать именно requests для синхронных запросов в одних и тех же условиях (обработчики Python).",
+          "proposal_pid": "56a33930f08149c1ab89fd924a66bba8"
+        },
+        {
+          "kind": "lint_W_SUMMARY_WEAK",
+          "summary": "Нужен содержательный summary.",
+          "proposal_pid": null
+        },
+        {
+          "kind": "lint_W_SUMMARY_WEAK",
+          "summary": "Нужен содержательный summary.",
+          "proposal_pid": null
+        },
+        {
+          "kind": "coverage_errors",
+          "summary": "Нет правил обработки ошибок для python-fastapi",
+          "proposal_pid": null
+        }
+      ]
+    },
+    "book": {
+      "pass": true,
+      "status": "awaiting_review",
+      "error": null,
+      "progress": {
+        "proposal": "2fbd04a31d3f4e2cbc1e5ca3a2e8ee9e",
+        "chapters_done": 3,
+        "chapters_total": 3,
+        "candidates": 2,
+        "errors": [
+          {
+            "chapter": 2,
+            "code": "SKIP_DUPLICATE",
+            "thesis": "Используй асинхронные HTTP-клиенты в асинхронных обработчиках для предотвращения блокировки событийного цикла."
+          }
+        ],
+        "conflicts": []
+      },
+      "candidates": [
+        {
+          "id": "rule-code-style-ispolzuy-annotatsii-tipov-dlya-vsekh-publichnykh-funktsiy-v",
+          "summary": "Используй аннотации типов для всех публичных функций в Python коде.",
+          "lifecycle": "candidate"
+        },
+        {
+          "id": "rule-logging-ispolzuyte-strukturirovannye-logi-dlya-kazhdoy-operatsii-v-s",
+          "summary": "Используйте структурированные логи для каждой операции в системе.",
+          "lifecycle": "candidate"
+        }
+      ],
+      "validation_errors": []
+    },
+    "authorization": {
+      "pass": true,
+      "forbidden_attempts": 0
+    }
+  }
+}

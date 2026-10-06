@@ -53,6 +53,15 @@ class Planner:
             previous["accept_body"]["promote"] = [
                 i for i in previous["accept_body"]["promote"] if i["id"] not in claims.remove_ids
             ]
+            retired = {
+                d["id"]
+                for item in previous.get("items", [])
+                if item.get("target") in claims.remove_ids
+                for d in item.get("deprecate", [])
+            }
+            previous["accept_body"]["deprecate"] = [
+                d for d in previous["accept_body"].get("deprecate", []) if d["id"] not in retired
+            ]
         plans: list[dict[str, Any]] = []
         current: dict[str, Any] = {"items": [], "questions": [], "assumptions": []}
         for claim in claims.claims:
@@ -62,7 +71,12 @@ class Planner:
                     "planner",
                     "classify",
                     Classification,
-                    {"claim": claim.model_dump(), "pages": list(pages.values())},
+                    {
+                        "claim": claim.model_dump(),
+                        "pages": list(pages.values()),
+                        "message": text,
+                        "previous_plan": session.get("plan"),
+                    },
                     partial(verify, pages=pages),
                 )
                 if pages

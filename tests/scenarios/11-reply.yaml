@@ -1,5 +1,5 @@
 {
-  "input": "Заменить старое правило",
+  "input": "Заменить старое правило requests на правило: используй httpx.AsyncClient для HTTP запросов Python.",
   "initial_pages": [
     {
       "id": "rule-existing",
@@ -33,9 +33,9 @@
       "claims": [
         {
           "id": "rule-new",
-          "text": "Использовать только async код Python",
+          "text": "Заменить старое правило requests на правило: используй httpx.AsyncClient для HTTP запросов Python.",
           "title": "Асинхронный Python",
-          "thesis": "Используй только асинхронный код в обработчиках Python.",
+          "thesis": "Используй httpx.AsyncClient для HTTP запросов Python.",
           "category": "architecture",
           "scopes_guess": [
             "lang:python"
@@ -60,5 +60,15 @@
         }
       ]
     }
+  },
+  "previous_plan": {
+    "proposal": "abcdef",
+    "summary": "Заменить requests на httpx.AsyncClient в Python",
+    "questions": [
+      {
+        "id": "conflict-rule-existing",
+        "text": "Заменить requests асинхронным httpx или не менять правило?"
+      }
+    ]
   }
 }

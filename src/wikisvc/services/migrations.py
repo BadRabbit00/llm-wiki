@@ -36,7 +36,9 @@ def yaml_text(value: Any) -> str:
     return stream.getvalue()
 
 
-def upgrade_schema(rt: Runtime, actor: Principal) -> dict[str, Any]:
+def upgrade_schema(
+    rt: Runtime, actor: Principal, refresh_instructions: bool = False
+) -> dict[str, Any]:
     require_role(actor, "admin")
     with write_lock(rt.settings.state_dir, rt.settings.lock_timeout):
         repo, fs = GitRepo(rt.settings.wiki_root), SafeFS(rt.settings.wiki_root)
@@ -45,6 +47,9 @@ def upgrade_schema(rt: Runtime, actor: Principal) -> dict[str, Any]:
         writes = {
             p: template.read(p) for p in template.files("schema/**/*") if not fs.path(p).exists()
         }
+        if refresh_instructions:
+            for path in ["AGENTS.md", *template.files("schema/workflows/*.md")]:
+                writes[path] = template.read(path)
         deletes = [
             f"schema/page-types/{kind}.yaml"
             for kind in LEGACY
@@ -68,7 +73,14 @@ def upgrade_schema(rt: Runtime, actor: Principal) -> dict[str, Any]:
             load_yaml(template.read("schema/page-types/source.yaml"))["extra_fields"]
         )
         writes["schema/page-types/source.yaml"] = yaml_text(source)
+        writes = {
+            p: content
+            for p, content in writes.items()
+            if not fs.path(p).exists() or fs.read(p) != content
+        }
         paths = [*writes, *deletes]
+        if not paths:
+            return {"commit": repo.head(), "updated": [], "removed": []}
         with repo.transaction(paths):
             for path, content in writes.items():
                 fs.write(path, content)
@@ -120,7 +132,7 @@ def migrate_rules(rt: Runtime, actor: Principal, dry_run: bool = True) -> dict[s
                 "## Правило\n\n"
                 + text
                 + "\n\n## Обоснование\n\nПеренесено из прежнего свода правил; требуется ревью.\n\n## Примеры\n\n"
-                + body
+                + re.sub(r"(?m)^#{1,6}\s+(.+)$", r"**\1**", body)
             )
             path = "wiki/rules/" + mapping[page.id][5:] + ".md"
         else:

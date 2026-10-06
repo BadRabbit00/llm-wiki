@@ -1,5 +1,5 @@
 {
-  "input": "Добавим область применения",
+  "input": "Правило про requests в Python теперь распространяется ещё и на утилиты командной строки app:cli.",
   "initial_pages": [
     {
       "id": "rule-existing",
@@ -17,7 +17,8 @@
   "scopes": [
     "*",
     "lang:python",
-    "framework:fastapi"
+    "framework:fastapi",
+    "app:cli"
   ],
   "expected": {
     "actions": [
@@ -33,12 +34,12 @@
       "claims": [
         {
           "id": "rule-new",
-          "text": "Использовать только async код Python",
-          "title": "Асинхронный Python",
-          "thesis": "Используй только асинхронный код в обработчиках Python.",
-          "category": "architecture",
+          "text": "Правило про requests в Python теперь распространяется ещё и на утилиты командной строки app:cli.",
+          "title": "HTTP запросы Python",
+          "thesis": "Используй requests для синхронных HTTP запросов в Python и утилитах CLI.",
+          "category": "stack",
           "scopes_guess": [
-            "framework:fastapi"
+            "app:cli"
           ],
           "level_guess": "should",
           "aliases": [

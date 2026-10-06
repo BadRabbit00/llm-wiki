@@ -129,6 +129,49 @@ class IngestBook:
         self.state.checkpoint(job_id, "proposal", pid)
         return str(pid)
 
+    def candidate_id(self, job_id: str, pid: str, candidate: Candidate, identity: str) -> str:
+        from wikisvc.services.raw import safe_name
+
+        allocated: dict[str, str] = self.state.restore(job_id, "candidate_ids", {})
+        if identity in allocated:
+            return allocated[identity]
+        draft = self.client.request("GET", "/proposals/" + pid)["pages"]
+        # Recover jobs made before the readable-ID migration as well as a lost write response.
+        same = next(
+            (
+                p["id"]
+                for p in draft
+                if p["type"] == "rule"
+                and normalize_quote(p["summary"]) == normalize_quote(candidate.thesis)
+            ),
+            None,
+        )
+        if same:
+            page_id = str(same)
+        else:
+            slug = (
+                re.sub(r"[^a-z0-9]+", "-", safe_name(candidate.thesis).lower())
+                .strip("-")[:60]
+                .rstrip("-")
+                or identity
+            )
+            base = "rule-" + candidate.category + "-" + slug
+            used = (
+                {
+                    p["id"]
+                    for p in self.client.all("/rules", lifecycle="candidate,active,deprecated")
+                }
+                | {p["id"] for p in draft}
+                | set(allocated.values())
+            )
+            page_id, suffix = base, 2
+            while page_id in used:
+                page_id = base + "-" + str(suffix)
+                suffix += 1
+        allocated[identity] = page_id
+        self.state.checkpoint(job_id, "candidate_ids", allocated)
+        return page_id
+
     def run(self, job_id: str, payload: dict[str, Any]) -> None:
         path = payload["raw_path"]
         status = self.client.request("POST", "/raw/" + path + "/extract")
@@ -217,7 +260,7 @@ class IngestBook:
                         ),
                     },
                 )
-                key = f"chapter:{chapter['n']}:{offset}"
+                key = f"chapter:{chapter['n']}:{chunk_pages or 'start'}:{offset}"
                 output = self.state.restore(job_id, key)
                 related = self.client.request(
                     "GET",
@@ -298,7 +341,7 @@ class IngestBook:
                     identity = hashlib.sha256(
                         normalize_quote(candidate.thesis).encode()
                     ).hexdigest()[:12]
-                    page_id = "rule-book-" + job_id[:8] + "-" + identity
+                    page_id = self.candidate_id(job_id, pid, candidate, identity)
                     relations: dict[str, list[str]] = {}
                     for relation in candidate.relations:
                         relations.setdefault(relation.type, []).append(relation.rule_id)
@@ -377,6 +420,13 @@ class IngestBook:
                     self.state.checkpoint(job_id, "candidates", candidates)
                 summary = generated.state_summary
                 open_refs = generated.open_references
+                context = self.context(
+                    {
+                        "summary": summary,
+                        "titles": [c["title"] for c in candidates.values()],
+                        "open_references": open_refs,
+                    }
+                )
                 if not text["next_pages"]:
                     break
                 chunk_pages, offset = text["next_pages"], text["next_offset"]

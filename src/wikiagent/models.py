@@ -13,17 +13,22 @@ from wikiagent.state import AgentState
 from wikisvc.domain.errors import WikiError
 from wikisvc.storage.state_db import now
 
-PROMPT_VERSION = "policy-layer-v2.1"
+PROMPT_VERSION = "policy-layer-v2.3"
 SYSTEM = (Path(__file__).parent / "prompts/system.md").read_text()
 
 
 def strict_schema(value: Any) -> Any:
-    """Require all object keys in strict outputs; optional values remain nullable."""
+    """Constrain shape; Pydantic enforces bounds after generation.
+
+    Large nested repetitions from length/item limits exceed llama.cpp's grammar
+    expansion limit. Bounds remain in the prompt and the unchanged runtime model.
+    """
     if isinstance(value, list):
         return [strict_schema(item) for item in value]
     if not isinstance(value, dict):
         return value
-    result = {key: strict_schema(item) for key, item in value.items() if key != "default"}
+    bounds = {"default", "minLength", "maxLength", "minItems", "maxItems", "minimum", "maximum"}
+    result = {key: strict_schema(item) for key, item in value.items() if key not in bounds}
     if result.get("type") == "object" and "properties" in result:
         result["required"] = list(result["properties"])
         result["additionalProperties"] = False
@@ -44,7 +49,8 @@ class ModelClient:
         self, role: str, task: str, messages: list[dict[str, Any]], **options: Any
     ) -> dict[str, Any]:
         model = self.config.models[role]
-        if len(json.dumps(messages, ensure_ascii=False)) / 2.5 > model.context - 2048:
+        max_output = min(4096, model.context // 4)
+        if len(json.dumps(messages, ensure_ascii=False)) / 2.5 > model.context - max_output:
             raise WikiError(
                 "E_MODEL_CONTEXT", "Контекст модели превышен; уменьшите пакет данных.", status=400
             )
@@ -66,14 +72,20 @@ class ModelClient:
                         "model": model.model,
                         "temperature": model.temperature,
                         "messages": messages,
-                        "max_tokens": min(4096, model.context // 4),
+                        "max_tokens": max_output,
                         **options,
                     },
                 )
                 response.raise_for_status()
                 result: dict[str, Any] = response.json()["choices"][0]["message"]
-            except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
-                raise WikiError('E_MODEL_UNAVAILABLE', 'Модель недоступна или вернула неверный ответ HTTP.', status=502) from exc
+                if not isinstance(result, dict):
+                    raise TypeError("Missing message object")
+            except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as exc:
+                raise WikiError(
+                    "E_MODEL_UNAVAILABLE",
+                    "Модель недоступна или вернула неверный ответ HTTP.",
+                    status=502,
+                ) from exc
             return result
 
     def structured[T: BaseModel](
@@ -87,7 +99,16 @@ class ModelClient:
         task_file = Path(__file__).parent / "prompts" / f"{task}.md"
         task_prompt = task_file.read_text() if task_file.is_file() else ""
         messages = [
-            {"role": "system", "content": SYSTEM + "\n" + task_prompt + "\nTask: " + task},
+            {
+                "role": "system",
+                "content": SYSTEM
+                + "\n"
+                + task_prompt
+                + "\nJSON schema (including defaults): "
+                + json.dumps(schema.model_json_schema(), ensure_ascii=False)
+                + "\nTask: "
+                + task,
+            },
             {
                 "role": "user",
                 "content": "<UNTRUSTED_DATA>\n"
@@ -103,8 +124,6 @@ class ModelClient:
                 "schema": strict_schema(schema.model_json_schema()),
                 "strict": True,
             }
-        else:
-            messages[0]["content"] += "\nJSON schema: " + json.dumps(schema.model_json_schema())
         error = ""
         for _ in range(self.config.limits.retries):
             try:

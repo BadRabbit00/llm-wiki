@@ -47,5 +47,9 @@
         }
       ]
     }
+  },
+  "previous_plan": {
+    "proposal": "abcdef",
+    "summary": "Черновик правил для Python"
   }
 }

@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from functools import partial
@@ -210,7 +211,12 @@ class Healer:
                     issues.append({"code": code, "page": page["id"], "message": code})
         for problem in issues:
             self.wait_chat(job_id)
-            ids = [problem["page"]] if problem["page"] in pages else []
+            ids = (
+                [problem["page"]]
+                if isinstance(problem["page"], str)
+                and re.fullmatch(r"[a-z]+-[a-z0-9-]+", problem["page"])
+                else []
+            )
             if problem["code"] == "W_PROFILE_OVER_BUDGET":
                 ids = sorted(
                     key
@@ -221,21 +227,29 @@ class Healer:
                 continue
             if len(findings) >= self.models.config.heal.max_findings_per_run:
                 return False
-            context = {key: self.client.request("GET", "/pages/" + key) for key in ids}
+            try:
+                context = {key: self.client.request("GET", "/pages/" + key) for key in ids}
+            except WikiError as exc:
+                if exc.status == 404:
+                    continue
+                raise
             fixes: list[Fix] = []
             if problem["code"] == "W_DEPENDS_ON_DEPRECATED":
                 page = context[ids[0]]
-                for target in page["relations"].get("depends_on", []):
-                    if target in pages and pages[target]["lifecycle"] == "deprecated":
-                        context[target] = self.client.request("GET", "/pages/" + target)
-                        fixes.append(
-                            Fix(
-                                page=page["id"],
-                                op="remove_relation",
-                                rel="depends_on",
-                                target=target,
+                for rel in ("depends_on", "refines", "related"):
+                    for target in page["relations"].get(rel, []):
+                        if target in pages and pages[target]["lifecycle"] == "deprecated":
+                            context[target] = self.client.request("GET", "/pages/" + target)
+                            fixes.append(
+                                Fix.model_validate(
+                                    {
+                                        "page": page["id"],
+                                        "op": "remove_relation",
+                                        "rel": rel,
+                                        "target": target,
+                                    }
+                                )
                             )
-                        )
             finding = self.writer.create(
                 "lint_" + problem["code"],
                 problem["message"],
@@ -244,6 +258,7 @@ class Healer:
                 [{"page": p["id"], "quote": p["summary"]} for p in context.values()],
                 fixes,
                 job_id,
+                str(problem.get("severity", "warning")),
             )
             if (
                 finding["status"] == "open"

@@ -19,7 +19,10 @@ def serve(config: Path | None = None) -> None:
 
 @app.command("eval")
 def evaluate(
-    role: str = "planner", model: str | None = None, scenarios: Path = Path("tests/scenarios")
+    role: str = "planner",
+    model: str | None = None,
+    scenarios: Path = Path("tests/scenarios"),
+    out: Path | None = None,
 ) -> None:
     import json
 
@@ -27,7 +30,9 @@ def evaluate(
 
     typer.echo(
         json.dumps(
-            evaluate_scenarios(load_config(), scenarios, role, model), ensure_ascii=False, indent=2
+            evaluate_scenarios(load_config(), scenarios, role, model, out=out),
+            ensure_ascii=False,
+            indent=2,
         )
     )
 

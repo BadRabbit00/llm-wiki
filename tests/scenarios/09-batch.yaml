@@ -1,5 +1,5 @@
 {
-  "input": "Пять правил за раз",
+  "input": "Для Python добавь пять рекомендаций: используй FastAPI; пиши логи в JSON; добавляй аннотации типов публичным функциям; проверяй изменения модульными тестами; обрабатывай ошибки сети с таймаутом.",
   "initial_pages": [],
   "scopes": [
     "*",
@@ -24,10 +24,10 @@
       "claims": [
         {
           "id": "rule-item-0",
-          "text": "Использовать только async код Python",
+          "text": "Используй FastAPI для новых HTTP сервисов Python.",
           "title": "Асинхронный Python",
-          "thesis": "Используй только асинхронный код в обработчиках Python.",
-          "category": "architecture",
+          "thesis": "Используй FastAPI для новых HTTP сервисов Python.",
+          "category": "stack",
           "scopes_guess": [
             "lang:python"
           ],
@@ -40,10 +40,10 @@
         },
         {
           "id": "rule-item-1",
-          "text": "Использовать только async код Python",
+          "text": "Пиши события журнала Python в формате JSON.",
           "title": "Асинхронный Python",
-          "thesis": "Используй только асинхронный код в обработчиках Python.",
-          "category": "architecture",
+          "thesis": "Пиши события журнала Python в формате JSON.",
+          "category": "logging",
           "scopes_guess": [
             "lang:python"
           ],
@@ -56,10 +56,10 @@
         },
         {
           "id": "rule-item-2",
-          "text": "Использовать только async код Python",
+          "text": "Добавляй аннотации типов публичным функциям Python.",
           "title": "Асинхронный Python",
-          "thesis": "Используй только асинхронный код в обработчиках Python.",
-          "category": "architecture",
+          "thesis": "Добавляй аннотации типов публичным функциям Python.",
+          "category": "code-style",
           "scopes_guess": [
             "lang:python"
           ],
@@ -72,10 +72,10 @@
         },
         {
           "id": "rule-item-3",
-          "text": "Использовать только async код Python",
+          "text": "Проверяй изменения Python модульными тестами.",
           "title": "Асинхронный Python",
-          "thesis": "Используй только асинхронный код в обработчиках Python.",
-          "category": "architecture",
+          "thesis": "Проверяй изменения Python модульными тестами.",
+          "category": "testing",
           "scopes_guess": [
             "lang:python"
           ],
@@ -88,10 +88,10 @@
         },
         {
           "id": "rule-item-4",
-          "text": "Использовать только async код Python",
+          "text": "Задавай таймаут для сетевых операций Python.",
           "title": "Асинхронный Python",
-          "thesis": "Используй только асинхронный код в обработчиках Python.",
-          "category": "architecture",
+          "thesis": "Задавай таймаут для сетевых операций Python.",
+          "category": "errors",
           "scopes_guess": [
             "lang:python"
           ],

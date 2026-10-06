@@ -46,6 +46,7 @@ class Chat:
                 + "</UNTRUSTED_DATA>",
             },
         ]
+        steps = 0
         for _ in range(self.models.config.limits.max_tool_steps):
             message = self.models.completion(
                 "chat", "question", messages, tools=definitions("question")
@@ -54,6 +55,9 @@ class Chat:
             if not message.get("tool_calls"):
                 return str(message.get("content") or "")
             for call in message["tool_calls"]:
+                steps += 1
+                if steps > self.models.config.limits.max_tool_steps:
+                    raise WikiError("E_AGENT_STEP_LIMIT", "Превышен лимит инструментов чата.")
                 try:
                     result = execute(
                         self.client,

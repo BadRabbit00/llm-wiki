@@ -496,7 +496,7 @@ class Proposals:
         citation_problems = self.rt.extractions.citation_issues(self._overlay(proposal))
         errors.extend(i for i in citation_problems if i.severity == "error" and i.page in changed)
         issues.extend(citation_problems)
-        warnings = [i for i in issues if i.severity == "warning" and i.page in changed]
+        warnings = [i for i in issues if i.severity != "error" and i.page in changed]
         for _, page in self._changes(proposal):
             if page:
                 self._source(page)

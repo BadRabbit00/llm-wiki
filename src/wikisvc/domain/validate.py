@@ -17,7 +17,11 @@ def issue(
 ) -> LintIssue:
     return LintIssue(
         code=code,
-        severity="error" if code.startswith("E_") else "warning",
+        severity="error"
+        if code.startswith("E_")
+        else "info"
+        if code == "W_MUST_WITHOUT_ENFORCER"
+        else "warning",
         page=page,
         message=message,
         hint=hint,

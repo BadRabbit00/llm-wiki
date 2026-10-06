@@ -67,7 +67,7 @@ class Edge(BaseModel):
 
 class LintIssue(BaseModel):
     code: str
-    severity: Literal["error", "warning"]
+    severity: Literal["error", "warning", "info"]
     page: str | None = None
     message: str
     hint: str = "Проверьте страницу и /schema."
