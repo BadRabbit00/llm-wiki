@@ -1,14 +1,14 @@
 # AlmaLinux + Nix + локальная Gemma 4 31B
 
-Nix собирает и фиксирует Python, Git и зависимости из `flake.lock`.
-Обычный systemd AlmaLinux запускает три сервиса: `wikisvc`, `wikiagent`,
-`llm-wiki-model` (llama-server). Вход в `nix develop` на сервере не нужен.
+Nix собирает и фиксирует Python, Git, Go и зависимости из `flake.lock` и
+`ui/package-lock.json`. Обычный systemd AlmaLinux запускает четыре сервиса:
+`wikisvc`, `wikiagent`, `wiki-ui`, `llm-wiki-model` (llama-server). Вход в `nix develop` на сервере не нужен.
 Службы работают от отдельных системных пользователей, API слушают loopback.
 
 ```text
 /opt/llm-wiki/current       установленный Nix bundle (постоянный GC root)
 /opt/llm-wiki/previous      предыдущий bundle для отката
-/etc/llm-wiki/             service.env, agent.env, wikiagent.yaml, llama.env
+/etc/llm-wiki/             service.env, agent.env, wikiagent.yaml, llama.env, ui.env
 /var/lib/llm-wiki/
   wiki/                    отдельный репозиторий контента, включая .git
   state/                   state.db, worktrees, library, extract
@@ -42,7 +42,7 @@ sudo ./result-deployment/bin/llm-wiki-install
 
 При отсутствии SSH-ключа с доступом к GitHub используйте разрешённый вам способ
 клонирования. `flake.lock` уже в репозитории; `nix flake update` при установке не нужен.
-Сборка выполняет pytest, Ruff, mypy и ShellCheck. Первая сборка может занять время.
+Сборка выполняет pytest, Ruff, mypy, ShellCheck, TypeScript и Go-тесты. Первая сборка может занять время.
 Установщик создаёт пользователей, каталоги, конфигурацию и units; существующие
 конфиги и контент сохраняются. Службы запускаются ниже, после настройки.
 
@@ -77,7 +77,7 @@ sudo /usr/local/sbin/llm-wiki-admin wikisvc token create \
   --name admin --person your-name --kind human --role admin --clearance restricted
 ```
 
-Токены выводятся один раз. Человеческий токен сохраните у себя для HTTP API;
+Токены выводятся один раз. Человеческий токен сохраните у себя для входа в UI и HTTP API;
 в конфигурацию агента он не попадает. У коллег — отдельные human-токены со своим
 `person`, обычно role=reviewer. После переноса state.db прежние токены сохраняются;
 проверьте `llm-wiki-admin wikisvc token list`, повторно выдавать тот же name нельзя.
@@ -130,7 +130,8 @@ curl --fail http://127.0.0.1:8787/api/v1/health
 
 # Дождаться загрузки модели, проверить токен, alias и генерацию JSON:
 sudo /usr/local/sbin/llm-wiki-admin check --dependencies-only --wait 600 --model
-sudo systemctl enable --now wikiagent
+sudo systemctl enable --now wikiagent wiki-ui
+curl --fail http://127.0.0.1:8789/healthz
 sudo /usr/local/sbin/llm-wiki-admin check --model
 ```
 
@@ -159,18 +160,31 @@ sudo /usr/local/sbin/llm-wiki-admin wikiagent eval \
 Для доступа со своего компьютера достаточно SSH-туннеля:
 
 ```sh
-ssh -N -L 8787:127.0.0.1:8787 -L 8788:127.0.0.1:8788 user@alma-host
+ssh -N -L 8789:127.0.0.1:8789 user@alma-host
 ```
 
-Wiki API и Swagger: http://127.0.0.1:8787/docs, API агента:
-http://127.0.0.1:8788/docs. Для запросов используйте свой human Bearer-токен.
-Графического интерфейса в этом репозитории пока нет. Модель остаётся доступна
-локально. Для общего сетевого доступа поставьте TLS reverse proxy; для SSE
-выключите buffering и задайте таймаут не ниже таймаута модели.
+Откройте **http://127.0.0.1:8789** и введите человеческий токен. Все обращения
+к wiki и агенту идут через один Go-прокси. UI хранит токен только в сессии вкладки;
+собственного доступа к файлам вики и токену агента у службы `llm-ui` нет.
+Статика и шрифты встроены в бинарник; Node.js и внешние CDN для запуска не нужны.
+
+Адрес задаётся в `/etc/llm-wiki/ui.env`: `WIKI_UI_BIND=127.0.0.1:8789`.
+Там же `WIKI_UI_WIKISVC_URL` и `WIKI_UI_AGENT_URL` — HTTP(S) origins внутренних
+API без путей. По умолчанию это loopback:8787 и loopback:8788. Модель остаётся
+локальной; UI не хранит её параметры и использует настройки wikiagent.
+
+Для общего сетевого доступа поставьте TLS reverse proxy перед `127.0.0.1:8789`.
+Проксируйте `/` целиком, передавайте Authorization, выключите buffering для SSE
+и задайте таймаут не ниже таймаута модели. Если загружаете книги, увеличьте лимит
+тела у внешнего прокси до настроенного размера книги. UI запускается, даже пока
+wikiagent ждёт модель; чтение вики и ручное ревью продолжают работать.
+
+Swagger остаётся на http://127.0.0.1:8787/docs и http://127.0.0.1:8788/docs;
+для доступа к нему с другого компьютера добавьте соответствующие SSH forwards.
 
 ```sh
-sudo systemctl status wikisvc wikiagent llm-wiki-model
-sudo journalctl -u wikisvc -u wikiagent -u llm-wiki-model -f
+sudo systemctl status wikisvc wikiagent wiki-ui llm-wiki-model
+sudo journalctl -u wikisvc -u wikiagent -u wiki-ui -u llm-wiki-model -f
 sudo /usr/local/sbin/llm-wiki-admin check
 ```
 
@@ -183,18 +197,18 @@ sudo /usr/local/sbin/llm-wiki-admin check
 ## Перенос и резервная копия
 
 GitHub содержит **код**, а данные переносятся отдельно. До копирования остановите
-обе службы и прочие пишущие клиенты CLI/MCP. Для dev-запуска завершите процессы
+wiki-ui, wikiagent, wikisvc и прочие пишущие клиенты CLI/MCP. Для dev-запуска завершите процессы
 в терминалах. Сохраняйте весь wiki, включая `.git`, весь STATE_DIR, весь
 WIKIAGENT_STATE_DIR, конфиги и agent.env. Индекс можно пересоздать.
 
 Для уже развёрнутой установки:
 
 ```sh
-sudo systemctl stop wikiagent wikisvc
+sudo systemctl stop wiki-ui wikiagent wikisvc
 sudo install -d -m 0700 /var/backups/llm-wiki
 sudo sh -c 'umask 077; tar -C / -czf /var/backups/llm-wiki/data.tar.gz \
   var/lib/llm-wiki/wiki var/lib/llm-wiki/state var/lib/llm-wiki/agent etc/llm-wiki'
-sudo systemctl start wikisvc wikiagent
+sudo systemctl start wikisvc wikiagent wiki-ui
 ```
 
 Для переноса текущей структуры `work/wiki` + `work/backend/.dev/` архив удобно
@@ -243,13 +257,13 @@ GGUF копируется отдельно. Архив содержит внут
 ```sh
 git pull --ff-only
 nix --extra-experimental-features 'nix-command flakes' build .#deployment --out-link result-deployment
-sudo systemctl stop wikiagent wikisvc llm-wiki-model
+sudo systemctl stop wiki-ui wikiagent wikisvc llm-wiki-model
 # Сделайте бэкап по разделу выше, оставив службы остановленными.
 sudo ./result-deployment/bin/llm-wiki-install
 sudo /usr/local/sbin/llm-wiki-admin wikisvc schema upgrade
 sudo /usr/local/sbin/llm-wiki-admin wikisvc reindex --full
 sudo /usr/local/sbin/llm-wiki-admin wikisvc lint
-sudo systemctl start llm-wiki-model wikisvc wikiagent
+sudo systemctl start llm-wiki-model wikisvc wikiagent wiki-ui
 sudo /usr/local/sbin/llm-wiki-admin check --model
 ```
 

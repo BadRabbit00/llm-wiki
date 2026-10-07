@@ -1,4 +1,4 @@
-{ pkgs, app }:
+{ pkgs, app, ui }:
 pkgs.runCommand "llm-wiki-deployment-${app.version}" {
   nativeBuildInputs = [ pkgs.shellcheck ];
 } ''
@@ -8,6 +8,7 @@ pkgs.runCommand "llm-wiki-deployment-${app.version}" {
   for command in wikisvc wikiagent; do
     ln -s ${app}/bin/$command "$out/bin/$command"
   done
+  ln -s ${ui}/bin/wiki-ui "$out/bin/wiki-ui"
   render() {
     substitute "$1" "$out/bin/$2" \
       --replace-fail '#!/usr/bin/env bash' '#!${pkgs.bash}/bin/bash' \

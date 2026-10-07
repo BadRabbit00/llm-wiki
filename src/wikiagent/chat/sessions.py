@@ -11,6 +11,26 @@ class Sessions:
     def __init__(self, state: AgentState) -> None:
         self.state = state
 
+    def list(
+        self, actor: dict[str, Any], limit: int = 50, cursor: str | None = None
+    ) -> dict[str, Any]:
+        from wikisvc.services.pages import paginate
+
+        levels = ["public", "internal", "restricted"]
+        rows = self.state.rows(
+            "SELECT id,profile,bind,clearance,created_at,updated_at,"
+            "(SELECT substr(text,1,120) FROM chat_messages WHERE session_id=chat_sessions.id "
+            "AND role='user' ORDER BY id LIMIT 1) AS title "
+            "FROM chat_sessions WHERE owner=? ORDER BY updated_at DESC,id",
+            (actor.get("person") or actor["name"],),
+        )
+        visible = []
+        for row in rows:
+            if levels.index(row["clearance"]) <= levels.index(actor["clearance"]):
+                row["bind"] = json.loads(row["bind"])
+                visible.append(row)
+        return paginate(visible, limit, cursor)
+
     def create(
         self, actor: dict[str, Any], bind: dict[str, str], profile: str | None
     ) -> dict[str, Any]:

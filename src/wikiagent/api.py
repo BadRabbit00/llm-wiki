@@ -112,6 +112,14 @@ def create_app(
         chat.bound_context({"bind": payload.bind.model_dump()})
         return chat.sessions.create(actor, payload.bind.model_dump(), payload.profile)
 
+    @app.get("/chat/sessions")
+    def list_sessions(
+        actor: Annotated[dict[str, Any], Depends(authorize)],
+        limit: int = 50,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        return chat.sessions.list(actor, limit, cursor)
+
     @app.get("/chat/sessions/{session_id}")
     def get_session(
         session_id: str, actor: Annotated[dict[str, Any], Depends(authorize)]

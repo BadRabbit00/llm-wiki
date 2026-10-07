@@ -1,0 +1,26 @@
+[Unit]
+Description=Wiki web workspace
+Wants=wikisvc.service wikiagent.service
+After=network.target wikisvc.service
+RequiresMountsFor=/nix/store /opt/llm-wiki
+StartLimitIntervalSec=0
+
+[Service]
+Type=exec
+User=llm-ui
+Group=llm-ui
+EnvironmentFile=/etc/llm-wiki/ui.env
+ExecStart=/opt/llm-wiki/current/bin/wiki-ui
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

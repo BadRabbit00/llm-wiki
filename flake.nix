@@ -33,7 +33,11 @@
             pname = "wikisvc";
             version = "0.2.0";
             pyproject = true;
-            src = ./.;
+            # The UI is built independently; frontend edits do not rebuild Python.
+            src = e.pkgs.lib.cleanSourceWith {
+              src = ./.;
+              filter = path: _type: builtins.baseNameOf path != "ui";
+            };
             build-system = [ e.py.pkgs.hatchling ];
             dependencies = e.runtime;
             makeWrapperArgs = [ "--prefix PATH : ${e.pkgs.lib.makeBinPath [ e.pkgs.git ]}" ];
@@ -46,15 +50,22 @@
               mypy src
             '';
           };
+          ui = import ./ui/package.nix { pkgs = e.pkgs; };
           wikisvc = self.packages.${system}.default;
           wikiagent = self.packages.${system}.default;
         } // e.pkgs.lib.optionalAttrs e.pkgs.stdenv.hostPlatform.isLinux {
           deployment = import ./deploy/package.nix {
             pkgs = e.pkgs;
             app = self.packages.${system}.default;
+            ui = self.packages.${system}.ui;
           };
         });
       apps = eachSystem (system: {
+        ui = {
+          type = "app";
+          program = "${self.packages.${system}.ui}/bin/wiki-ui";
+          meta.description = "Wiki web workspace with embedded assets and API proxy";
+        };
         wikiagent = {
           type = "app";
           program = "${self.packages.${system}.wikiagent}/bin/wikiagent";
@@ -67,6 +78,7 @@
         };
       });
       checks = eachSystem (system: {
+        ui = self.packages.${system}.ui;
         default = self.packages.${system}.default;
       } // nixpkgs.lib.optionalAttrs nixpkgs.legacyPackages.${system}.stdenv.hostPlatform.isLinux {
         deployment = self.packages.${system}.deployment;
@@ -78,7 +90,7 @@
               (e.py.withPackages (_: e.runtime ++ e.dev))
               (e.pkgs.writeShellScriptBin "wikisvc" ''exec python -m wikisvc.cli "$@"'')
               (e.pkgs.writeShellScriptBin "wikiagent" ''exec python -m wikiagent.cli "$@"'')
-              e.pkgs.git e.pkgs.sqlite e.pkgs.ruff e.pkgs.just
+              e.pkgs.git e.pkgs.sqlite e.pkgs.ruff e.pkgs.just e.pkgs.go e.pkgs.nodejs
             ];
             shellHook = ''
               export PYTHONPATH="$PWD/src''${PYTHONPATH:+:$PYTHONPATH}"

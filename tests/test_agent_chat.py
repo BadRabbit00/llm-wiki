@@ -226,14 +226,28 @@ def test_sessions_bind_cancel_and_access(
         result = event(chat.post(f"/chat/sessions/{sid}/messages", json={"text": "отмени"}))
         assert result["plan"]["cancelled"]
         assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "abandoned"
+        listing = chat.get("/chat/sessions", params={"limit": 1}).json()
+        assert listing["items"][0]["id"] == sid
+        assert listing["items"][0]["title"] == "отмени"
+        assert listing["items"][0]["bind"] == {"type": "proposal", "id": pid}
+        sid2 = chat.post("/chat/sessions", json={}).json()["id"]
+        first = chat.get("/chat/sessions", params={"limit": 1}).json()
+        second = chat.get(
+            "/chat/sessions", params={"limit": 1, "cursor": first["next_cursor"]}
+        ).json()
+        assert {first["items"][0]["id"], second["items"][0]["id"]} == {sid, sid2}
+        assert second["next_cursor"] is None
+        assert chat.get("/chat/sessions", params={"limit": 0}).status_code == 400
         other = Auth(client.app.state.runtime.state).create(
             "another", "writer", "restricted", person="bob", kind="human"
         )
         chat.headers["Authorization"] = "Bearer " + other
         assert chat.get(f"/chat/sessions/{sid}").status_code == 404
+        assert chat.get("/chat/sessions").json()["items"] == []
         low = Auth(client.app.state.runtime.state).create("lower", "writer", "internal")
         chat.headers["Authorization"] = "Bearer " + low
         assert chat.post("/chat/sessions", json={}).status_code == 403
+        assert chat.get("/chat/sessions").status_code == 403
     assert wiki.forbidden_attempts == 0
 
 
