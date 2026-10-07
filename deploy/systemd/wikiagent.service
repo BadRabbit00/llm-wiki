@@ -1,0 +1,31 @@
+[Unit]
+Description=Wiki policy planner, chat and background jobs
+Wants=wikisvc.service llm-wiki-model.service
+After=network.target wikisvc.service llm-wiki-model.service
+RequiresMountsFor=/nix/store /var/lib/llm-wiki /opt/llm-wiki
+StartLimitIntervalSec=0
+
+[Service]
+Type=exec
+User=llm-wiki
+Group=llm-wiki
+WorkingDirectory=/var/lib/llm-wiki
+EnvironmentFile=/etc/llm-wiki/service.env
+EnvironmentFile=/etc/llm-wiki/agent.env
+Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/opt/llm-wiki/current/bin/llm-wiki-check --wait 600 --dependencies-only
+ExecStart=/opt/llm-wiki/current/bin/wikiagent serve
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=660
+TimeoutStopSec=660
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/llm-wiki/agent
+
+[Install]
+WantedBy=multi-user.target

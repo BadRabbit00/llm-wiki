@@ -1,0 +1,27 @@
+[Unit]
+Description=Local Gemma llama.cpp server for wikiagent
+After=network.target
+RequiresMountsFor=/nix/store /srv/llm-wiki/models /opt/llm-wiki
+StartLimitIntervalSec=0
+
+[Service]
+Type=exec
+User=llm-model
+Group=llm-model
+WorkingDirectory=/var/cache/llm-wiki-model
+EnvironmentFile=/etc/llm-wiki/llama.env
+Environment=HOME=/var/cache/llm-wiki-model
+ExecStart=/opt/llm-wiki/current/bin/llm-wiki-model
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/cache/llm-wiki-model
+# Keep GPU devices visible. Group access to video/render is set by the installer.
+
+[Install]
+WantedBy=multi-user.target

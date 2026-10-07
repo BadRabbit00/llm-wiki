@@ -48,6 +48,11 @@
           };
           wikisvc = self.packages.${system}.default;
           wikiagent = self.packages.${system}.default;
+        } // e.pkgs.lib.optionalAttrs e.pkgs.stdenv.hostPlatform.isLinux {
+          deployment = import ./deploy/package.nix {
+            pkgs = e.pkgs;
+            app = self.packages.${system}.default;
+          };
         });
       apps = eachSystem (system: {
         wikiagent = {
@@ -61,7 +66,11 @@
           meta.description = "Git-backed wiki API and MCP service";
         };
       });
-      checks = eachSystem (system: { default = self.packages.${system}.default; });
+      checks = eachSystem (system: {
+        default = self.packages.${system}.default;
+      } // nixpkgs.lib.optionalAttrs nixpkgs.legacyPackages.${system}.stdenv.hostPlatform.isLinux {
+        deployment = self.packages.${system}.deployment;
+      });
       devShells = eachSystem (system:
         let e = env system; in {
           default = e.pkgs.mkShell {

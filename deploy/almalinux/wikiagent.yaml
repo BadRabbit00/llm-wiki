@@ -4,32 +4,33 @@ wikisvc:
 models:
   planner:
     base_url: http://127.0.0.1:18089/v1
-    model: wiki-gemma-12b
+    model: wiki-gemma-31b
     context: 16384
     temperature: 0
     structured: json_schema
-    timeout_seconds: 300
+    timeout_seconds: 600
   reviewer:
     base_url: http://127.0.0.1:18089/v1
-    model: wiki-gemma-12b
+    model: wiki-gemma-31b
     context: 16384
     temperature: 0
     structured: json_schema
-    timeout_seconds: 300
+    timeout_seconds: 600
   chat:
     base_url: http://127.0.0.1:18089/v1
-    model: wiki-gemma-12b
+    model: wiki-gemma-31b
     context: 16384
     temperature: 0
     structured: json_schema
-    timeout_seconds: 300
+    timeout_seconds: 600
 limits:
   max_tool_steps: 25
   chapter_chunk_tokens: 4000
   retries: 3
   state_tokens: 1500
 heal:
-  enabled: true
+  # Enable after the model smoke test and your first reviewed proposal.
+  enabled: false
   idle_minutes: 15
   windows: ["01:00-06:00"]
   max_findings_per_run: 20
@@ -41,4 +42,3 @@ heal:
   candidate_stale_days: 30
 bind_host: 127.0.0.1
 bind_port: 8788
-# state_dir по умолчанию берётся из WIKIAGENT_STATE_DIR, затем .wikiagent.

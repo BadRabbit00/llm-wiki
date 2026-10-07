@@ -169,6 +169,14 @@ def serve(reload: bool = False) -> None:
 
 
 @app.command()
+def repair_worktrees() -> None:
+    """Repair moved wiki/state worktrees with both services stopped, before reindex."""
+    from wikisvc.services.relocate import repair_worktrees as repair
+
+    typer.echo(f"Repaired {repair(settings())} worktrees.")
+
+
+@app.command()
 def reindex(full: bool = False) -> None:
     """Rebuild the derived index from content."""
     from wikisvc.services.runtime import Runtime

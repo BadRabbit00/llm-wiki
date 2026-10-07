@@ -24,6 +24,11 @@ work/
 
 ## Запуск
 
+Для постоянного развёртывания на **AlmaLinux с Nix и локальной Gemma 4 31B**:
+[пошаговая установка](docs/deploy-almalinux.md). Комплект `nix build .#deployment`
+содержит установщик, три systemd-службы, конфигурацию, проверку готовности и
+команду восстановления worktrees после переноса. Ниже — запуск для разработки.
+
 ```sh
 git clone git@github.com:BadRabbit00/llm-wiki.git backend
 cd backend

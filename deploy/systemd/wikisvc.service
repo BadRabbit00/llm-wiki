@@ -1,0 +1,27 @@
+[Unit]
+Description=Git-backed wiki API
+After=network.target
+RequiresMountsFor=/nix/store /var/lib/llm-wiki /opt/llm-wiki
+StartLimitIntervalSec=0
+
+[Service]
+Type=exec
+User=llm-wiki
+Group=llm-wiki
+WorkingDirectory=/var/lib/llm-wiki
+EnvironmentFile=/etc/llm-wiki/service.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/llm-wiki/current/bin/wikisvc serve
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=180
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/llm-wiki
+
+[Install]
+WantedBy=multi-user.target
