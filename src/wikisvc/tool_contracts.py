@@ -2,6 +2,25 @@
 
 from typing import Any
 
+TOOL_PROFILES: dict[str, tuple[str, ...]] = {
+    "coding": (
+        "get_instructions",
+        "get_policies",
+        "get_rule",
+        "rules_related",
+        "graph_impact",
+        "search",
+        "get_page",
+        "get_context",
+        "create_proposal",
+        "put_page",
+        "patch_page",
+        "validate_proposal",
+        "submit_proposal",
+    ),
+    "full": (),  # An empty tuple exposes every registered MCP tool.
+}
+
 # name: method, route, path arguments, query arguments, JSON body arguments
 CONTRACTS: dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], tuple[str, ...]]] = {
     "search": (

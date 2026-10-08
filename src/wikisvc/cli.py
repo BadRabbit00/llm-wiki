@@ -267,7 +267,7 @@ def lint() -> None:
 
 
 @app.command()
-def mcp() -> None:
+def mcp(profile: str = typer.Option("full", "--profile")) -> None:
     """Run MCP over stdio, authenticated with WIKI_TOKEN."""
     from wikisvc.mcp_server import create_server
     from wikisvc.services.runtime import Runtime
@@ -278,7 +278,7 @@ def mcp() -> None:
     with write_lock(config.state_dir, config.lock_timeout):
         runtime.indexer.reindex()
         runtime.proposals.expire()
-    create_server(runtime).run(transport="stdio")
+    create_server(runtime, profile=profile).run(transport="stdio")
 
 
 if __name__ == "__main__":

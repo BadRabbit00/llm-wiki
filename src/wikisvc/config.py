@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     index_dir: Path
     bind_host: str = "127.0.0.1"
     cors_origins: str = ""
+    mcp_http_enabled: bool = False
+    mcp_http_path: str = Field(default="/mcp", pattern=r"^/")
+    mcp_profile: str = "coding"
     wikiagent_state_dir: Path | None = None
     bind_port: int = Field(default=8787, ge=1, le=65535)
     max_library_upload_mb: int = Field(default=200, ge=1, le=1024)

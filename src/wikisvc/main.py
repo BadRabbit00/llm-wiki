@@ -127,12 +127,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.runtime = runtime
         runtime.extractions.recover()
         try:
-            yield
+            if config.mcp_http_enabled:
+                from starlette.routing import Mount
+
+                from wikisvc.mcp_server import create_server
+
+                mcp_app = create_server(runtime, profile=config.mcp_profile).streamable_http_app()
+                mount = Mount(config.mcp_http_path, app=mcp_app)
+                app.router.routes.append(mount)
+                try:
+                    async with mcp_app.router.lifespan_context(mcp_app):
+                        yield
+                finally:
+                    app.router.routes.remove(mount)
+            else:
+                yield
         finally:
             runtime.extractions.close()
 
     app = FastAPI(title="wikisvc", version=__version__, lifespan=lifespan)
     app.add_middleware(BodyLimit, config=config)
+    if config.mcp_http_enabled:
+        from wikisvc.mcp_http import MCPHTTPAuth
+
+        app.add_middleware(MCPHTTPAuth, path=config.mcp_http_path)
     if config.cors_origins.strip():
         origins = [origin.strip() for origin in config.cors_origins.split(",") if origin.strip()]
         if "*" in origins:
