@@ -8,13 +8,28 @@ test.beforeEach(async ({ page }) => {
 });
 test.afterEach(() => expect(pageErrors).toEqual([]));
 
-function token(role = "human"): string {
-  return JSON.parse(readFileSync(".e2e/config.json", "utf8"))[role];
-}
 async function login(page: Page, role = "human", path = "/") {
+  const issuer = JSON.parse(readFileSync(".e2e/config.json", "utf8")).issuer;
+  const response = await page.request.post(
+    "http://127.0.0.1:18787/api/v1/sessions",
+    {
+      headers: { Authorization: `Bearer ${issuer}` },
+      data: { subject: `opaque-${role}`, username: role, groups: [role] },
+    },
+  );
+  expect(response.ok()).toBeTruthy();
+  const session = await response.json();
+  await page.context().addCookies([
+    {
+      name: "wiki_session",
+      value: session.token,
+      url: "http://127.0.0.1:18789",
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+    },
+  ]);
   await page.goto(path);
-  await page.getByLabel("Токен доступа").fill(token(role));
-  await page.getByRole("button", { name: "Войти в пространство" }).click();
   await expect(page.locator(".sidebar .user-panel")).toBeVisible();
 }
 async function logout(page: Page) {
@@ -24,7 +39,14 @@ async function logout(page: Page) {
     .getByRole("dialog")
     .getByRole("button", { name: "Выйти", exact: true })
     .click();
-  await expect(page.getByLabel("Токен доступа")).toBeVisible();
+  await expect(
+    page.getByText("Вы вышли из вики", { exact: false }),
+  ).toBeVisible();
+  expect(
+    (await page.context().cookies()).filter(
+      (cookie) => cookie.name === "wiki_session",
+    ),
+  ).toEqual([]);
 }
 
 test("login, keyboard search, theme, real pages and logout", async ({
@@ -36,10 +58,13 @@ test("login, keyboard search, theme, real pages and logout", async ({
     path: ".e2e/login.png",
     fullPage: true,
   });
-  await page.getByLabel("Токен доступа").fill("invalid-token");
-  await page.getByRole("button", { name: "Войти в пространство" }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(
+    page.getByText("Вход временно недоступен", { exact: false }),
+  ).toBeVisible();
   await login(page);
+  expect(await page.evaluate(() => document.cookie)).not.toContain(
+    "wiki_session",
+  );
   await expect(page.locator(".stat-card").first()).toBeVisible();
   await page.screenshot({
     animations: "disabled",
@@ -239,8 +264,7 @@ test("mobile navigation and layouts fit a narrow viewport", async ({
     path: ".e2e/login-mobile.png",
     fullPage: true,
   });
-  await page.getByLabel("Токен доступа").fill(token());
-  await page.getByRole("button", { name: "Войти в пространство" }).click();
+  await login(page);
   await expect(
     page.getByRole("button", { name: "Открыть навигацию" }),
   ).toBeVisible();

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { invalidate, useAPI, write } from "../api";
 import { canReview, canWrite, useAuth } from "../auth";
+import { PersonName } from "../components/PersonName";
 import type { Diff, Impact, Proposal, Promotion } from "../types";
 import {
   Badge,
@@ -108,7 +109,12 @@ export default function ProposalDetail() {
           <span className="avatar small">
             {p.author.slice(0, 1).toUpperCase()}
           </span>
-          <strong>{p.author}</strong>
+          <strong>
+            <PersonName
+              identity={p.author_identity || p.author}
+              fallback={p.author}
+            />
+          </strong>
           <span>· {date(p.created_at)}</span>
         </div>
       </div>

@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     index_dir: Path
     bind_host: str = "127.0.0.1"
     cors_origins: str = ""
+    anonymous_access: bool = False
+    anonymous_name: str = Field(default="anonymous", pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+    anonymous_role: Literal["reader", "writer"] = "writer"
+    anonymous_clearance: Literal["public", "internal"] = "internal"
+    session_issuer_token_name: str = ""
+    session_ttl_hours: int = Field(default=12, ge=1)
+    roles_file: Path = Path("/etc/llm-wiki/roles.yaml")
     mcp_http_enabled: bool = False
     mcp_http_path: str = Field(default="/mcp", pattern=r"^/")
     mcp_profile: str = "coding"
@@ -52,6 +59,9 @@ class Settings(BaseSettings):
                 raise ValueError("STATE_DIR and INDEX_DIR must be outside WIKI_ROOT")
         if self.state_dir == self.index_dir:
             raise ValueError("STATE_DIR and INDEX_DIR must be separate directories")
+        self.roles_file = self.roles_file.resolve()
+        if self.roles_file.is_relative_to(self.wiki_root):
+            raise ValueError("ROLES_FILE must be outside WIKI_ROOT")
         self.boosts()
         return self
 

@@ -1,7 +1,7 @@
 # AlmaLinux + Nix + локальная Gemma 4 31B
 
 Nix собирает и фиксирует Python, Git, Go и зависимости из `flake.lock` и
-`ui/package-lock.json`. Обычный systemd AlmaLinux запускает четыре сервиса:
+`ui/package-lock.json`, `ui/go.sum` и хеша Go vendor. Обычный systemd AlmaLinux запускает четыре сервиса:
 `wikisvc`, `wikiagent`, `wiki-ui`, `llm-wiki-model` (llama-server). Вход в `nix develop` на сервере не нужен.
 Службы работают от отдельных системных пользователей, API слушают loopback.
 
@@ -66,7 +66,7 @@ systemd-ограничениям записи; при изменении пут�
 ENV-файлы используют простые `KEY=value` или `KEY="value with spaces"`, без
 `export`, подстановки `$VAR`, обратных кавычек и команд. Их читают systemd и CLI helper.
 
-## 3. Токены
+## 3. Токены и Authentik
 
 ```sh
 sudo /usr/local/sbin/llm-wiki-admin wikisvc token create \
@@ -75,14 +75,74 @@ sudoedit /etc/llm-wiki/agent.env
 # Впишите выданный токен после WIKIAGENT_TOKEN=.
 
 sudo /usr/local/sbin/llm-wiki-admin wikisvc token create \
-  --name admin --person your-name --kind human --role admin --clearance restricted
+  --name wiki-ui --kind agent --role reader --clearance public
+sudoedit /etc/llm-wiki/ui-session.token
+# Впишите только выданный wiki-ui токен, без KEY= и кавычек.
 ```
 
-Токены выводятся один раз. Человеческий токен сохраните у себя для входа в UI и HTTP API;
-в конфигурацию агента он не попадает. У коллег — отдельные human-токены со своим
-`person`, обычно role=reviewer. После переноса state.db прежние токены сохраняются;
+Токены выводятся один раз. `wiki-ui` может только выпускать сессии, даже `/whoami`
+и MCP для него закрыты. Права reader/public ограничивают ущерб при ошибке охраны путей.
+После переноса state.db прежние токены сохраняются;
 проверьте `llm-wiki-admin wikisvc token list`, повторно выдавать тот же name нельзя.
 Потерянный агентский токен отзовите и выпустите с новым name, сохранив person=wikiagent.
+
+Сначала подготовьте удалённый Authentik и служебный токен, затем устанавливайте
+или обновляйте `wiki-ui`. Установщик сохраняет конфигурацию: при обновлении
+добавьте новые параметры из `deploy/almalinux/service.env` и `ui.env` вручную.
+Без issuer, client id и непустых файлов секретов новый UI откажется стартовать.
+Настроенный, но недоступный IdP запуску не мешает.
+
+В Authentik создайте Application `wiki` с confidential OAuth2/OIDC Provider:
+authorization code, PKCE S256, RSA signing key (RS256), issuer mode per-provider.
+Выберите стабильный непрозрачный subject, например user UUID: не `user_username`.
+Не меняйте subject mode после запуска: переименование логина не должно менять человека.
+Укажите точные redirect URI браузера: `https://wiki.example.org/auth/callback`
+для TLS-прокси или `http://127.0.0.1:8789/auth/callback` для SSH-туннеля.
+Параметры провайдера описаны в [документации Authentik](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/).
+
+Добавьте scopes `openid`, `profile`, `email`, `groups` и включите
+**Include claims in id_token**. Для scope `groups` создайте mapping:
+
+```python
+return {"groups": [group.name for group in request.user.groups.all()]}
+```
+
+Mapping нужно выбрать в провайдере; без него пользователи получают reader/public.
+См. [scope mappings](https://docs.goauthentik.io/add-secure-apps/providers/property-mappings/)
+и [штатные mappings Authentik](https://github.com/goauthentik/authentik/blob/main/blueprints/system/providers-oauth2.yaml).
+Сопоставление групп задаёт `/etc/llm-wiki/roles.yaml` (root:llm-wiki, 0640, вне wiki).
+Поставляются wiki-readers → reader/internal, wiki-writers → writer/internal,
+wiki-reviewers → reviewer/restricted, wiki-admins → admin/restricted.
+При нескольких группах берутся максимальные роль и допуск; неизвестные группы
+ничего не добавляют. Изменение карты требует перезапуска wikisvc и нового входа;
+уже выданные сессии сохраняют права до отзыва или окончания TTL.
+
+```sh
+sudoedit /etc/llm-wiki/ui.env
+# WIKI_UI_OIDC_ISSUER=https://auth.example.org/application/o/wiki/
+# WIKI_UI_OIDC_CLIENT_ID=<client id провайдера>
+# WIKI_UI_OIDC_REDIRECT_URL=https://wiki.example.org/auth/callback
+# WIKI_UI_COOKIE_SECURE=1
+sudoedit /etc/llm-wiki/ui-oidc.secret
+# Только client secret. ui-oidc.secret и ui-session.token: root:llm-ui, 0640.
+sudoedit /etc/llm-wiki/roles.yaml
+timedatectl
+```
+
+На сервере вики и IdP нужен NTP (`chronyd` или `systemd-timesyncd`):
+`System clock synchronized: yes`. Это нужно и для окон heal, и для проверки
+OIDC exp/iat/nbf; допуск будущего iat/nbf — не более 60 секунд, истёкший exp отвергается.
+Issuer обязан быть HTTPS. Для частного CA укажите `SSL_CERT_FILE=/etc/llm-wiki/idp-ca.pem`
+в ui.env: PEM bundle системных корней и внутреннего CA, доступный llm-ui и диагностике
+(например root:root, 0644; сертификаты публичные). На AlmaLinux системный bundle —
+`/etc/pki/tls/certs/ca-bundle.crt`. Проверка TLS всегда включена.
+Только локальный стенд с loopback IdP допускает `WIKI_UI_OIDC_INSECURE_HTTP=1`.
+
+UI получает discovery/JWKS лениво, обновляет ключи каждые 5 минут и при промахе.
+Соединение ограничено 5 секундами, запрос — 10; HTTP redirects к IdP не выполняются.
+При недоступном IdP новый вход даёт 503; существующие сессии живут свой TTL
+(`SESSION_TTL_HOURS=12`). Смена имени обновляет запись в справочнике людей,
+а `person`, саморевью и сохранённые подтверждения остаются привязаны к sub.
 
 ## 4. Gemma 4 31B и llama-server
 
@@ -163,9 +223,12 @@ sudo /usr/local/sbin/llm-wiki-admin wikiagent eval \
 ssh -N -L 8789:127.0.0.1:8789 user@alma-host
 ```
 
-Откройте **http://127.0.0.1:8789** и введите человеческий токен. Все обращения
-к wiki и агенту идут через один Go-прокси. UI хранит токен только в сессии вкладки;
-собственного доступа к файлам вики и токену агента у службы `llm-ui` нет.
+Откройте **http://127.0.0.1:8789**: вход перенаправит в Authentik. Для туннеля
+задайте этот браузерный origin в redirect URI, сохранив `WIKI_UI_COOKIE_SECURE=1`
+(loopback в поддерживаемом браузере — доверенный контекст).
+Все обращения к wiki и агенту идут через Go-прокси. Сессионный токен находится
+только в HttpOnly/Secure/SameSite=Lax cookie; JavaScript его не видит.
+У службы `llm-ui` нет доступа к файлам вики и рабочему токену агента.
 Статика и шрифты встроены в бинарник; Node.js и внешние CDN для запуска не нужны.
 
 Адрес задаётся в `/etc/llm-wiki/ui.env`: `WIKI_UI_BIND=127.0.0.1:8789`.
@@ -174,7 +237,7 @@ API без путей. По умолчанию это loopback:8787 и loopback:
 локальной; UI не хранит её параметры и использует настройки wikiagent.
 
 Для общего сетевого доступа поставьте TLS reverse proxy перед `127.0.0.1:8789`.
-Проксируйте `/` целиком, передавайте Authorization, выключите buffering для SSE
+Проксируйте `/` целиком, сохраняйте Cookie и Origin, выключите buffering для SSE
 и задайте таймаут не ниже таймаута модели. Если загружаете книги, увеличьте лимит
 тела у внешнего прокси до настроенного размера книги. UI запускается, даже пока
 wikiagent ждёт модель; чтение вики и ручное ревью продолжают работать.
@@ -184,10 +247,16 @@ wikiagent ждёт модель; чтение вики и ручное ревь�
 Превышение возвращает HTTP `429` с кодом `E_RATE_LIMIT`. Значение по умолчанию
 в приложении — `0`, оно отключает ограничение. При обновлении установщик сохраняет
 существующий `service.env`: добавьте параметр вручную и перезапустите `wikisvc`.
-При появлении режима `ANONYMOUS_ACCESS=1` (задача 09) настройте ограничение
-**по IP на обратном прокси перед wiki-ui**: все анонимные клиенты делят одно имя,
-поэтому встроенный лимит не разделяет их. Он остаётся защитой для служебных
-и сессионных токенов.
+Комплект включает `ANONYMOUS_ACCESS=1`: API/MCP без Authorization получают
+writer/internal с kind=agent. **API с анонимным writer нельзя публиковать в интернет.**
+Ограничьте сеть и настройте лимит **по IP на прокси перед API/MCP**;
+анонимные клиенты делят одну identity и общий пул предложений. Решения, restricted
+и wikiagent им недоступны. Встроенный лимит защищает служебные и сессионные токены;
+у разных сессий одного человека независимые счётчики.
+
+В интернет исходящий доступ нужен только wiki-ui → хост Authentik (кроме локальных
+API wikisvc/wikiagent). Ядру wikisvc интернет не нужен; wikiagent обращается к локальной
+модели. OIDC discovery не добавляется в ExecStartPre и не блокирует запуск служб.
 
 Swagger остаётся на http://127.0.0.1:8787/docs и http://127.0.0.1:8788/docs;
 для доступа к нему с другого компьютера добавьте соответствующие SSH forwards.
@@ -203,6 +272,50 @@ sudo /usr/local/sbin/llm-wiki-admin check
 При SELinux AVC используйте `sudo ausearch -m AVC -ts recent`, чтобы найти конкретное
 отклонённое действие; SELinux целиком выключать не требуется. На целевой AlmaLinux
 нужно проверить запуск и права устройств: локальная проверка bundle проводится на NixOS.
+
+### Диагностика входа
+
+Диагностика проверяет роли и служебный токен UI по локальной БД: отсутствие,
+отзыв, истечение срока или лишние полномочия — fail. Печатает сопоставленные группы;
+недоступность discovery и несинхронизированное время — warn. `--dependencies-only`
+по-прежнему проверяет только локальные зависимости агента.
+Ошибка входа: сначала сравните redirect URI **побайтно** с настройкой провайдера,
+затем issuer, client id, secret, NTP и CA. Нет прав после входа — проверьте scope
+mapping групп и Include claims in id_token; роль/допуск видны в настройках UI.
+После logout локальная сессия отзывается даже при отказе IdP; возможная ошибка
+страницы end-session не возвращает ей доступ.
+
+### Аварийный доступ
+
+До аварии выпустите ограниченный по сроку human-токен; `--person` должен точно
+совпадать с вашим sub из Authentik (виден как `person` в `/api/v1/whoami`),
+иначе вы получите вторую identity и обойдёте запрет саморевью:
+
+```sh
+sudo /usr/local/sbin/llm-wiki-admin wikisvc token create \
+  --name breakglass --person '<ваш sub>' --kind human --role admin \
+  --clearance restricted --expires-at '<ISO-8601 дата с часовым поясом>'
+```
+
+Храните токен вне сервера, как пароль от сейфа. Проверяйте раз в квартал запросом
+`GET /api/v1/whoami`. В аварии обращайтесь напрямую к API через локальный доступ
+или SSH-туннель; в UI входа по токену нет. В оболочке с безопасно установленным
+`BREAKGLASS_TOKEN` и выбранным `PID`:
+
+```sh
+curl --fail -H "Authorization: Bearer $BREAKGLASS_TOKEN" \
+  "http://127.0.0.1:8787/api/v1/proposals/$PID"
+# Просмотрите diff/impact и notes.accept_body из ответа (план решения).
+# Сохраните проверенный accept_body как accept.json; не принимайте вслепую.
+curl --fail -X POST -H "Authorization: Bearer $BREAKGLASS_TOKEN" \
+  -H 'Content-Type: application/json' --data-binary @accept.json \
+  "http://127.0.0.1:8787/api/v1/proposals/$PID/accept"
+sudo /usr/local/sbin/llm-wiki-admin wikisvc token revoke breakglass
+```
+
+После использования выпустите новый токен с другим name и тем же person;
+срок обновляйте до истечения. Штатные проверки человеческого решения и саморевью
+в аварийном API действуют полностью.
 
 ## Резервное копирование
 

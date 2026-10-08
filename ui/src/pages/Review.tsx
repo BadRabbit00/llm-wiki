@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { invalidate, useAll, write } from "../api";
 import { canReview, useAuth } from "../auth";
+import { PersonName } from "../components/PersonName";
 import type { Finding, Proposal } from "../types";
 import {
   Badge,
@@ -197,7 +198,10 @@ export default function Review() {
                 {p.description && <p>{p.description}</p>}
                 <div className="proposal-card-meta">
                   <Badge value={p.kind} />
-                  <span>{p.author}</span>
+                  <PersonName
+                    identity={p.author_identity || p.author}
+                    fallback={p.author}
+                  />
                   <span>·</span>
                   <span>{date(p.updated_at)}</span>
                   <code>{p.pid.slice(0, 8)}</code>

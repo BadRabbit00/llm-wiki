@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx
 
+from wikiagent.auth_check import check_authentication
 from wikiagent.config import AgentConfig
 
 
@@ -93,4 +94,5 @@ def check(
             host = f"[{host}]"
         get(f"http://{host}:{config.bind_port}/jobs", headers)
         messages.append("wikiagent: ready; authenticated API: passed")
+        messages.extend(check_authentication())
     return messages

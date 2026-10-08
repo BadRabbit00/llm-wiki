@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAll, useAPI } from "../api";
+import { PersonName } from "../components/PersonName";
 import type { Page, Proposal, Finding } from "../types";
 import {
   Badge,
@@ -187,7 +188,11 @@ export default function Dashboard() {
                   <div className="row-content">
                     <strong>{p.title}</strong>
                     <small>
-                      {p.author} <span>·</span> {date(p.created_at)}
+                      <PersonName
+                        identity={p.author_identity || p.author}
+                        fallback={p.author}
+                      />{" "}
+                      <span>·</span> {date(p.created_at)}
                     </small>
                   </div>
                   <Badge value={p.status} />

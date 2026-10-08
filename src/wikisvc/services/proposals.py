@@ -117,7 +117,9 @@ class Proposals:
                     status,
                     now(),
                     comment,
-                    actor.name if status in ("accepted", "rejected", "changes_requested") else None,
+                    actor.identity
+                    if status in ("accepted", "rejected", "changes_requested")
+                    else None,
                     proposal.pid,
                 ),
             )

@@ -5,50 +5,42 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { api, credentials, queryClient } from "./api";
+import { api, queryClient } from "./api";
 import type { Actor } from "./types";
 
 const Auth = createContext<{
   actor: Actor | null;
   loading: boolean;
-  login: (token: string) => Promise<void>;
   logout: () => void;
-}>({ actor: null, loading: true, login: async () => {}, logout: () => {} });
+}>({ actor: null, loading: true, logout: () => {} });
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [actor, setActor] = useState<Actor | null>(null),
-    [loading, setLoading] = useState(!!credentials.get());
+  const [actor, setActor] = useState<Actor | null>(null);
+  const [loading, setLoading] = useState(true);
   const logout = () => {
-    credentials.set("");
     queryClient.clear();
-    setActor(null);
-    setLoading(false);
-  };
-  const login = async (value: string) => {
-    credentials.set(value.trim());
-    try {
-      const user = await api<Actor>("/whoami");
-      queryClient.clear();
-      setActor(user);
-    } catch (error) {
-      credentials.set("");
-      throw error;
-    }
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/auth/logout";
+    document.body.appendChild(form);
+    form.submit();
   };
   useEffect(() => {
-    if (credentials.get())
-      api<Actor>("/whoami")
-        .then(setActor)
-        .catch(logout)
-        .finally(() => setLoading(false));
-    window.addEventListener("wiki:unauthorized", logout);
-    return () => window.removeEventListener("wiki:unauthorized", logout);
+    const unauthorized = () => {
+      window.location.assign("/auth/login");
+    };
+    api<Actor>("/whoami")
+      .then(setActor)
+      .catch(() => setActor(null))
+      .finally(() => setLoading(false));
+    window.addEventListener("wiki:unauthorized", unauthorized);
+    return () => window.removeEventListener("wiki:unauthorized", unauthorized);
   }, []);
   return (
-    <Auth.Provider value={{ actor, loading, login, logout }}>
-      {children}
-    </Auth.Provider>
+    <Auth.Provider value={{ actor, loading, logout }}>{children}</Auth.Provider>
   );
 }
+
 export const useAuth = () => useContext(Auth);
 export const canWrite = (actor: Actor | null) =>
   !!actor && actor.role !== "reader";

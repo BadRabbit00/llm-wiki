@@ -35,11 +35,11 @@ install -d -m 0700 -o llm-wiki -g llm-wiki /var/lib/llm-wiki
 for directory in state index agent; do
     install -d -m 0700 -o llm-wiki -g llm-wiki "/var/lib/llm-wiki/$directory"
 done
-for file in service.env agent.env wikiagent.yaml llama.env ui.env backup.env; do
+for file in service.env agent.env wikiagent.yaml llama.env ui.env backup.env roles.yaml ui-oidc.secret ui-session.token; do
     if [[ ! -e /etc/llm-wiki/$file ]]; then
         config_group=llm-wiki
         [[ $file != llama.env ]] || config_group=llm-model
-        [[ $file != ui.env ]] || config_group=llm-ui
+        case $file in ui.env|ui-oidc.secret|ui-session.token) config_group=llm-ui ;; esac
         [[ $file != backup.env ]] || config_group=root
         install -m 0640 -o root -g "$config_group" \
             "@bundle@/share/llm-wiki/almalinux/$file" "/etc/llm-wiki/$file"

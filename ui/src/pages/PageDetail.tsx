@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { invalidate, useAPI, write } from "../api";
 import { useAuth, canWrite, canReview } from "../auth";
+import { PersonName } from "../components/PersonName";
 import type { History, Page } from "../types";
 import {
   Badge,
@@ -151,7 +152,9 @@ export default function PageDetail() {
               {page.verified_by && (
                 <>
                   <dt>Проверил</dt>
-                  <dd>{page.verified_by}</dd>
+                  <dd>
+                    <PersonName identity={page.verified_by} />
+                  </dd>
                 </>
               )}
               {page.owner && (

@@ -8,6 +8,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from wikisvc.domain.errors import WikiError
 from wikisvc.mcp_server import _token
 from wikisvc.services.runtime import Runtime
+from wikisvc.services.sessions import token_name
 
 
 class MCPHTTPAuth:
@@ -20,12 +21,23 @@ class MCPHTTPAuth:
             await self.app(scope, receive, send)
             return
 
-        scheme, _, token = Headers(scope=scope).get("authorization", "").partition(" ")
+        headers = Headers(scope=scope)
+        scheme, _, token = headers.get("authorization", "").partition(" ")
         try:
-            if scheme.lower() != "bearer" or not token:
-                raise WikiError("E_UNAUTHORIZED", "Нужен Bearer-токен.", status=401)
             runtime: Runtime = scope["app"].state.runtime
-            await run_in_threadpool(runtime.auth.authenticate, token)
+            if "authorization" not in headers and runtime.settings.anonymous_access:
+                runtime.auth.anonymous()
+            else:
+                if scheme.lower() != "bearer" or not token:
+                    raise WikiError("E_UNAUTHORIZED", "Нужен Bearer-токен.", status=401)
+                await run_in_threadpool(runtime.auth.authenticate, token)
+                if runtime.settings.session_issuer_token_name and (
+                    await run_in_threadpool(token_name, runtime.state, token)
+                    == runtime.settings.session_issuer_token_name
+                ):
+                    raise WikiError(
+                        "E_FORBIDDEN", "Выпускающему токену MCP недоступен.", status=403
+                    )
         except WikiError as exc:
             await JSONResponse(exc.response(), status_code=exc.status)(scope, receive, send)
             return

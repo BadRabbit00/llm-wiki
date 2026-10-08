@@ -58,6 +58,15 @@ func upstream(address, prefix string) (http.Handler, error) {
 			r.Header.Del("Set-Cookie")
 			r.Header.Set("Cache-Control", "no-store")
 			r.Header.Set("X-Accel-Buffering", "no")
+			if auth, ok := r.Request.Context().Value(oidcContextKey{}).(*oidcAuth); ok && r.StatusCode == http.StatusUnauthorized {
+				r.Header.Add("Set-Cookie", auth.expiredCookie().String())
+				r.Header.Set("Location", "/auth/login")
+				r.StatusCode = http.StatusFound
+				r.Body.Close()
+				r.Body = http.NoBody
+				r.ContentLength = 0
+				r.Header.Del("Content-Length")
+			}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
@@ -148,10 +157,17 @@ func handler(files fs.FS, wikiURL, agentURL string) (http.Handler, error) {
 
 func main() {
 	files, _ := fs.Sub(assets, "dist")
-	h, err := handler(files, env("WIKI_UI_WIKISVC_URL", "http://127.0.0.1:8787"), env("WIKI_UI_AGENT_URL", "http://127.0.0.1:8788"))
+	wikiURL := env("WIKI_UI_WIKISVC_URL", "http://127.0.0.1:8787")
+	auth, err := newOIDC(oidcEnvironment(), wikiURL)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer auth.close()
+	h, err := handler(files, wikiURL, env("WIKI_UI_AGENT_URL", "http://127.0.0.1:8788"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	h = auth.protect(h)
 	server := &http.Server{Addr: env("WIKI_UI_BIND", "127.0.0.1:8789"), Handler: h, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 5 * time.Minute, IdleTimeout: 90 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

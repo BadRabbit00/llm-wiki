@@ -50,6 +50,7 @@
               mypy src
             '';
           };
+          # OIDC stays in Go; its pinned modules and vendor hash live with the UI derivation.
           ui = import ./ui/package.nix { pkgs = e.pkgs; };
           wikisvc = self.packages.${system}.default;
           wikiagent = self.packages.${system}.default;

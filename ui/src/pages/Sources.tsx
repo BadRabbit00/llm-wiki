@@ -11,15 +11,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import {
-  api,
-  credentials,
-  invalidate,
-  responseError,
-  useAll,
-  useAPI,
-  write,
-} from "../api";
+import { api, invalidate, responseError, useAll, useAPI, write } from "../api";
 import { canWrite, useAuth } from "../auth";
 import type { Job, RawFile } from "../types";
 import {
@@ -346,7 +338,8 @@ function SourceDetails({
   const download = () =>
     action.run(async () => {
       const response = await fetch("/api/v1" + raw, {
-        headers: { Authorization: `Bearer ${credentials.get()}` },
+        credentials: "same-origin",
+        redirect: "manual",
       });
       if (!response.ok) await responseError(response);
       const url = URL.createObjectURL(await response.blob());

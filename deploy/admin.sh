@@ -2,6 +2,13 @@
 set -euo pipefail
 export PATH=@tools@:/usr/sbin:/usr/bin:/sbin:/bin
 if [[ $EUID -eq 0 ]]; then
+    if [[ ${1:-} == check || ${1:-} == wikiagent && ${2:-} == check ]]; then
+        # Only root can read the llm-ui configuration. Export paths, never file contents.
+        set -a
+        # shellcheck disable=SC1091
+        source /etc/llm-wiki/ui.env
+        set +a
+    fi
     exec runuser -u llm-wiki -- @bundle@/bin/llm-wiki-admin "$@"
 fi
 if [[ $(id -un) != llm-wiki ]]; then

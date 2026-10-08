@@ -18,6 +18,7 @@ from wikisvc.api.routers import (
     graph,
     lint,
     pages,
+    people,
     policies,
     proposals,
     raw,
@@ -25,10 +26,12 @@ from wikisvc.api.routers import (
     rules,
     schema,
     search,
+    sessions,
 )
 from wikisvc.config import Settings
 from wikisvc.domain.errors import WikiError
 from wikisvc.services.runtime import Runtime
+from wikisvc.services.sessions import token_name
 from wikisvc.storage.lock import write_lock
 
 logger = logging.getLogger("wikisvc")
@@ -50,12 +53,28 @@ class BodyLimit:
             await self.app(scope, receive, send)
             return
         headers = Headers(scope=scope)
-        if scope["path"].startswith("/api/v1/") and scope["path"] != "/api/v1/health":
+        if scope["path"].startswith("/api/v1/") and (
+            scope["path"] != "/api/v1/health"
+            or (self.config.session_issuer_token_name and "authorization" in headers)
+        ):
             scheme, _, token = headers.get("authorization", "").partition(" ")
             try:
-                if scheme.lower() != "bearer" or not token:
-                    raise WikiError("E_UNAUTHORIZED", "Нужен Bearer-токен.", status=401)
-                actor = await run_in_threadpool(scope["app"].state.runtime.auth.authenticate, token)
+                runtime: Runtime = scope["app"].state.runtime
+                if "authorization" not in headers and self.config.anonymous_access:
+                    actor = runtime.auth.anonymous()
+                else:
+                    if scheme.lower() != "bearer" or not token:
+                        raise WikiError("E_UNAUTHORIZED", "Нужен Bearer-токен.", status=401)
+                    actor = await run_in_threadpool(runtime.auth.authenticate, token)
+                    if self.config.session_issuer_token_name:
+                        name = await run_in_threadpool(token_name, runtime.state, token)
+                        scope.setdefault("state", {})["token_name"] = name
+                        if name == self.config.session_issuer_token_name and (
+                            scope["path"] != "/api/v1/sessions" or scope["method"] != "POST"
+                        ):
+                            raise WikiError(
+                                "E_FORBIDDEN", "Токен может только выпускать сессии.", status=403
+                            )
                 scope.setdefault("state", {})["actor"] = actor
             except WikiError as exc:
                 await self.reject(exc, scope, receive, send)
@@ -124,6 +143,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with write_lock(config.state_dir, config.lock_timeout):
             runtime.indexer.reindex()
             runtime.proposals.expire()
+            runtime.auth.expire_sessions()
         app.state.runtime = runtime
         runtime.extractions.recover()
         try:
@@ -239,6 +259,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         raw.router,
         lint.router,
         admin.router,
+        sessions.router,
+        people.router,
     ):
         app.include_router(router, prefix="/api/v1")
     return app

@@ -15,6 +15,7 @@ from wikisvc.domain.errors import WikiError
 from wikisvc.domain.models import Principal, Role
 from wikisvc.services.auth import require_role
 from wikisvc.services.runtime import Runtime
+from wikisvc.services.sessions import token_name
 from wikisvc.tool_contracts import TOOL_PROFILES
 
 _token: ContextVar[str | None] = ContextVar("mcp_token", default=None)
@@ -52,9 +53,17 @@ def create_server(runtime: Runtime, profile: str = "full") -> FastMCP:
 
     def actor(role: Role = "reader") -> Principal:
         token = _token.get()
-        principal = runtime.auth.authenticate(
-            os.environ.get("WIKI_TOKEN", "") if token is None else token
-        )
+        if runtime.settings.anonymous_access and (
+            token == "" or (token is None and "WIKI_TOKEN" not in os.environ)
+        ):
+            principal = runtime.auth.anonymous()
+        else:
+            credential = os.environ.get("WIKI_TOKEN", "") if token is None else token
+            principal = runtime.auth.authenticate(credential)
+            if runtime.settings.session_issuer_token_name and (
+                token_name(runtime.state, credential) == runtime.settings.session_issuer_token_name
+            ):
+                raise WikiError("E_FORBIDDEN", "Выпускающему токену MCP недоступен.", status=403)
         require_role(principal, role)
         return principal
 

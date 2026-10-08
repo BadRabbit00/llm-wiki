@@ -17,7 +17,7 @@ in pkgs.buildGoModule {
   pname = "wiki-ui";
   version = "0.3.0";
   src = ./.;
-  vendorHash = null;
+  vendorHash = "sha256-Ofh7ZXUaSAGrwBwR5agjjK6SljpK58fSwneHSTWviD8=";
   env.CGO_ENABLED = "0";
   preBuild = ''
     cp -r ${frontend}/dist/. dist/

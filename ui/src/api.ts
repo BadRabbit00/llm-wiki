@@ -1,16 +1,6 @@
 import { QueryClient, useQuery } from "@tanstack/react-query";
 import type { List } from "./types";
 
-let token = sessionStorage.getItem("wiki.token") || "";
-export const credentials = {
-  get: () => token,
-  set: (value: string) => {
-    token = value;
-    value
-      ? sessionStorage.setItem("wiki.token", value)
-      : sessionStorage.removeItem("wiki.token");
-  },
-};
 export class APIError extends Error {
   constructor(
     public code: string,
@@ -27,6 +17,10 @@ export const queryClient = new QueryClient({
   },
 });
 export async function responseError(response: Response): Promise<never> {
+  if (response.type === "opaqueredirect") {
+    window.location.assign("/auth/login");
+    throw new APIError("E_UNAUTHORIZED", "Войдите в пространство снова.", 401);
+  }
   const body = await response.json().catch(() => ({}));
   if (response.status === 401)
     window.dispatchEvent(new Event("wiki:unauthorized"));
@@ -46,7 +40,6 @@ export async function api<T>(
   agent = false,
 ): Promise<T> {
   const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${credentials.get()}`);
   if (init.body && !(init.body instanceof FormData))
     headers.set("Content-Type", "application/json");
   let response: Response;
@@ -54,6 +47,8 @@ export async function api<T>(
     response = await fetch((agent ? "/agent-api" : "/api/v1") + path, {
       ...init,
       headers,
+      credentials: "same-origin",
+      redirect: "manual",
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError")
@@ -127,11 +122,12 @@ export async function streamMessage(
   const response = await fetch(`/agent-api/chat/sessions/${id}/messages`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${credentials.get()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ text }),
     signal,
+    credentials: "same-origin",
+    redirect: "manual",
   });
   if (!response.ok) return responseError(response);
   if (!response.body) throw new Error("Сервер не вернул поток ответа.");

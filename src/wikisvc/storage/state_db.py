@@ -43,6 +43,8 @@ class StateDB:
             CREATE TABLE IF NOT EXISTS rate_limits (
                 name TEXT NOT NULL, minute INTEGER NOT NULL, count INTEGER NOT NULL,
                 PRIMARY KEY(name,minute));
+            CREATE TABLE IF NOT EXISTS people (
+                person TEXT PRIMARY KEY, display_name TEXT NOT NULL, updated_at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS rule_usage (
                 rule_id TEXT NOT NULL, day TEXT NOT NULL, delivered INTEGER NOT NULL DEFAULT 0,
                 opened INTEGER NOT NULL DEFAULT 0, violations INTEGER NOT NULL DEFAULT 0,
@@ -67,6 +69,7 @@ class StateDB:
                     "person": "TEXT",
                     "kind": "TEXT NOT NULL DEFAULT 'agent'",
                     "expires_at": "TEXT",
+                    "display_name": "TEXT",
                 },
                 "proposals": {
                     "kind": "TEXT NOT NULL DEFAULT 'manual'",

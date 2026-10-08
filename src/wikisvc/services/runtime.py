@@ -15,6 +15,7 @@ from wikisvc.services.proposals import Proposals
 from wikisvc.services.raw import Raw
 from wikisvc.services.rules import Rules
 from wikisvc.services.schema import Schema
+from wikisvc.services.sessions import Sessions
 from wikisvc.storage.gitrepo import GitRepo
 from wikisvc.storage.lock import write_lock
 from wikisvc.storage.schema import load_registry
@@ -30,6 +31,10 @@ class Runtime:
         self.state = StateDB(settings.state_dir)
         self.index = IndexDB(settings.index_dir)
         self.auth = Auth(self.state, settings.rate_limit_per_min)
+        self.auth.anonymous_name = settings.anonymous_name
+        self.auth.anonymous_role = settings.anonymous_role
+        self.auth.anonymous_clearance = settings.anonymous_clearance
+        self.sessions = Sessions(settings, self.auth)
         self.indexer = Indexer(settings.wiki_root, self.index, self.registry, settings.state_dir)
         self.indexer.validation.entropy_threshold = settings.secret_entropy_threshold
         self.graph: GraphStore = SqliteGraphStore(self.index)

@@ -5,11 +5,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/api": "http://127.0.0.1:8787",
-      "/agent-api": {
-        target: "http://127.0.0.1:8788",
-        rewrite: (path) => path.replace(/^\/agent-api/, ""),
-      },
+      "/api": "http://127.0.0.1:8789",
+      "/agent-api": "http://127.0.0.1:8789",
+      "/auth": "http://127.0.0.1:8789",
     },
   },
   build: { sourcemap: false },

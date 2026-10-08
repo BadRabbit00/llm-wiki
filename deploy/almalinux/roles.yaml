@@ -1,0 +1,6 @@
+default: {role: reader, clearance: public}
+groups:
+  wiki-readers: {role: reader, clearance: internal}
+  wiki-writers: {role: writer, clearance: internal}
+  wiki-reviewers: {role: reviewer, clearance: restricted}
+  wiki-admins: {role: admin, clearance: restricted}

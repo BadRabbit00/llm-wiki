@@ -32,6 +32,26 @@ def require_human(actor: Principal) -> None:
 
 
 class Auth:
+    anonymous_name: str = "anonymous"
+    anonymous_role: Literal["reader", "writer"] = "writer"
+    anonymous_clearance: Literal["public", "internal"] = "internal"
+
+    def anonymous(self) -> Principal:
+        return Principal(
+            name=self.anonymous_name,
+            person=None,
+            kind="agent",
+            role=self.anonymous_role,
+            clearance=self.anonymous_clearance,
+        )
+
+    def expire_sessions(self) -> None:
+        with self.state.connect() as db:
+            db.execute(
+                "DELETE FROM tokens WHERE name LIKE 'sso-%' AND expires_at IS NOT NULL AND expires_at<=?",
+                (now(),),
+            )
+
     def __init__(self, state: StateDB, rate_limit: int = 0) -> None:
         self.state = state
         self.rate_limit = rate_limit
@@ -44,6 +64,7 @@ class Auth:
         person: str | None = None,
         kind: Literal["agent", "human"] = "agent",
         expires_at: str | None = None,
+        display_name: str | None = None,
     ) -> str:
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", name):
             raise WikiError(
@@ -66,7 +87,7 @@ class Auth:
         try:
             with self.state.connect() as db:
                 db.execute(
-                    "INSERT INTO tokens (token_hash,name,role,clearance,created_at,person,kind,expires_at) VALUES (?,?,?,?,?,?,?,?)",
+                    "INSERT INTO tokens (token_hash,name,role,clearance,created_at,person,kind,expires_at,display_name) VALUES (?,?,?,?,?,?,?,?,?)",
                     (
                         hashlib.sha256(token.encode()).hexdigest(),
                         name,
@@ -76,6 +97,7 @@ class Auth:
                         person,
                         kind,
                         expires_at,
+                        display_name,
                     ),
                 )
         except sqlite3.IntegrityError as exc:
@@ -124,4 +146,5 @@ class Auth:
                     "Повторите запрос в следующую минуту.",
                     status=429,
                 )
+        rows[0]["name"] = rows[0].get("display_name") or rows[0]["name"]
         return Principal.model_validate(rows[0])
