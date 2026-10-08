@@ -13,6 +13,7 @@ import {
 import { invalidate, useAPI, write } from "../api";
 import { canWrite, useAuth } from "../auth";
 import type { Job } from "../types";
+import { DocsAudit } from "../components/DocsAudit";
 import {
   Badge,
   Empty,
@@ -41,6 +42,7 @@ export default function Jobs() {
     [params] = useSearchParams(),
     [filter, setFilter] = useState("all"),
     [confirm, setConfirm] = useState(""),
+    [audit, setAudit] = useState(false),
     [cancel, setCancel] = useState<string | null>(null),
     action = useAction(),
     toast = useToast();
@@ -90,6 +92,11 @@ export default function Jobs() {
         title="За кадром"
         description="Разбор источников, поиск противоречий и подготовка знаний — всё под наблюдением."
       >
+        {actor?.kind === "human" && (
+          <button className="button" onClick={() => setAudit(true)}>
+            Сверить документацию
+          </button>
+        )}
         <button className="button" onClick={() => setConfirm("changed")}>
           <Sparkles size={16} />
           Проверить изменения
@@ -163,16 +170,20 @@ export default function Jobs() {
                   </span>
                   <div>
                     <h3>
-                      {job.kind === "heal"
-                        ? job.payload.scope === "full"
-                          ? "Полная проверка знаний"
-                          : "Проверка изменений"
-                        : String(
-                            job.payload.title ||
-                              String(job.payload.raw_path || "Разбор источника")
-                                .split("/")
-                                .pop(),
-                          )}
+                      {job.kind === "docs_audit"
+                        ? `Сверка документации: ${String(job.payload.project)}`
+                        : job.kind === "heal"
+                          ? job.payload.scope === "full"
+                            ? "Полная проверка знаний"
+                            : "Проверка изменений"
+                          : String(
+                              job.payload.title ||
+                                String(
+                                  job.payload.raw_path || "Разбор источника",
+                                )
+                                  .split("/")
+                                  .pop(),
+                            )}
                     </h3>
                     <p>{fullDate(job.created_at)}</p>
                   </div>
@@ -272,7 +283,8 @@ export default function Jobs() {
                         Проверить результат <ArrowUpRight size={14} />
                       </Link>
                     ))}
-                    {job.kind === "heal" && job.status === "done" && (
+                    {(job.kind === "docs_audit" ||
+                      (job.kind === "heal" && job.status === "done")) && (
                       <Link
                         className="button small"
                         to="/proposals?tab=findings"
@@ -318,6 +330,7 @@ export default function Jobs() {
           text="Загрузите источник или запустите проверку знаний — прогресс появится здесь."
         />
       )}
+      {audit && <DocsAudit onClose={() => setAudit(false)} />}
       {confirm && (
         <Modal title="Запустить проверку знаний" onClose={() => setConfirm("")}>
           <p className="modal-description">

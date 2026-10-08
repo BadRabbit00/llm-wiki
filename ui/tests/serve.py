@@ -37,6 +37,16 @@ from wikisvc.storage.safefs import SafeFS
 
 
 def respond(task: str, data: dict[str, Any]) -> dict[str, Any]:
+    if task == "docs_audit":
+        return {
+            "relation": "violation",
+            "confidence": 0.95,
+            "summary": "Проект использует устаревшую версию Python.",
+            "line": 1,
+            "project_quote": "Python 3.11",
+            "policy_quote": data["policy"]["summary"],
+            "action": "Проверить требуемую версию Python в документации.",
+        }
     if task == "route":
         return {"intent": "intake"}
     if task == "extract_claims":
@@ -98,6 +108,7 @@ def main() -> None:
             os.environ["WIKIAGENT_TOKEN"] = agent
             settings = agent_config(base / "agent")
             settings.heal.enabled = False
+            settings.docs_audit.enabled = True
             wiki = wiki_client(client, settings)
             models = ModelClient(settings, AgentState(settings.state_dir), FakeLLM(respond).http)
             agent_service = agent_app(settings, wiki, models)

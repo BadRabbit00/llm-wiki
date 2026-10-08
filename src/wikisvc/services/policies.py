@@ -41,12 +41,12 @@ class Policies:
         count_usage: bool = True,
     ) -> dict[str, Any]:
         registry = self.rt.registry
-        if profile and scopes is not None:
-            raise WikiError("E_REQUEST_INVALID", "Укажите профиль или явные scopes.", status=400)
         if profile and profile not in registry.profiles:
             raise WikiError("E_PROFILE_UNKNOWN", "Профиль не найден.", status=404)
         definition = registry.profiles.get(profile or "")
-        selected_scopes = sorted(set(definition.scopes if definition else scopes or []))
+        selected_scopes = sorted(
+            set(scopes if scopes is not None else definition.scopes if definition else [])
+        )
         if not selected_scopes or any(s not in registry.scopes for s in selected_scopes):
             raise WikiError("E_SCOPE_UNKNOWN", "Нужны известные области проекта.", status=400)
         budget = (

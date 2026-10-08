@@ -28,6 +28,14 @@ limits:
   chapter_chunk_tokens: 4000
   retries: 3
   state_tokens: 1500
+docs_audit:
+  enabled: false
+  max_findings_per_run: 20
+  max_model_calls_per_run: 100
+  max_model_calls_per_day: 1000
+  confidence_threshold: 0.7
+  max_files: 200
+  max_total_bytes: 26214400
 heal:
   # Enable after the model smoke test and your first reviewed proposal.
   enabled: false

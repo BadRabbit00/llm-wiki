@@ -53,12 +53,35 @@ class HealConfig(BaseModel):
         return values
 
 
+class DocsAuditConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = False
+    max_findings_per_run: int = Field(default=20, ge=1, le=100)
+    max_model_calls_per_run: int = Field(default=100, ge=1)
+    max_model_calls_per_day: int = Field(default=1000, ge=1)
+    confidence_threshold: float = Field(default=0.7, ge=0, le=1)
+    max_files: int = Field(default=200, ge=1, le=200)
+    max_total_bytes: int = Field(default=26214400, ge=1, le=26214400)
+
+
 class AgentConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     wikisvc: ServiceConfig = Field(default_factory=ServiceConfig)
     models: dict[str, ModelConfig]
     limits: Limits = Field(default_factory=Limits)
     heal: HealConfig = Field(default_factory=HealConfig)
+    docs_audit: DocsAuditConfig = Field(default_factory=DocsAuditConfig)
+    max_upload_mb: int = Field(
+        default_factory=lambda: int(os.environ.get("MAX_UPLOAD_MB", "25")),
+        ge=1,
+        le=1024,
+        validate_default=True,
+    )
+    secret_entropy_threshold: float = Field(
+        default_factory=lambda: float(os.environ.get("SECRET_ENTROPY_THRESHOLD", "4.5")),
+        gt=0,
+        validate_default=True,
+    )
     state_dir: Path = Field(
         default_factory=lambda: Path(os.environ.get("WIKIAGENT_STATE_DIR", ".wikiagent"))
     )

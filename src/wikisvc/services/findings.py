@@ -57,11 +57,10 @@ class Findings:
                     raise WikiError(
                         "E_FORBIDDEN", "Находку можно связать со своим предложением.", status=403
                     )
-            fingerprint = hashlib.sha256(
-                json.dumps(
-                    [values["kind"], sorted((p.id, p.version) for p in pages.values())]
-                ).encode()
-            ).hexdigest()
+            key: list[object] = [values["kind"], sorted((p.id, p.version) for p in pages.values())]
+            if values.get("scope"):
+                key.append(values["scope"])
+            fingerprint = hashlib.sha256(json.dumps(key).encode()).hexdigest()
             existing = self.rt.state.rows(
                 "SELECT * FROM findings WHERE fingerprint=?", (fingerprint,)
             )
@@ -92,6 +91,7 @@ class Findings:
                 "evidence": json.dumps(values.get("evidence", [])),
                 "proposal_pid": values.get("proposal_pid"),
                 "run_id": values.get("run_id"),
+                "scope": values.get("scope", ""),
                 "fingerprint": fingerprint,
                 "created_at": now(),
                 "updated_at": now(),
@@ -99,7 +99,7 @@ class Findings:
             }
             with self.rt.state.connect() as db:
                 db.execute(
-                    "INSERT INTO findings(id,kind,severity,status,pages,summary,explanation,evidence,proposal_pid,run_id,fingerprint,created_at,reason,updated_at) VALUES (:id,:kind,:severity,:status,:pages,:summary,:explanation,:evidence,:proposal_pid,:run_id,:fingerprint,:created_at,:reason,:updated_at)",
+                    "INSERT INTO findings(id,kind,severity,status,pages,summary,explanation,evidence,proposal_pid,run_id,scope,fingerprint,created_at,reason,updated_at) VALUES (:id,:kind,:severity,:status,:pages,:summary,:explanation,:evidence,:proposal_pid,:run_id,:scope,:fingerprint,:created_at,:reason,:updated_at)",
                     row,
                 )
             self.rt.state.audit(actor.name, "finding.create", row["id"])
@@ -111,11 +111,12 @@ class Findings:
         status: str | None = None,
         kind: str | None = None,
         severity: str | None = None,
+        scope: str | None = None,
     ) -> list[dict[str, Any]]:
         result = []
         for row in self.rt.state.rows(
-            "SELECT * FROM findings WHERE (? IS NULL OR status=?) AND (? IS NULL OR kind=?) AND (? IS NULL OR severity=?) ORDER BY created_at,id",
-            (status, status, kind, kind, severity, severity),
+            "SELECT * FROM findings WHERE (? IS NULL OR status=?) AND (? IS NULL OR kind=?) AND (? IS NULL OR severity=?) AND (? IS NULL OR scope=?) ORDER BY created_at,id",
+            (status, status, kind, kind, severity, severity, scope, scope),
         ):
             try:
                 result.append(self.visible(row, actor))
@@ -132,8 +133,9 @@ class Findings:
         severity: str | None = None,
         limit: int = 50,
         cursor: str | None = None,
+        scope: str | None = None,
     ) -> dict[str, Any]:
-        return paginate(self.all(actor, status, kind, severity), limit, cursor)
+        return paginate(self.all(actor, status, kind, severity, scope), limit, cursor)
 
     def decide(
         self, finding_id: str, actor: Principal, reopen: bool, reason: str = ""

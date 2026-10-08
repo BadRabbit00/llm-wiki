@@ -22,6 +22,7 @@ class JobRunner:
         self.state, self.client, self.models, self.chat = state, client, models, chat
         self.pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="wikiagent-job")
         self.lock = threading.RLock()
+        self.audit_lock = threading.Lock()
         self.active: set[str] = set()
         self.stopping = threading.Event()
 
@@ -64,6 +65,15 @@ class JobRunner:
                 Healer(self.client, self.models, self.state, self.chat, self.boundary).run(
                     job_id, json.loads(row["payload"])
                 )
+            elif row["kind"] == "docs_audit":
+                from wikiagent.jobs.docs_audit import DocsAudit
+
+                # Audits share a daily budget/cache; chat and heal keep their queue.
+                with self.audit_lock:
+                    self.boundary(job_id)
+                    DocsAudit(self.client, self.models, self.state, self.boundary).run(
+                        job_id, json.loads(row["payload"])
+                    )
             else:
                 raise WikiError("E_JOB_KIND", "Неизвестный тип задачи.")
         except JobStopped:
@@ -102,6 +112,10 @@ class JobRunner:
         ):
             raise not_found()
         result = rows[0]
+        if result["kind"] == "docs_audit" and actor.get("kind") != "human":
+            raise WikiError(
+                "E_HUMAN_REQUIRED", "Сверка документации требует сессию человека.", status=403
+            )
         result["payload"] = json.loads(result["payload"])
         result["progress"] = json.loads(result["progress"])
         return result

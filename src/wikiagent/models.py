@@ -57,7 +57,7 @@ class ModelClient:
         headers = {}
         if model.token_env:
             headers["Authorization"] = "Bearer " + os.environ.get(model.token_env, "")
-        with self.gate.enter(background=task.startswith("heal_")):
+        with self.gate.enter(background=task.startswith(("heal_", "docs_audit"))):
             with self.state.connect() as db:
                 db.execute(
                     "INSERT INTO model_calls VALUES (?,?,?,?)", (now()[:10], role, task, now())
@@ -95,6 +95,8 @@ class ModelClient:
         schema: type[T],
         data: Any,
         validate: Callable[[T], None] | None = None,
+        *,
+        max_attempts: int | None = None,
     ) -> T:
         task_file = Path(__file__).parent / "prompts" / f"{task}.md"
         task_prompt = task_file.read_text() if task_file.is_file() else ""
@@ -125,7 +127,11 @@ class ModelClient:
                 "strict": True,
             }
         error = ""
-        for _ in range(self.config.limits.retries):
+        for _ in range(
+            min(self.config.limits.retries, max_attempts)
+            if max_attempts is not None
+            else self.config.limits.retries
+        ):
             try:
                 result = self.completion(role, task, messages, response_format=response_format)
                 if result.get("tool_calls"):

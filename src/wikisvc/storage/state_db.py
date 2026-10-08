@@ -79,6 +79,7 @@ class StateDB:
                     "reverted_commit": "TEXT",
                 },
                 "proposal_editors": {"identity": "TEXT"},
+                "findings": {"scope": "TEXT NOT NULL DEFAULT ''"},
             }
             for table, fields in migrations.items():
                 existing = {row[1] for row in db.execute(f"PRAGMA table_info({table})")}

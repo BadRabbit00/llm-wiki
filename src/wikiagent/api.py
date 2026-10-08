@@ -12,10 +12,12 @@ from wikiagent.chat.loop import Chat
 from wikiagent.client import WikiClient
 from wikiagent.config import AgentConfig, load_config
 from wikiagent.heal.scheduler import Scheduler
+from wikiagent.jobs.docs_audit import parse_request
 from wikiagent.jobs.runner import JobRunner
 from wikiagent.models import ModelClient
 from wikiagent.state import AgentState
 from wikisvc.domain.errors import WikiError
+from wikisvc.domain.models import Principal
 
 
 class Bind(BaseModel):
@@ -163,6 +165,33 @@ def create_app(
         payload: HealJob, actor: Annotated[dict[str, Any], Depends(authorize)]
     ) -> dict[str, Any]:
         return jobs.get(jobs.heal(actor, payload.scope), actor)
+
+    def audit_actor(actor: Annotated[dict[str, object], Depends(authorize)]) -> Principal:
+        if actor.get("kind") != "human":
+            raise WikiError(
+                "E_HUMAN_REQUIRED", "Сверка документации требует сессию человека.", status=403
+            )
+        return Principal.model_validate(actor)
+
+    @app.get("/docs-audit/config")
+    def audit_config(actor: Annotated[Principal, Depends(audit_actor)]) -> dict[str, object]:
+        return {
+            "enabled": config.docs_audit.enabled,
+            "max_files": config.docs_audit.max_files,
+            "max_file_bytes": 256 * 1024,
+            "max_total_bytes": min(
+                config.docs_audit.max_total_bytes, config.max_upload_mb * 1024 * 1024
+            ),
+        }
+
+    @app.post("/jobs/docs-audit", status_code=202)
+    def docs_audit(
+        payload: dict[str, object], actor: Annotated[Principal, Depends(audit_actor)]
+    ) -> dict[str, object]:
+        request = parse_request(payload, config)
+        job_id = state.job("docs_audit", actor.model_dump(), request.model_dump())
+        jobs.start(job_id)
+        return dict(jobs.get(job_id, actor.model_dump()))
 
     @app.get("/jobs")
     def list_jobs(actor: Annotated[dict[str, Any], Depends(authorize)]) -> dict[str, Any]:

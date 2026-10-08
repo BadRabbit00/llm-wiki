@@ -26,6 +26,7 @@ class Finding(BaseModel):
     evidence: list[Evidence] = Field(default_factory=list, max_length=20)
     proposal_pid: str | None = None
     run_id: str | None = None
+    scope: str = Field(default="", pattern=r"^([a-z0-9][a-z0-9-]{0,63})?$")
 
 
 class Reason(BaseModel):
@@ -51,8 +52,9 @@ def findings(
     severity: str | None = None,
     limit: int = 50,
     cursor: str | None = None,
+    scope: str | None = None,
 ) -> dict[str, Any]:
-    return services.findings.list(actor, status, kind, severity, limit, cursor)
+    return services.findings.list(actor, status, kind, severity, limit, cursor, scope=scope)
 
 
 @router.get("/findings/stats")
