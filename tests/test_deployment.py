@@ -1,5 +1,7 @@
 import json
 import shutil
+from configparser import ConfigParser
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -9,6 +11,7 @@ from test_proposals import payload, proposal, reviewer
 
 from wikiagent.check import check
 from wikiagent.config import load_config
+from wikiagent.heal.scheduler import in_window
 from wikisvc.config import Settings
 from wikisvc.domain.errors import WikiError
 from wikisvc.main import create_app
@@ -16,6 +19,51 @@ from wikisvc.services.auth import Auth
 from wikisvc.services.relocate import repair_worktrees
 from wikisvc.storage.gitrepo import GitRepo
 from wikisvc.storage.state_db import StateDB
+
+
+def test_backup_deployment_assets_and_service_lifecycle() -> None:
+    deploy = Path(__file__).parents[1] / "deploy"
+    for asset in (
+        "systemd/llm-wiki-backup.service",
+        "systemd/llm-wiki-backup.timer",
+        "almalinux/backup.env",
+        "backup.sh",
+    ):
+        assert (deploy / asset).is_file()
+    service = ConfigParser(interpolation=None)
+    service.read(deploy / "systemd/llm-wiki-backup.service")
+    assert service["Service"]["Type"] == "oneshot"
+    assert service["Service"]["User"] == service["Service"]["Group"] == "root"
+    assert service["Service"]["UMask"] == "0077"
+    assert service["Service"]["EnvironmentFile"] == "/etc/llm-wiki/backup.env"
+    assert service["Service"]["ExecStartPre"].split() == [
+        "/usr/bin/systemctl",
+        "stop",
+        "wiki-ui",
+        "wikiagent",
+        "wikisvc",
+    ]
+    assert service["Service"]["ExecStart"] == "/opt/llm-wiki/current/bin/llm-wiki-backup"
+    # ExecStopPost also runs when stopping the writers or creating the archive fails.
+    assert service["Service"]["ExecStopPost"].split() == [
+        "/usr/bin/systemctl",
+        "--no-block",
+        "start",
+        "wikisvc",
+        "wikiagent",
+        "wiki-ui",
+    ]
+    timer = ConfigParser(interpolation=None)
+    timer.read(deploy / "systemd/llm-wiki-backup.timer")
+    assert timer["Timer"].getboolean("Persistent")
+    assert timer["Timer"]["Unit"] == "llm-wiki-backup.service"
+    assert timer["Timer"]["OnCalendar"] == "*-*-* 23:00:00"
+    config = load_config(deploy / "almalinux/wikiagent.yaml")
+    assert not config.heal.enabled
+    for hour in (23, 0):
+        assert not in_window(datetime(2026, 1, 1, hour, tzinfo=UTC), config.heal.windows)
+    assert "RATE_LIMIT_PER_MIN=120" in (deploy / "almalinux/service.env").read_text().splitlines()
+    assert "BACKUP_KEEP_DAYS=14" in (deploy / "almalinux/backup.env").read_text().splitlines()
 
 
 def test_development_example_loads() -> None:

@@ -9,10 +9,10 @@ if [[ $# -ne 0 ]]; then
     echo 'Usage: llm-wiki-install (installs this built version; preserves configuration and data)' >&2
     exit 2
 fi
-for unit in wikisvc wikiagent wiki-ui; do
+for unit in wikisvc wikiagent wiki-ui llm-wiki-backup; do
     state=$(systemctl is-active "$unit.service" 2>/dev/null || true)
     if [[ $state == active || $state == activating || $state == deactivating || $state == reloading ]]; then
-        echo "Stop wiki-ui, wikiagent and wikisvc before installing ($unit: $state)." >&2
+        echo "Stop wiki-ui, wikiagent, wikisvc and the backup job before installing ($unit: $state)." >&2
         exit 1
     fi
 done
@@ -35,11 +35,12 @@ install -d -m 0700 -o llm-wiki -g llm-wiki /var/lib/llm-wiki
 for directory in state index agent; do
     install -d -m 0700 -o llm-wiki -g llm-wiki "/var/lib/llm-wiki/$directory"
 done
-for file in service.env agent.env wikiagent.yaml llama.env ui.env; do
+for file in service.env agent.env wikiagent.yaml llama.env ui.env backup.env; do
     if [[ ! -e /etc/llm-wiki/$file ]]; then
         config_group=llm-wiki
         [[ $file != llama.env ]] || config_group=llm-model
         [[ $file != ui.env ]] || config_group=llm-ui
+        [[ $file != backup.env ]] || config_group=root
         install -m 0640 -o root -g "$config_group" \
             "@bundle@/share/llm-wiki/almalinux/$file" "/etc/llm-wiki/$file"
     fi
@@ -57,14 +58,17 @@ fi
 @nix@/bin/nix-store --realise @bundle@ \
     --add-root /nix/var/nix/gcroots/llm-wiki/current >/dev/null
 ln -sfn @bundle@ /opt/llm-wiki/current
-for unit in wikisvc wikiagent llm-wiki-model wiki-ui; do
+for unit in wikisvc wikiagent llm-wiki-model wiki-ui llm-wiki-backup; do
     install -m 0644 "@bundle@/share/llm-wiki/systemd/$unit.service" "/etc/systemd/system/$unit.service"
 done
+install -m 0644 "@bundle@/share/llm-wiki/systemd/llm-wiki-backup.timer" \
+    /etc/systemd/system/llm-wiki-backup.timer
 ln -sfn /opt/llm-wiki/current/bin/llm-wiki-admin /usr/local/sbin/llm-wiki-admin
 if command -v restorecon >/dev/null; then
     restorecon -RF /etc/llm-wiki /var/lib/llm-wiki /var/cache/llm-wiki-model \
         /srv/llm-wiki /opt/llm-wiki /usr/local/sbin/llm-wiki-admin
-    restorecon /etc/systemd/system/{wikisvc,wikiagent,llm-wiki-model,wiki-ui}.service
+    restorecon /etc/systemd/system/{wikisvc,wikiagent,llm-wiki-model,wiki-ui,llm-wiki-backup}.service \
+        /etc/systemd/system/llm-wiki-backup.timer
 fi
 systemctl daemon-reload
 echo 'Installed. Configuration preserved. Follow docs/deploy-almalinux.md to initialize/restore and start.'

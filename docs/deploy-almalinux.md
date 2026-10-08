@@ -8,12 +8,13 @@ Nix собирает и фиксирует Python, Git, Go и зависимос
 ```text
 /opt/llm-wiki/current       установленный Nix bundle (постоянный GC root)
 /opt/llm-wiki/previous      предыдущий bundle для отката
-/etc/llm-wiki/             service.env, agent.env, wikiagent.yaml, llama.env, ui.env
+/etc/llm-wiki/             service.env, agent.env, wikiagent.yaml, llama.env, ui.env, backup.env
 /var/lib/llm-wiki/
   wiki/                    отдельный репозиторий контента, включая .git
   state/                   state.db, worktrees, library, extract
   agent/                   agent.db, сессии и задачи
   index/                   производный индекс
+/var/backups/llm-wiki/     закрытые резервные копии (root, 0700)
 /srv/llm-wiki/models/      GGUF (не входит в Git и Nix store)
 ```
 
@@ -151,9 +152,8 @@ sudo /usr/local/sbin/llm-wiki-admin wikiagent eval \
 Каталог scenarios должен быть доступен llm-wiki (если checkout в закрытом home,
 скопируйте `tests/scenarios/` в `/var/lib/llm-wiki/agent/scenarios/` и задайте этот путь).
 В комплекте 12 сценариев, порог полного допуска — ≥30 и ≥90% правильных результатов;
-прежний отчёт Gemma 12B не является оценкой 31B. После проверки первой операции
-и ревью предложения можно включить `heal.enabled: true` и перезапустить wikiagent.
-Окна самолечения используют местное время сервера: проверьте `timedatectl`.
+прежний отчёт Gemma 12B не является оценкой 31B. Самолечение включается отдельно,
+после ручного цикла и настройки резервного копирования, по порядку ниже.
 
 ## 5. Доступ и диагностика
 
@@ -179,6 +179,16 @@ API без путей. По умолчанию это loopback:8787 и loopback:
 тела у внешнего прокси до настроенного размера книги. UI запускается, даже пока
 wikiagent ждёт модель; чтение вики и ручное ревью продолжают работать.
 
+В `/etc/llm-wiki/service.env` комплект задаёт `RATE_LIMIT_PER_MIN=120`.
+Лимит считается отдельно на имя токена; запросы `/api/v1/health` не считаются.
+Превышение возвращает HTTP `429` с кодом `E_RATE_LIMIT`. Значение по умолчанию
+в приложении — `0`, оно отключает ограничение. При обновлении установщик сохраняет
+существующий `service.env`: добавьте параметр вручную и перезапустите `wikisvc`.
+При появлении режима `ANONYMOUS_ACCESS=1` (задача 09) настройте ограничение
+**по IP на обратном прокси перед wiki-ui**: все анонимные клиенты делят одно имя,
+поэтому встроенный лимит не разделяет их. Он остаётся защитой для служебных
+и сессионных токенов.
+
 Swagger остаётся на http://127.0.0.1:8787/docs и http://127.0.0.1:8788/docs;
 для доступа к нему с другого компьютера добавьте соответствующие SSH forwards.
 
@@ -194,22 +204,147 @@ sudo /usr/local/sbin/llm-wiki-admin check
 отклонённое действие; SELinux целиком выключать не требуется. На целевой AlmaLinux
 нужно проверить запуск и права устройств: локальная проверка bundle проводится на NixOS.
 
-## Перенос и резервная копия
+## Резервное копирование
+
+Установщик копирует `llm-wiki-backup.service`, `llm-wiki-backup.timer` и
+`/etc/llm-wiki/backup.env`, сохраняя существующий env-файл. Таймер включает человек.
+По умолчанию он запускается ежедневно в **23:00 по местному времени сервера**,
+архивы хранятся в `BACKUP_DIR=/var/backups/llm-wiki`, срок — `BACKUP_KEEP_DAYS=14`.
+Путь должен быть абсолютным, вне `/var/lib/llm-wiki` и `/etc/llm-wiki`, срок — целым
+числом дней от 1 до 99999. Для отдельного диска добавьте его точку монтирования
+в `RequiresMountsFor` через `systemctl edit llm-wiki-backup.service`.
+
+Задание останавливает `wiki-ui`, `wikiagent`, `wikisvc` и архивирует целиком
+`wiki/` (включая `.git`), `state/` (SQLite, worktrees, библиотеку), `agent/`
+(сессии и задачи) и `/etc/llm-wiki` (включая `agent.env`). Индекс не входит в архив.
+На время копирования завершите также отдельные пишущие CLI/MCP-процессы;
+не запускайте службы вручную до завершения задания. Модель останавливать не нужно.
+
+Каталог принадлежит root с правами `0700`, архивы — root с правами `0600`;
+после создания применяется `restorecon`, если он доступен. Архив сначала пишется
+во временный файл и получает имя `data-<дата-UTC>-<суффикс>.tar.gz` только после
+успешного завершения `tar`. Затем удаляются завершённые архивы `data-*.tar.gz`
+старше `BACKUP_KEEP_DAYS` в этом каталоге. При ошибке архивирования прежние копии
+не удаляются. Используются GNU tar, gzip и find из AlmaLinux.
+
+`ExecStopPost` ставит запуск служб в очередь через `systemctl --no-block start`,
+в том числе после ошибки остановки или архивирования. Поэтому после задания
+проверьте и его результат, и готовность служб: постановка в очередь ещё не означает,
+что они уже запустились.
+
+Зарезервируйте окно **23:00–01:00** для остановки, копирования и запуска служб.
+Оно не пересекается с поставляемым окном `heal` **01:00–06:00**. `TimeoutStartSec=45min`
+ограничивает отдельно остановку и архивирование; оставшееся время — запас на запуск.
+При изменении расписания или таймаутов пересчитайте запас и окна `heal`.
+`Persistent=true` догоняет пропущенный запуск после включения таймера, поэтому
+после простоя копирование может начаться сразу, вне обычного окна. Планируйте
+такое включение в период обслуживания; службы всё равно будут остановлены.
+
+```sh
+sudoedit /etc/llm-wiki/backup.env
+timedatectl
+# При необходимости изменить расписание через drop-in:
+# sudo systemctl edit llm-wiki-backup.timer
+# [Timer]
+# OnCalendar=
+# OnCalendar=*-*-* 23:00:00
+sudo systemctl daemon-reload
+sudo systemctl start llm-wiki-backup.service
+sudo journalctl -u llm-wiki-backup.service -n 80 --no-pager
+sudo systemctl status wikisvc wikiagent wiki-ui
+```
+
+### Обязательная проверка восстановления
+
+**Непроверенная копия копией не считается.** После первой копии и регулярно после
+обновлений проверяйте восстановление доверенного архива. Замените имя архива ниже
+на существующее. Каталог `/tmp/restore-test` должен отсутствовать: пример прекращает
+работу, если он уже есть, создаёт его с правами `0700` и удаляет после проверки,
+включая случай ошибки. Внутри находятся секреты из `agent.env` и внутренние материалы.
+`--no-same-owner` оставляет владельцем распакованных файлов root, от которого идёт проверка.
+
+Не используйте `llm-wiki-admin`: он читает рабочий `service.env` и переходит в рабочий
+каталог. Здесь вызывается CLI напрямую. `Settings` читает только окружение
+(`env_file=None`), поэтому для каждой команды явно заданы все три пути.
+Отдельный `INDEX_DIR` находится вне `WIKI_ROOT` и не равен `STATE_DIR`.
+Ни одна команда проверки не указывает на рабочий `/var/lib/llm-wiki`.
+
+```sh
+sudo sh -eu <<'RESTORE'
+test ! -e /tmp/restore-test
+test ! -L /tmp/restore-test
+install -d -m 0700 /tmp/restore-test
+trap 'rm -rf -- /tmp/restore-test' EXIT
+tar --no-same-owner -C /tmp/restore-test -xzf '/var/backups/llm-wiki/data-<дата-UTC>-<суффикс>.tar.gz'
+install -d -m 0700 /tmp/restore-test/index
+
+env WIKI_ROOT=/tmp/restore-test/var/lib/llm-wiki/wiki \
+  STATE_DIR=/tmp/restore-test/var/lib/llm-wiki/state \
+  INDEX_DIR=/tmp/restore-test/index \
+  /opt/llm-wiki/current/bin/wikisvc repair-worktrees
+env WIKI_ROOT=/tmp/restore-test/var/lib/llm-wiki/wiki \
+  STATE_DIR=/tmp/restore-test/var/lib/llm-wiki/state \
+  INDEX_DIR=/tmp/restore-test/index \
+  /opt/llm-wiki/current/bin/wikisvc reindex --full
+env WIKI_ROOT=/tmp/restore-test/var/lib/llm-wiki/wiki \
+  STATE_DIR=/tmp/restore-test/var/lib/llm-wiki/state \
+  INDEX_DIR=/tmp/restore-test/index \
+  /opt/llm-wiki/current/bin/wikisvc lint
+RESTORE
+```
+
+После успешной проверки включите регулярный запуск:
+
+```sh
+sudo systemctl enable --now llm-wiki-backup.timer
+systemctl list-timers llm-wiki-backup.timer
+```
+
+## Включение самолечения и аудита документации
+
+В комплекте `heal.enabled: false`. Порядок включения:
+
+1. Выполните первую операцию вручную; человек должен проверить и принять хотя бы
+   одно предложение.
+2. Добейтесь успешного `sudo /usr/local/sbin/llm-wiki-admin check --model`.
+3. Проверьте `timedatectl`: окна `heal` используют местное время сервера,
+   часовой пояс должен совпадать с ожидаемым.
+4. Настройте и проверьте резервное копирование по разделу выше. Убедитесь, что
+   окна `heal` не пересекаются с окном бэкапа, включая остановку и запуск служб.
+5. Только теперь задайте `heal.enabled: true` в `/etc/llm-wiki/wikiagent.yaml`
+   и выполните `sudo systemctl restart wikiagent`.
+6. Через сутки проверьте `GET /api/v1/findings/stats` с человеческим токеном.
+   Если для вида находок `dismissed / (resolved + dismissed) > 0.5`, API возвращает
+   `recommendation: "Поднять порог уверенности"`. Много ложных срабатываний означает,
+   что `confidence_threshold` **занижен**. Человек повышает его в `wikiagent.yaml`
+   и перезапускает `wikiagent`; система порог сама не меняет.
+
+`docs_audit` появится в задаче 07. Текущая конфигурация ещё не поддерживает этот
+раздел и отклоняет неизвестные поля: пока не добавляйте его в YAML. После появления
+функции она должна оставаться выключенной по умолчанию (`docs_audit.enabled: false`)
+и включаться отдельно:
+
+1. Выполните ручной аудит и дождитесь человеческого ревью и принятия предложения.
+2. Повторите проверку `check --model`, часового пояса и обязательную проверку копии.
+3. Выберите окно аудита без пересечения с резервным копированием.
+4. Включите `docs_audit.enabled` только в версии с поддержкой задачи 07 и
+   перезапустите `wikiagent`.
+5. Через сутки проверьте статистику находок; пороги корректирует человек
+   по результатам ревью, по тому же правилу, что и для `heal`.
+
+## Перенос данных
 
 GitHub содержит **код**, а данные переносятся отдельно. До копирования остановите
 wiki-ui, wikiagent, wikisvc и прочие пишущие клиенты CLI/MCP. Для dev-запуска завершите процессы
 в терминалах. Сохраняйте весь wiki, включая `.git`, весь STATE_DIR, весь
 WIKIAGENT_STATE_DIR, конфиги и agent.env. Индекс можно пересоздать.
 
-Для уже развёрнутой установки:
-
-```sh
-sudo systemctl stop wiki-ui wikiagent wikisvc
-sudo install -d -m 0700 /var/backups/llm-wiki
-sudo sh -c 'umask 077; tar -C / -czf /var/backups/llm-wiki/data.tar.gz \
-  var/lib/llm-wiki/wiki var/lib/llm-wiki/state var/lib/llm-wiki/agent etc/llm-wiki'
-sudo systemctl start wikisvc wikiagent wiki-ui
-```
+Для уже развёрнутой установки используйте проверенный архив из раздела
+«Резервное копирование». Перед окончательным переносом остановите таймер,
+дождитесь завершения текущего копирования, остановите службы и снимите последнюю
+копию командой `tar` из раздела «Обновление и откат». До завершения переноса
+не возобновляйте запись на старой машине. Задание `llm-wiki-backup.service`
+для этого не подходит: оно возвращает службы в работу после копирования.
 
 Для переноса текущей структуры `work/wiki` + `work/backend/.dev/` архив удобно
 создать из `work/` после остановки процессов; `agent/` включайте, если он существует:
@@ -251,20 +386,31 @@ GGUF копируется отдельно. Архив содержит внут
 
 ## Обновление и откат
 
-Сначала соберите новую версию, пока старая работает. Затем остановите сервисы,
-сделайте согласованную резервную копию и установите готовый bundle:
+Сначала соберите новую версию, пока старая работает. Затем остановите таймер,
+дождитесь завершения текущего задания копирования, если оно выполняется,
+и остановите сервисы. Сделайте согласованную резервную копию и установите готовый bundle:
 
 ```sh
 git pull --ff-only
 nix --extra-experimental-features 'nix-command flakes' build .#deployment --out-link result-deployment
+sudo systemctl stop llm-wiki-backup.timer
+# Если копирование уже идёт, дождитесь его завершения перед остановкой служб.
 sudo systemctl stop wiki-ui wikiagent wikisvc llm-wiki-model
-# Сделайте бэкап по разделу выше, оставив службы остановленными.
+# Копия для обновления: службы остаются остановленными до конца обслуживания.
+# Не запускайте здесь backup.service: его ExecStopPost вернёт службы в работу.
+sudo install -d -m 0700 /var/backups/llm-wiki
+sudo restorecon /var/backups/llm-wiki
+sudo sh -eu -c 'umask 077; tar -C / -czf "/var/backups/llm-wiki/pre-upgrade-$(date -u +%Y%m%dT%H%M%SZ).tar.gz" \
+  var/lib/llm-wiki/wiki var/lib/llm-wiki/state var/lib/llm-wiki/agent etc/llm-wiki'
+# Проверьте эту копию по инструкции восстановления выше.
 sudo ./result-deployment/bin/llm-wiki-install
 sudo /usr/local/sbin/llm-wiki-admin wikisvc schema upgrade
 sudo /usr/local/sbin/llm-wiki-admin wikisvc reindex --full
 sudo /usr/local/sbin/llm-wiki-admin wikisvc lint
 sudo systemctl start llm-wiki-model wikisvc wikiagent wiki-ui
 sudo /usr/local/sbin/llm-wiki-admin check --model
+# Если таймер был включён до обслуживания:
+sudo systemctl start llm-wiki-backup.timer
 ```
 
 Установщик сохраняет `/etc/llm-wiki`; новые примеры сравнивайте с
@@ -272,7 +418,8 @@ sudo /usr/local/sbin/llm-wiki-admin check --model
 изменения делайте в systemd drop-ins. Текущий и предыдущий bundle закреплены
 GC roots, удаление checkout или `result-deployment` не ломает службы.
 
-Для отката остановите службы и выполните
+Для отката также остановите таймер, дождитесь завершения копирования,
+остановите службы и выполните
 `sudo /opt/llm-wiki/previous/bin/llm-wiki-install`: установщик вернёт прежний bundle
 и units. Если версия изменила формат данных/схему, до запуска также восстановите
 совместимую резервную копию данных и конфигурации. Смена бинарника сама по себе

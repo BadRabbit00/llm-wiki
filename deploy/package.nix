@@ -23,6 +23,7 @@ pkgs.runCommand "llm-wiki-deployment-${app.version}" {
   render ${./install.sh} llm-wiki-install
   render ${./admin.sh} llm-wiki-admin
   render ${./model.sh} llm-wiki-model
+  render ${./backup.sh} llm-wiki-backup
   cat > "$out/bin/llm-wiki-check" <<EOF
   #!${pkgs.bash}/bin/bash
   exec ${app}/bin/wikiagent check "\$@"

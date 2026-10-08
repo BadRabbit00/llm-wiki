@@ -1,0 +1,16 @@
+[Unit]
+Description=Offline backup of wiki content, state and configuration
+After=local-fs.target
+RequiresMountsFor=/nix/store /var/lib/llm-wiki /etc/llm-wiki /var/backups/llm-wiki /opt/llm-wiki
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/llm-wiki/backup.env
+ExecStartPre=/usr/bin/systemctl stop wiki-ui wikiagent wikisvc
+ExecStart=/opt/llm-wiki/current/bin/llm-wiki-backup
+ExecStopPost=/usr/bin/systemctl --no-block start wikisvc wikiagent wiki-ui
+TimeoutStartSec=45min
+TimeoutStopSec=60
+UMask=0077
