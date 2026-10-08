@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="AlmaLinux deployment")
+pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Linux deployment")
 
 
 @pytest.fixture

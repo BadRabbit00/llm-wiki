@@ -1,7 +1,7 @@
-# AlmaLinux + Nix + локальная Gemma 4 31B
+# Установка на Linux через Nix
 
 Nix собирает и фиксирует Python, Git, Go и зависимости из `flake.lock` и
-`ui/package-lock.json`, `ui/go.sum` и хеша Go vendor. Обычный systemd AlmaLinux запускает четыре сервиса:
+`ui/package-lock.json`, `ui/go.sum` и хеша Go vendor. На Linux с systemd комплект запускает четыре сервиса:
 `wikisvc`, `wikiagent`, `wiki-ui`, `llm-wiki-model` (llama-server). Вход в `nix develop` на сервере не нужен.
 Службы работают от отдельных системных пользователей, API слушают loopback.
 
@@ -20,18 +20,27 @@ Nix собирает и фиксирует Python, Git, Go и зависимос
 
 ## 1. Nix и сборка
 
-Нужны AlmaLinux с systemd, `sudo`, Git, curl и многопользовательский Nix.
-На AlmaLinux обычно включён SELinux: выбирайте установщик, который его
-поддерживает, например [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer).
-Обычный upstream `--daemon` перечисляет Linux **без SELinux** в поддерживаемых
-конфигурациях ([руководство Nix](https://nix.dev/manual/nix/stable/installation/installing-binary.html)).
-Наш установщик SELinux и firewall не перенастраивает.
+Нужны Linux с systemd, Bash, `sudo`, Git, curl, xz, GNU tar/gzip/find,
+util-linux (`runuser`, `flock`, `getent`) и средства создания пользователей
+(`useradd`, `groupadd`, `usermod`). Имена пакетов зависят от дистрибутива.
+Подходят Arch, Debian, Ubuntu и другие системы с этими утилитами. Само приложение
+и его Python/Go/Node-зависимости собирает Nix; NixOS не требуется.
+Ниже — установка systemd-комплекта. Без systemd используйте готовые бинарники
+`nix build .#wikisvc .#ui` под своим supervisor: он должен передавать то же
+окружение и запускать службы от нужных пользователей. Автоматический установщик
+требует systemd и в таком режиме не запускается.
+
+Установку Nix выбирайте по [официальному руководству](https://nix.dev/install-nix).
+Для обычной серверной системы используется multi-user daemon. На машине с
+SELinux проверьте поддержку политики выбранным способом установки Nix;
+установщик проекта не меняет SELinux и firewall.
 
 ```sh
-sudo dnf install git curl tar
-# Если Nix ещё не установлен, изучите параметры выбранного установщика.
-curl --proto '=https' --tlsv1.2 -sSfL https://install.determinate.systems/nix -o /tmp/install-nix.sh
-sh /tmp/install-nix.sh install
+# Сначала установите перечисленные системные утилиты пакетным менеджером своей ОС.
+# Если Nix ещё не установлен:
+curl --proto '=https' --tlsv1.2 -sSfL https://nixos.org/nix/install -o /tmp/install-nix.sh
+# Просмотрите скрипт, затем запустите от обычного пользователя с sudo:
+sh /tmp/install-nix.sh --daemon
 # Откройте новую оболочку после установки.
 nix --version
 
@@ -88,7 +97,7 @@ sudoedit /etc/llm-wiki/ui-session.token
 
 Сначала подготовьте удалённый Authentik и служебный токен, затем устанавливайте
 или обновляйте `wiki-ui`. Установщик сохраняет конфигурацию: при обновлении
-добавьте новые параметры из `deploy/almalinux/service.env` и `ui.env` вручную.
+добавьте новые параметры из `deploy/linux/service.env` и `ui.env` вручную.
 Без issuer, client id и непустых файлов секретов новый UI откажется стартовать.
 Настроенный, но недоступный IdP запуску не мешает.
 
@@ -134,8 +143,8 @@ timedatectl
 OIDC exp/iat/nbf; допуск будущего iat/nbf — не более 60 секунд, истёкший exp отвергается.
 Issuer обязан быть HTTPS. Для частного CA укажите `SSL_CERT_FILE=/etc/llm-wiki/idp-ca.pem`
 в ui.env: PEM bundle системных корней и внутреннего CA, доступный llm-ui и диагностике
-(например root:root, 0644; сертификаты публичные). На AlmaLinux системный bundle —
-`/etc/pki/tls/certs/ca-bundle.crt`. Проверка TLS всегда включена.
+(например root:root, 0644; сертификаты публичные). Расположение системного bundle
+зависит от дистрибутива; Go использует системные доверенные корни. Проверка TLS всегда включена.
 Только локальный стенд с loopback IdP допускает `WIKI_UI_OIDC_INSECURE_HTTP=1`.
 
 UI получает discovery/JWKS лениво, обновляет ключи каждые 5 минут и при промахе.
@@ -148,7 +157,7 @@ UI получает discovery/JWKS лениво, обновляет ключи �
 
 Нужны GGUF и версия llama.cpp, которая поддерживает именно этот файл и structured
 JSON. Бинарник llama-server, его GPU-библиотеки и драйвер устанавливаются отдельно
-под оборудование AlmaLinux. Nix bundle вики не включает CUDA или модель.
+под оборудование сервера. Nix bundle вики не включает CUDA или модель.
 Если llama-server тоже установлен через Nix, держите его в постоянном Nix profile
 или другом GC root; для GPU должны быть доступны библиотеки драйвера **хоста**.
 Сначала проверьте запуск этого бинарника на целевом компьютере.
@@ -220,7 +229,7 @@ sudo /usr/local/sbin/llm-wiki-admin wikiagent eval \
 Для доступа со своего компьютера достаточно SSH-туннеля:
 
 ```sh
-ssh -N -L 8789:127.0.0.1:8789 user@alma-host
+ssh -N -L 8789:127.0.0.1:8789 user@wiki-host
 ```
 
 Откройте **http://127.0.0.1:8789**: вход перенаправит в Authentik. Для туннеля
@@ -270,8 +279,8 @@ sudo /usr/local/sbin/llm-wiki-admin check
 `401`/`403`: проверьте токен, role/kind и clearance. Ошибка alias: сравните
 `/v1/models` с YAML. GPU OOM: смотрите журнал модели и уменьшайте нагрузку на память.
 При SELinux AVC используйте `sudo ausearch -m AVC -ts recent`, чтобы найти конкретное
-отклонённое действие; SELinux целиком выключать не требуется. На целевой AlmaLinux
-нужно проверить запуск и права устройств: локальная проверка bundle проводится на NixOS.
+отклонённое действие, если на сервере используется SELinux. На целевом сервере
+нужно проверить запуск и права устройств; прохождение локальных тестов не проверяет GPU хоста.
 
 ### Диагностика входа
 
@@ -338,7 +347,7 @@ sudo /usr/local/sbin/llm-wiki-admin wikisvc token revoke breakglass
 во временный файл и получает имя `data-<дата-UTC>-<суффикс>.tar.gz` только после
 успешного завершения `tar`. Затем удаляются завершённые архивы `data-*.tar.gz`
 старше `BACKUP_KEEP_DAYS` в этом каталоге. При ошибке архивирования прежние копии
-не удаляются. Используются GNU tar, gzip и find из AlmaLinux.
+не удаляются. Используются GNU tar, gzip и find, установленные на хосте.
 
 `ExecStopPost` ставит запуск служб в очередь через `systemctl --no-block start`,
 в том числе после ошибки остановки или архивирования. Поэтому после задания
@@ -483,7 +492,9 @@ tar -czf wiki-data.tar.gz wiki backend/.dev/state
 ```sh
 # На новой машине после копирования, до старта служб:
 sudo chown -R llm-wiki:llm-wiki /var/lib/llm-wiki
-sudo restorecon -RF /var/lib/llm-wiki /etc/llm-wiki
+if command -v restorecon >/dev/null; then
+  sudo restorecon -RF /var/lib/llm-wiki /etc/llm-wiki
+fi
 sudo /usr/local/sbin/llm-wiki-admin wikisvc repair-worktrees
 sudo /usr/local/sbin/llm-wiki-admin wikisvc schema upgrade
 sudo /usr/local/sbin/llm-wiki-admin wikisvc reindex --full
@@ -512,7 +523,9 @@ sudo systemctl stop wiki-ui wikiagent wikisvc llm-wiki-model
 # Копия для обновления: службы остаются остановленными до конца обслуживания.
 # Не запускайте здесь backup.service: его ExecStopPost вернёт службы в работу.
 sudo install -d -m 0700 /var/backups/llm-wiki
-sudo restorecon /var/backups/llm-wiki
+if command -v restorecon >/dev/null; then
+  sudo restorecon /var/backups/llm-wiki
+fi
 sudo sh -eu -c 'umask 077; tar -C / -czf "/var/backups/llm-wiki/pre-upgrade-$(date -u +%Y%m%dT%H%M%SZ).tar.gz" \
   var/lib/llm-wiki/wiki var/lib/llm-wiki/state var/lib/llm-wiki/agent etc/llm-wiki'
 # Проверьте эту копию по инструкции восстановления выше.
@@ -527,7 +540,7 @@ sudo systemctl start llm-wiki-backup.timer
 ```
 
 Установщик сохраняет `/etc/llm-wiki`; новые примеры сравнивайте с
-`result-deployment/share/llm-wiki/almalinux/`. Units переустанавливаются; местные
+`result-deployment/share/llm-wiki/linux/`. Units переустанавливаются; местные
 изменения делайте в systemd drop-ins. Текущий и предыдущий bundle закреплены
 GC roots, удаление checkout или `result-deployment` не ломает службы.
 

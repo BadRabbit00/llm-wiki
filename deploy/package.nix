@@ -3,7 +3,7 @@ pkgs.runCommand "llm-wiki-deployment-${app.version}" {
   nativeBuildInputs = [ pkgs.shellcheck ];
 } ''
   mkdir -p "$out/bin" "$out/share/llm-wiki"
-  cp -r ${./almalinux} "$out/share/llm-wiki/almalinux"
+  cp -r ${./linux} "$out/share/llm-wiki/linux"
   cp -r ${./systemd} "$out/share/llm-wiki/systemd"
   for command in wikisvc wikiagent; do
     ln -s ${app}/bin/$command "$out/bin/$command"

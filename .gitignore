@@ -13,8 +13,8 @@ result
 result-*
 .wikiagent/
 wikiagent.yaml
-!deploy/almalinux/wikiagent.yaml
+!deploy/linux/wikiagent.yaml
 *.egg-info/
 .env
 .env.local
-deploy/almalinux/*.local
+deploy/linux/*.local

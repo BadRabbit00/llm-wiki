@@ -26,7 +26,7 @@ def test_backup_deployment_assets_and_service_lifecycle() -> None:
     for asset in (
         "systemd/llm-wiki-backup.service",
         "systemd/llm-wiki-backup.timer",
-        "almalinux/backup.env",
+        "linux/backup.env",
         "backup.sh",
     ):
         assert (deploy / asset).is_file()
@@ -58,12 +58,12 @@ def test_backup_deployment_assets_and_service_lifecycle() -> None:
     assert timer["Timer"].getboolean("Persistent")
     assert timer["Timer"]["Unit"] == "llm-wiki-backup.service"
     assert timer["Timer"]["OnCalendar"] == "*-*-* 23:00:00"
-    config = load_config(deploy / "almalinux/wikiagent.yaml")
+    config = load_config(deploy / "linux/wikiagent.yaml")
     assert not config.heal.enabled
     for hour in (23, 0):
         assert not in_window(datetime(2026, 1, 1, hour, tzinfo=UTC), config.heal.windows)
-    assert "RATE_LIMIT_PER_MIN=120" in (deploy / "almalinux/service.env").read_text().splitlines()
-    assert "BACKUP_KEEP_DAYS=14" in (deploy / "almalinux/backup.env").read_text().splitlines()
+    assert "RATE_LIMIT_PER_MIN=120" in (deploy / "linux/service.env").read_text().splitlines()
+    assert "BACKUP_KEEP_DAYS=14" in (deploy / "linux/backup.env").read_text().splitlines()
 
 
 def test_development_example_loads() -> None:
@@ -116,7 +116,7 @@ def test_repair_rejects_incomplete_state_copy(config: Settings) -> None:
 def test_deployment_readiness_and_structured_smoke(
     monkeypatch: pytest.MonkeyPatch, failure: str | None
 ) -> None:
-    config = load_config(Path(__file__).parents[1] / "deploy/almalinux/wikiagent.yaml")
+    config = load_config(Path(__file__).parents[1] / "deploy/linux/wikiagent.yaml")
     monkeypatch.setenv("WIKIAGENT_TOKEN", "private-test-token")
     generated = []
 

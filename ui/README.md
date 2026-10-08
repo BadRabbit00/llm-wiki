@@ -14,8 +14,8 @@ nix build .#ui
 # http://127.0.0.1:8789
 ```
 
-Для AlmaLinux используйте `nix build .#deployment` и
-[инструкцию установки](../docs/deploy-almalinux.md). В bundle входит
+Для Linux используйте `nix build .#deployment` и
+[инструкцию установки](../docs/deploy-linux.md). В bundle входит
 `wiki-ui.service` с отдельным пользователем llm-ui.
 
 | Переменная | По умолчанию |

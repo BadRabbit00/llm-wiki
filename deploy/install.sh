@@ -42,7 +42,7 @@ for file in service.env agent.env wikiagent.yaml llama.env ui.env backup.env rol
         case $file in ui.env|ui-oidc.secret|ui-session.token) config_group=llm-ui ;; esac
         [[ $file != backup.env ]] || config_group=root
         install -m 0640 -o root -g "$config_group" \
-            "@bundle@/share/llm-wiki/almalinux/$file" "/etc/llm-wiki/$file"
+            "@bundle@/share/llm-wiki/linux/$file" "/etc/llm-wiki/$file"
     fi
 done
 # Permanent GC roots: the current and previous bundles survive deletion of result/checkout.
@@ -71,4 +71,4 @@ if command -v restorecon >/dev/null; then
         /etc/systemd/system/llm-wiki-backup.timer
 fi
 systemctl daemon-reload
-echo 'Installed. Configuration preserved. Follow docs/deploy-almalinux.md to initialize/restore and start.'
+echo 'Installed. Configuration preserved. Follow docs/deploy-linux.md to initialize/restore and start.'
