@@ -3,6 +3,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from wikisvc.domain.errors import WikiError
+from wikisvc.domain.project_templates import ProjectTemplate
 
 
 class ExtraField(BaseModel):
@@ -55,6 +56,7 @@ class Registry(BaseModel):
     scopes: list[str] = Field(default_factory=list)
     profiles: dict[str, Profile] = Field(default_factory=dict)
     synonyms: list[list[str]] = Field(default_factory=list)
+    project_templates: dict[str, ProjectTemplate] = Field(default_factory=dict)
 
     def page_type(self, name: str) -> PageType:
         if name not in self.page_types:

@@ -3,8 +3,18 @@ from typing import Any
 from fastapi import APIRouter
 
 from wikisvc.api.deps import Reader, Services, Writer
+from wikisvc.domain.errors import WikiError
+from wikisvc.domain.project_templates import ProjectTemplate
 
 router = APIRouter(prefix="/schema")
+
+
+@router.get("/project-templates/{template_id}")
+def project_template(template_id: str, services: Services, actor: Reader) -> ProjectTemplate:
+    template = services.registry.project_templates.get(template_id)
+    if template is None:
+        raise WikiError("E_TEMPLATE_UNKNOWN", "Неизвестный шаблон проекта.", status=404)
+    return template
 
 
 @router.get("")
