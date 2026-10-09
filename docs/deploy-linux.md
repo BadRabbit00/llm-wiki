@@ -484,7 +484,7 @@ tar -czf wiki-data.tar.gz wiki backend/.dev/state
 На новой машине распакуйте доверенную копию во временный закрытый каталог.
 При стандартной серверной копии пути уже имеют вид `var/lib/llm-wiki/...`;
 для dev-копии разложите `wiki/` → `/var/lib/llm-wiki/wiki`,
-`backend/.dev/state/` → `/var/lib/llm-wiki/state`,
+`.dev/state/` репозитория кода → `/var/lib/llm-wiki/state`,
 каталог состояния агента → `/var/lib/llm-wiki/agent`.
 Копируйте содержимое каталогов вместе со скрытыми файлами (`cp -a SOURCE/. DEST/`).
 Восстанавливайте в пустые каталоги, не смешивая с другой установкой.
