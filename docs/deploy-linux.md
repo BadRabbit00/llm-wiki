@@ -61,10 +61,15 @@ sudo ./result-deployment/bin/llm-wiki-install
 **Новая установка:**
 
 ```sh
-sudo /usr/local/sbin/llm-wiki-admin wikisvc init /var/lib/llm-wiki/wiki
-sudo /usr/local/sbin/llm-wiki-admin wikisvc reindex --full
-sudo /usr/local/sbin/llm-wiki-admin wikisvc lint
+sudo llm-wiki-admin wikisvc init /var/lib/llm-wiki/wiki
+sudo llm-wiki-admin wikisvc reindex --full
+sudo llm-wiki-admin wikisvc lint
 ```
+
+`llm-wiki-admin` установщик кладёт симлинком в `/usr/local/sbin`, а этот каталог
+входит в `secure_path` у sudo на Arch, Debian и Ubuntu — короткого имени
+достаточно. Где `secure_path` собран без `/usr/local/sbin` (RHEL, Fedora),
+зовите полным путём: `sudo /usr/local/sbin/llm-wiki-admin …`.
 
 **Перенос существующей вики:** не запускайте `init`. Используйте раздел переноса
 ниже, включая `repair-worktrees`, затем продолжайте настройку токенов и модели.
@@ -78,12 +83,12 @@ ENV-файлы используют простые `KEY=value` или `KEY="valu
 ## 3. Токены и Authentik
 
 ```sh
-sudo /usr/local/sbin/llm-wiki-admin wikisvc token create \
+sudo llm-wiki-admin wikisvc token create \
   --name wikiagent --person wikiagent --kind agent --role writer --clearance restricted
 sudoedit /etc/llm-wiki/agent.env
 # Впишите выданный токен после WIKIAGENT_TOKEN=.
 
-sudo /usr/local/sbin/llm-wiki-admin wikisvc token create \
+sudo llm-wiki-admin wikisvc token create \
   --name wiki-ui --kind agent --role reader --clearance public
 sudoedit /etc/llm-wiki/ui-session.token
 # Впишите только выданный wiki-ui токен, без KEY= и кавычек.
@@ -199,10 +204,10 @@ curl --fail http://127.0.0.1:18089/health
 curl --fail http://127.0.0.1:8787/api/v1/health
 
 # Дождаться загрузки модели, проверить токен, alias и генерацию JSON:
-sudo /usr/local/sbin/llm-wiki-admin check --dependencies-only --wait 600 --model
+sudo llm-wiki-admin check --dependencies-only --wait 600 --model
 sudo systemctl enable --now wikiagent wiki-ui
 curl --fail http://127.0.0.1:8789/healthz
-sudo /usr/local/sbin/llm-wiki-admin check --model
+sudo llm-wiki-admin check --model
 ```
 
 `wikiagent` перед стартом ждёт wiki API и зарегистрированную модель до 10 минут,
@@ -214,7 +219,7 @@ sudo /usr/local/sbin/llm-wiki-admin check --model
 Проверка сценариев из checkout:
 
 ```sh
-sudo /usr/local/sbin/llm-wiki-admin wikiagent eval \
+sudo llm-wiki-admin wikiagent eval \
   --scenarios "$PWD/tests/scenarios" --out /var/lib/llm-wiki/agent/eval-31b.json
 ```
 
@@ -273,7 +278,7 @@ Swagger остаётся на http://127.0.0.1:8787/docs и http://127.0.0.1:878
 ```sh
 sudo systemctl status wikisvc wikiagent wiki-ui llm-wiki-model
 sudo journalctl -u wikisvc -u wikiagent -u wiki-ui -u llm-wiki-model -f
-sudo /usr/local/sbin/llm-wiki-admin check
+sudo llm-wiki-admin check
 ```
 
 `401`/`403`: проверьте токен, role/kind и clearance. Ошибка alias: сравните
@@ -301,7 +306,7 @@ mapping групп и Include claims in id_token; роль/допуск видн
 иначе вы получите вторую identity и обойдёте запрет саморевью:
 
 ```sh
-sudo /usr/local/sbin/llm-wiki-admin wikisvc token create \
+sudo llm-wiki-admin wikisvc token create \
   --name breakglass --person '<ваш sub>' --kind human --role admin \
   --clearance restricted --expires-at '<ISO-8601 дата с часовым поясом>'
 ```
@@ -319,7 +324,7 @@ curl --fail -H "Authorization: Bearer $BREAKGLASS_TOKEN" \
 curl --fail -X POST -H "Authorization: Bearer $BREAKGLASS_TOKEN" \
   -H 'Content-Type: application/json' --data-binary @accept.json \
   "http://127.0.0.1:8787/api/v1/proposals/$PID/accept"
-sudo /usr/local/sbin/llm-wiki-admin wikisvc token revoke breakglass
+sudo llm-wiki-admin wikisvc token revoke breakglass
 ```
 
 После использования выпустите новый токен с другим name и тем же person;
@@ -428,7 +433,7 @@ systemctl list-timers llm-wiki-backup.timer
 
 1. Выполните первую операцию вручную; человек должен проверить и принять хотя бы
    одно предложение.
-2. Добейтесь успешного `sudo /usr/local/sbin/llm-wiki-admin check --model`.
+2. Добейтесь успешного `sudo llm-wiki-admin check --model`.
 3. Проверьте `timedatectl`: окна `heal` используют местное время сервера,
    часовой пояс должен совпадать с ожидаемым.
 4. Настройте и проверьте резервное копирование по разделу выше. Убедитесь, что
@@ -498,10 +503,10 @@ sudo chown -R llm-wiki:llm-wiki /var/lib/llm-wiki
 if command -v restorecon >/dev/null; then
   sudo restorecon -RF /var/lib/llm-wiki /etc/llm-wiki
 fi
-sudo /usr/local/sbin/llm-wiki-admin wikisvc repair-worktrees
-sudo /usr/local/sbin/llm-wiki-admin wikisvc schema upgrade
-sudo /usr/local/sbin/llm-wiki-admin wikisvc reindex --full
-sudo /usr/local/sbin/llm-wiki-admin wikisvc lint
+sudo llm-wiki-admin wikisvc repair-worktrees
+sudo llm-wiki-admin wikisvc schema upgrade
+sudo llm-wiki-admin wikisvc reindex --full
+sudo llm-wiki-admin wikisvc lint
 ```
 
 `repair-worktrees` исправляет абсолютные связи Git после смены путей и отказывается
@@ -533,11 +538,11 @@ sudo sh -eu -c 'umask 077; tar -C / -czf "/var/backups/llm-wiki/pre-upgrade-$(da
   var/lib/llm-wiki/wiki var/lib/llm-wiki/state var/lib/llm-wiki/agent etc/llm-wiki'
 # Проверьте эту копию по инструкции восстановления выше.
 sudo ./result-deployment/bin/llm-wiki-install
-sudo /usr/local/sbin/llm-wiki-admin wikisvc schema upgrade
-sudo /usr/local/sbin/llm-wiki-admin wikisvc reindex --full
-sudo /usr/local/sbin/llm-wiki-admin wikisvc lint
+sudo llm-wiki-admin wikisvc schema upgrade
+sudo llm-wiki-admin wikisvc reindex --full
+sudo llm-wiki-admin wikisvc lint
 sudo systemctl start llm-wiki-model wikisvc wikiagent wiki-ui
-sudo /usr/local/sbin/llm-wiki-admin check --model
+sudo llm-wiki-admin check --model
 # Если таймер был включён до обслуживания:
 sudo systemctl start llm-wiki-backup.timer
 ```

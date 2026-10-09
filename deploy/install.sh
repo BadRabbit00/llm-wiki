@@ -28,7 +28,9 @@ for group in video render; do
         usermod --append --groups "$group" llm-model
     fi
 done
-install -d -m 0755 /opt/llm-wiki /etc/llm-wiki /srv/llm-wiki
+# /usr/local/sbin создаём сами: на минимальных образах его нет, а симлинк
+# llm-wiki-admin ниже без него падает — уже после создания юзеров и конфигурации.
+install -d -m 0755 /opt/llm-wiki /etc/llm-wiki /srv/llm-wiki /usr/local/sbin
 install -d -m 0750 -o llm-model -g llm-model /srv/llm-wiki/models
 install -d -m 0700 -o llm-model -g llm-model /var/cache/llm-wiki-model
 install -d -m 0700 -o llm-wiki -g llm-wiki /var/lib/llm-wiki
