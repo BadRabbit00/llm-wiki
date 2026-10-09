@@ -37,6 +37,15 @@ class Lint:
                 if row["page"] in pages or actor.clearance == "restricted"
             ]
         issues.extend(self.rt.extractions.citation_issues(list(pages.values())))
+        issues.extend(
+            issue(
+                "E_TEMPLATE_INVALID",
+                f"schema/project-templates/{template_id}.yaml",
+                reason,
+                "Исправьте шаблон проекта или его ссылки на профили и scopes.",
+            )
+            for template_id, reason in self.rt.registry.invalid_project_templates.items()
+        )
         all_edges = [edge for page in pages.values() for edge in edges(page) if edge.dst in pages]
         linked = {
             page_id

@@ -57,6 +57,7 @@ class Registry(BaseModel):
     profiles: dict[str, Profile] = Field(default_factory=dict)
     synonyms: list[list[str]] = Field(default_factory=list)
     project_templates: dict[str, ProjectTemplate] = Field(default_factory=dict)
+    invalid_project_templates: dict[str, str] = Field(default_factory=dict)
 
     def page_type(self, name: str) -> PageType:
         if name not in self.page_types:

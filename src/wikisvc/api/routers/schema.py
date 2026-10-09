@@ -11,6 +11,10 @@ router = APIRouter(prefix="/schema")
 
 @router.get("/project-templates/{template_id}")
 def project_template(template_id: str, services: Services, actor: Reader) -> ProjectTemplate:
+    if template_id in services.registry.invalid_project_templates:
+        raise WikiError(
+            "E_TEMPLATE_INVALID", services.registry.invalid_project_templates[template_id]
+        )
     template = services.registry.project_templates.get(template_id)
     if template is None:
         raise WikiError("E_TEMPLATE_UNKNOWN", "Неизвестный шаблон проекта.", status=404)
