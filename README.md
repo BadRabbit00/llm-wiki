@@ -370,5 +370,5 @@ MCP stdio и scripted HTTP-модель. Включены 40 правил ком
 
 Вне текущего объёма: OCR, эмбеддинги, графовая БД и модуль NixOS для wikiagent.
 Сервис использует только BM25; старый заготовочный векторный провайдер удалён.
-[Решения](docs/decisions.md), [прогресс](docs/progress.md),
-[спецификация v2](docs/policy-layer-spec.md).
+[Решения](docs/decisions.md), [карта реализации и документации](docs/progress.md),
+[архив требований v2](docs/policy-layer-spec.md).
