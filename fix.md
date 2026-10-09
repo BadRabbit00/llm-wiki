@@ -489,14 +489,12 @@ shell-команды.
   | `../hooks/` | `llm-wiki-hooks` | private |
   | `../mainserver/setup/` | `mainserver-setup` | **public** |
 
-  Все синхронизированы с `origin/main`. `llm-wiki` и `mainserver-setup` остались
-  публичными с прежних времён: если всё должно быть приватным —
-  `gh repo edit <name> --visibility private --accept-visibility-change-consequences`.
-- **`llm-wiki-docs` удалён локально, но ещё жив на GitHub.** У токена `gh` нет скоупа
-  `delete_repo`. Выдать и удалить:
-  `gh auth refresh -h github.com -s delete_repo`, затем
-  `gh repo delete BadRabbit00/llm-wiki-docs --yes`. Содержимого он больше не хранит:
-  `SPEC.md`, `GUIDE.md` и `fix.md` перенесены в этот репозиторий.
+  Все синхронизированы с `origin/main`. `llm-wiki-docs` удалён: его три документа
+  перенесены в `llm-wiki`, сам репозиторий снят с GitHub.
+
+  `llm-wiki` и `mainserver-setup` остались публичными с прежних времён. Если всё
+  должно быть приватным — `gh repo edit <name> --visibility private
+  --accept-visibility-change-consequences`. Это единственное, что осталось решить.
 - **Локального каталога вики больше нет.** Содержимое было только скелетом от `wikisvc init`
   (53 файла, те же, что в `src/wikisvc/template/`), авторских страниц не было, remote у него
   тоже не было. Для dev-запуска вика заводится заново: `wikisvc init "$WIKI_ROOT"`.
