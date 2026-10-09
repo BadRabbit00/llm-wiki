@@ -51,6 +51,8 @@ wikisvc serve
 `wikisvc token list`, `wikisvc token revoke NAME`; есть `--expires-at`.
 
 Dev shell задаёт `WIKI_ROOT=../wiki`, `.dev/state`, `.dev/index` и `.dev/agent`.
+Каталога контента в репозитории кода нет и не должно быть: для локального запуска
+создайте его один раз командой `wikisvc init "$WIKI_ROOT"` либо укажите свой путь.
 Переопределяйте пути до входа в оболочку; state и index должны находиться вне wiki.
 Зависимости PDF/DOCX входят в обязательную установку. Без Nix можно установить
 проект через `pip install -e '.[dev]'` в Python venv; отдельно нужен Git.
