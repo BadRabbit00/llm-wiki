@@ -478,11 +478,25 @@ shell-команды.
   `fix.md`) и ссылаются друг на друга относительными путями, которые работают и на GitHub.
   Пути к соседним репозиториям (`../wk/`, `../skills/`, `../hooks/`) — это места на диске,
   а не ссылки: на GitHub они не открываются, и так и задумано.
-- **Репозитории на GitHub (9 октября 2026):** `wk`, `docs-template`, `llm-wiki-skills`,
-  `llm-wiki-hooks`, `llm-wiki-docs` — созданы приватными и запушены. `llm-wiki` (backend)
-  и `mainserver-setup` существовали раньше и **публичные**: если всё должно быть приватным,
-  видимость меняется `gh repo edit <name> --visibility private --accept-visibility-change-consequences`.
-  У `llm-wiki` 12 неотправленных коммитов, у `mainserver-setup` — 1.
+- **Репозитории на GitHub (9 октября 2026).** Шесть каталогов в `work/`, шесть репозиториев:
+
+  | каталог | репозиторий | видимость |
+  |---|---|---|
+  | `llm-wiki/` | `llm-wiki` | **public** |
+  | `../wk/` | `wk` | private |
+  | `../docs-template/` | `docs-template` | private |
+  | `../skills/` | `llm-wiki-skills` | private |
+  | `../hooks/` | `llm-wiki-hooks` | private |
+  | `../mainserver/setup/` | `mainserver-setup` | **public** |
+
+  Все синхронизированы с `origin/main`. `llm-wiki` и `mainserver-setup` остались
+  публичными с прежних времён: если всё должно быть приватным —
+  `gh repo edit <name> --visibility private --accept-visibility-change-consequences`.
+- **`llm-wiki-docs` удалён локально, но ещё жив на GitHub.** У токена `gh` нет скоупа
+  `delete_repo`. Выдать и удалить:
+  `gh auth refresh -h github.com -s delete_repo`, затем
+  `gh repo delete BadRabbit00/llm-wiki-docs --yes`. Содержимого он больше не хранит:
+  `SPEC.md`, `GUIDE.md` и `fix.md` перенесены в этот репозиторий.
 - **Локального каталога вики больше нет.** Содержимое было только скелетом от `wikisvc init`
   (53 файла, те же, что в `src/wikisvc/template/`), авторских страниц не было, remote у него
   тоже не было. Для dev-запуска вика заводится заново: `wikisvc init "$WIKI_ROOT"`.
