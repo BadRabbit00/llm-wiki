@@ -358,6 +358,12 @@ python scripts/benchmark_graph.py
 wikiagent eval --role planner --model wiki-gemma-12b --out .dev/eval.json
 ```
 
+CI (`.github/workflows/ci.yml`) на каждый push в `develop` и на любой PR
+запускает статические проверки: вычисление flake, `just lint`, Prettier, TypeScript,
+`go vet`/`gofmt` и ShellCheck. PR в `main` дополнительно запускает полный
+`nix flake check` и браузерные сценарии `ui/tests` с Chrome из образа раннера.
+Сливать в `main` можно только после зелёного прогона.
+
 Тесты используют настоящие временные Git-репозитории, TestClient, Hypothesis,
 MCP stdio и scripted HTTP-модель. Включены 40 правил компилятора, 40 правил с
 проблемами для самолечения, PDF/EPUB и 450-страничный PDF, восстановление после

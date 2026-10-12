@@ -13,7 +13,7 @@ from wikiagent.state import AgentState
 from wikisvc.domain.errors import WikiError
 from wikisvc.storage.state_db import now
 
-PROMPT_VERSION = "policy-layer-v2.3"
+PROMPT_VERSION = "policy-layer-v2.4"
 SYSTEM = (Path(__file__).parent / "prompts/system.md").read_text()
 
 

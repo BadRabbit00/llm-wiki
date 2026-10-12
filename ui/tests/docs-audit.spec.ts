@@ -14,10 +14,26 @@ test("human uploads docs, sees completed audit and findings", async ({
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const token = JSON.parse(readFileSync(".e2e/config.json", "utf8")).human;
+  const issuer = JSON.parse(readFileSync(".e2e/config.json", "utf8")).issuer;
+  const session = await page.request.post(
+    "http://127.0.0.1:18787/api/v1/sessions",
+    {
+      headers: { Authorization: `Bearer ${issuer}` },
+      data: { subject: "opaque-human", username: "human", groups: ["human"] },
+    },
+  );
+  expect(session.ok()).toBeTruthy();
+  await page.context().addCookies([
+    {
+      name: "wiki_session",
+      value: (await session.json()).token,
+      url: "http://127.0.0.1:18789",
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+    },
+  ]);
   await page.goto("/jobs");
-  await page.getByLabel("Токен доступа").fill(token);
-  await page.getByRole("button", { name: "Войти в пространство" }).click();
   await page
     .getByRole("button", { name: "Сверить документацию", exact: true })
     .click();

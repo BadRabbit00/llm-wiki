@@ -24,7 +24,6 @@
       "create_rule"
     ],
     "questions": [
-      "owner",
       "conflict"
     ]
   },

@@ -1,4 +1,5 @@
 import json
+import re
 import threading
 from typing import Any
 
@@ -10,6 +11,22 @@ from wikiagent.planner.pipeline import Planner
 from wikiagent.state import AgentState
 from wikiagent.tools import definitions, execute
 from wikisvc.domain.errors import WikiError
+
+CYRILLIC = re.compile("[а-яё]", re.IGNORECASE)
+LATIN = re.compile("[a-z]", re.IGNORECASE)
+
+
+def clarify(text: str | None) -> str:
+    """Model text reaches the person verbatim, so only a short Russian question passes.
+
+    Words are compared rather than letters: rule IDs are Latin inside Russian sentences.
+    """
+    words = (text or "").split()
+    russian = sum(1 for word in words if CYRILLIC.search(word))
+    foreign = sum(1 for word in words if LATIN.search(word) and not CYRILLIC.search(word))
+    if text and len(text) <= 300 and russian > foreign:
+        return text
+    return "Уточните, какое правило или решение нужно оформить."
 
 
 class Chat:
@@ -32,6 +49,13 @@ class Chat:
         if bind["type"] == "proposal":
             data["diff"] = self.client.request("GET", path + "/diff")
         return data
+
+    def awaits_answer(self, session: dict[str, Any]) -> bool:
+        plan = session["plan"] or {}
+        if not plan.get("questions") or not plan.get("proposal"):
+            return False
+        status = self.client.request("GET", "/proposals/" + plan["proposal"])["status"]
+        return status in ("draft", "changes_requested")
 
     def answer(self, text: str, session: dict[str, Any], bound: dict[str, Any] | None) -> str:
         messages = [
@@ -105,6 +129,10 @@ class Chat:
                     Intent,
                     {"message": text, "plan": session["plan"], "bind": session["bind"]},
                 )
+                if intent.intent == "other" and self.awaits_answer(session):
+                    # A bare «Я» or a name says nothing on its own; the open question
+                    # it answers is known here, not to the router.
+                    intent = Intent(intent="edit")
                 result: dict[str, Any]
                 if intent.intent in ("intake", "edit"):
                     transcript = "\n\n".join(
@@ -153,10 +181,7 @@ class Chat:
                 elif intent.intent == "question":
                     result = {"text": self.answer(text, session, bound)}
                 else:
-                    result = {
-                        "text": intent.clarification
-                        or "Уточните, какое правило или решение нужно оформить."
-                    }
+                    result = {"text": clarify(intent.clarification)}
                 self.sessions.message(session_id, "assistant", result["text"], result.get("plan"))
                 return result
         finally:

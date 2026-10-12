@@ -22,9 +22,6 @@ case "$backup_dir" in
 esac
 
 install -d -m 0700 -o root -g root -- "$backup_dir"
-if command -v restorecon >/dev/null; then
-    restorecon "$backup_dir"
-fi
 umask 077
 temporary=$(mktemp "$backup_dir/.data-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX.tar.gz.partial")
 trap 'rm -f -- "$temporary"' EXIT
@@ -36,9 +33,6 @@ archive_name=${temporary##*/}
 archive_name=${archive_name#.}
 archive_name=${archive_name%.partial}
 mv -- "$temporary" "$backup_dir/$archive_name"
-if command -v restorecon >/dev/null; then
-    restorecon "$backup_dir/$archive_name"
-fi
 # Only complete archives in this directory participate in retention.
 find "$backup_dir" -maxdepth 1 -type f -name 'data-*.tar.gz' \
     ! -newermt "$BACKUP_KEEP_DAYS days ago" -delete

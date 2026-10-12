@@ -31,9 +31,8 @@ util-linux (`runuser`, `flock`, `getent`) и средства создания �
 требует systemd и в таком режиме не запускается.
 
 Установку Nix выбирайте по [официальному руководству](https://nix.dev/install-nix).
-Для обычной серверной системы используется multi-user daemon. На машине с
-SELinux проверьте поддержку политики выбранным способом установки Nix;
-установщик проекта не меняет SELinux и firewall.
+Для обычной серверной системы используется multi-user daemon. Установщик
+проекта не меняет firewall.
 
 ```sh
 # Сначала установите перечисленные системные утилиты пакетным менеджером своей ОС.
@@ -68,8 +67,8 @@ sudo llm-wiki-admin wikisvc lint
 
 `llm-wiki-admin` установщик кладёт симлинком в `/usr/local/sbin`, а этот каталог
 входит в `secure_path` у sudo на Arch, Debian и Ubuntu — короткого имени
-достаточно. Где `secure_path` собран без `/usr/local/sbin` (RHEL, Fedora),
-зовите полным путём: `sudo /usr/local/sbin/llm-wiki-admin …`.
+достаточно. Где `secure_path` собран без `/usr/local/sbin`, зовите полным
+путём: `sudo /usr/local/sbin/llm-wiki-admin …`.
 
 **Перенос существующей вики:** не запускайте `init`. Используйте раздел переноса
 ниже, включая `repair-worktrees`, затем продолжайте настройку токенов и модели.
@@ -283,9 +282,8 @@ sudo llm-wiki-admin check
 
 `401`/`403`: проверьте токен, role/kind и clearance. Ошибка alias: сравните
 `/v1/models` с YAML. GPU OOM: смотрите журнал модели и уменьшайте нагрузку на память.
-При SELinux AVC используйте `sudo ausearch -m AVC -ts recent`, чтобы найти конкретное
-отклонённое действие, если на сервере используется SELinux. На целевом сервере
-нужно проверить запуск и права устройств; прохождение локальных тестов не проверяет GPU хоста.
+На целевом сервере нужно проверить запуск и права устройств; прохождение локальных
+тестов не проверяет GPU хоста.
 
 ### Диагностика входа
 
@@ -347,8 +345,8 @@ sudo llm-wiki-admin wikisvc token revoke breakglass
 На время копирования завершите также отдельные пишущие CLI/MCP-процессы;
 не запускайте службы вручную до завершения задания. Модель останавливать не нужно.
 
-Каталог принадлежит root с правами `0700`, архивы — root с правами `0600`;
-после создания применяется `restorecon`, если он доступен. Архив сначала пишется
+Каталог принадлежит root с правами `0700`, архивы — root с правами `0600`.
+Архив сначала пишется
 во временный файл и получает имя `data-<дата-UTC>-<суффикс>.tar.gz` только после
 успешного завершения `tar`. Затем удаляются завершённые архивы `data-*.tar.gz`
 старше `BACKUP_KEEP_DAYS` в этом каталоге. При ошибке архивирования прежние копии
@@ -500,9 +498,6 @@ tar -czf wiki-data.tar.gz wiki backend/.dev/state
 ```sh
 # На новой машине после копирования, до старта служб:
 sudo chown -R llm-wiki:llm-wiki /var/lib/llm-wiki
-if command -v restorecon >/dev/null; then
-  sudo restorecon -RF /var/lib/llm-wiki /etc/llm-wiki
-fi
 sudo llm-wiki-admin wikisvc repair-worktrees
 sudo llm-wiki-admin wikisvc schema upgrade
 sudo llm-wiki-admin wikisvc reindex --full
@@ -531,9 +526,6 @@ sudo systemctl stop wiki-ui wikiagent wikisvc llm-wiki-model
 # Копия для обновления: службы остаются остановленными до конца обслуживания.
 # Не запускайте здесь backup.service: его ExecStopPost вернёт службы в работу.
 sudo install -d -m 0700 /var/backups/llm-wiki
-if command -v restorecon >/dev/null; then
-  sudo restorecon /var/backups/llm-wiki
-fi
 sudo sh -eu -c 'umask 077; tar -C / -czf "/var/backups/llm-wiki/pre-upgrade-$(date -u +%Y%m%dT%H%M%SZ).tar.gz" \
   var/lib/llm-wiki/wiki var/lib/llm-wiki/state var/lib/llm-wiki/agent etc/llm-wiki'
 # Проверьте эту копию по инструкции восстановления выше.
