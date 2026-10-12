@@ -66,11 +66,5 @@ done
 install -m 0644 "@bundle@/share/llm-wiki/systemd/llm-wiki-backup.timer" \
     /etc/systemd/system/llm-wiki-backup.timer
 ln -sfn /opt/llm-wiki/current/bin/llm-wiki-admin /usr/local/sbin/llm-wiki-admin
-if command -v restorecon >/dev/null; then
-    restorecon -RF /etc/llm-wiki /var/lib/llm-wiki /var/cache/llm-wiki-model \
-        /srv/llm-wiki /opt/llm-wiki /usr/local/sbin/llm-wiki-admin
-    restorecon /etc/systemd/system/{wikisvc,wikiagent,llm-wiki-model,wiki-ui,llm-wiki-backup}.service \
-        /etc/systemd/system/llm-wiki-backup.timer
-fi
 systemctl daemon-reload
 echo 'Installed. Configuration preserved. Follow docs/deploy-linux.md to initialize/restore and start.'

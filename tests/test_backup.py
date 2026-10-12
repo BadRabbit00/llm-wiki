@@ -37,9 +37,6 @@ def backup_environment(tmp_path: Path) -> dict[str, str]:
         "    assert args[:8] == ['-d', '-m', '0700', '-o', 'root', '-g', 'root', '--']\n"
         "    assert Path(args[-1]).is_relative_to(os.environ['TEST_ROOT'])\n"
         f"    sys.exit(subprocess.call([{shutil.which('install')!r}, *args[:3], *args[7:]]))\n"
-        "elif name == 'restorecon':\n"
-        "    assert len(args) == 1\n"
-        "    assert Path(args[0]).is_relative_to(os.environ['TEST_ROOT'])\n"
         "elif name == 'tar':\n"
         "    assert args[:3] == ['-C', '/', '-czf']\n"
         "    assert args[4:] == ['var/lib/llm-wiki/wiki', 'var/lib/llm-wiki/state',\n"
@@ -53,7 +50,7 @@ def backup_environment(tmp_path: Path) -> dict[str, str]:
         "    raise AssertionError(name)\n"
     )
     shim.chmod(0o755)
-    for name in ("id", "install", "restorecon", "tar"):
+    for name in ("id", "install", "tar"):
         (tools / name).symlink_to(shim)
     source = tmp_path / "source"
     for relative in (

@@ -83,9 +83,8 @@ nix --extra-experimental-features 'nix-command flakes' \
 sudo ./result-deployment/bin/llm-wiki-install
 ```
 
-Для обычного сервера ставьте multi-user daemon. На машине с SELinux проверьте
-поддержку политики выбранным способом установки Nix — установщик проекта
-не меняет ни SELinux, ни firewall.
+Для обычного сервера ставьте multi-user daemon. Установщик проекта не меняет
+firewall.
 
 Сборка прогоняет pytest, Ruff, mypy, ShellCheck, TypeScript и Go-тесты, поэтому
 первая занимает время. `nix flake update` при установке не нужен: `flake.lock`
@@ -115,8 +114,8 @@ sudo llm-wiki-admin wikisvc lint
 
 Установщик кладёт его симлинком в `/usr/local/sbin`, а этот каталог входит в
 `secure_path` у sudo на Arch, Debian и Ubuntu — поэтому короткого имени
-достаточно. Если в вашем дистрибутиве `secure_path` собран без `/usr/local/sbin`
-(так в RHEL и Fedora), `sudo` команду не найдёт — зовите полным путём:
+достаточно. Если в вашем дистрибутиве `secure_path` собран без `/usr/local/sbin`,
+`sudo` команду не найдёт — зовите полным путём:
 `sudo /usr/local/sbin/llm-wiki-admin …`. Проверить: `sudo grep secure_path /etc/sudoers`.
 
 ## 1.3. Токены
@@ -323,8 +322,7 @@ GitHub хранит код. `state.db`, worktrees, библиотеку, сес�
 выглядит целым до дня восстановления. На время копирования завершите и отдельные
 пишущие процессы CLI/MCP, а службы вручную не поднимайте.
 
-Каталог — root `0700`, архивы — root `0600`, после создания применяется
-`restorecon`. Архив получает имя `data-<дата-UTC>-<суффикс>.tar.gz` только после
+Каталог — root `0700`, архивы — root `0600`. Архив получает имя `data-<дата-UTC>-<суффикс>.tar.gz` только после
 успешного `tar`; при ошибке прежние копии не удаляются.
 
 Зарезервируйте окно **23:00–01:00** — оно не пересекается с поставляемым окном
@@ -953,7 +951,6 @@ sudo systemctl stop llm-wiki-backup.timer
 sudo systemctl stop wiki-ui wikiagent wikisvc llm-wiki-model
 
 sudo install -d -m 0700 /var/backups/llm-wiki
-command -v restorecon >/dev/null && sudo restorecon /var/backups/llm-wiki
 sudo sh -eu -c 'umask 077; tar -C / \
   -czf "/var/backups/llm-wiki/pre-upgrade-$(date -u +%Y%m%dT%H%M%SZ).tar.gz" \
   var/lib/llm-wiki/wiki var/lib/llm-wiki/state var/lib/llm-wiki/agent etc/llm-wiki'
@@ -1005,7 +1002,6 @@ tar -czf wiki-data.tar.gz wiki llm-wiki/.dev/state
 
 ```sh
 sudo chown -R llm-wiki:llm-wiki /var/lib/llm-wiki
-command -v restorecon >/dev/null && sudo restorecon -RF /var/lib/llm-wiki /etc/llm-wiki
 sudo llm-wiki-admin wikisvc repair-worktrees
 sudo llm-wiki-admin wikisvc schema upgrade
 sudo llm-wiki-admin wikisvc reindex --full
@@ -1110,7 +1106,6 @@ nix flake check
 | `404 E_TEMPLATE_UNKNOWN` | шаблона с таким ID в вике нет — проверьте `wk template list` |
 | `503` при входе | IdP недоступен; существующие сессии живут TTL |
 | `wikiagent` не стартует | ждёт API и модель до 10 минут, затем systemd повторяет |
-| AVC при SELinux | `sudo ausearch -m AVC -ts recent` |
 
 **Вход не работает.** Сравните redirect URI **побайтно** с настройкой провайдера.
 Затем issuer, client id, secret, NTP, CA. После входа нет прав — проверьте scope
