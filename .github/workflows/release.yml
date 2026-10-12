@@ -33,6 +33,14 @@ jobs:
         with:
           persist-credentials: false
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      # Saved on main, this store is the one every branch and pull request can restore;
+      # see ci.yml for why the Nix store is cached at all.
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ github.job }}-${{ hashFiles('flake.lock', 'flake.nix', 'ui/package.nix', 'deploy/*.nix') }}
+          restore-prefixes-first-match: |
+            nix-${{ runner.os }}-${{ github.job }}-
+            nix-${{ runner.os }}-
       - name: Build
         run: nix build .#image --out-link image.tar.gz
       - name: Smoke test
