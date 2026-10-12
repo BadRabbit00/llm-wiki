@@ -550,3 +550,52 @@ GC roots, удаление checkout или `result-deployment` не ломает
 и units. Если версия изменила формат данных/схему, до запуска также восстановите
 совместимую резервную копию данных и конфигурации. Смена бинарника сама по себе
 не откатывает миграции БД.
+
+## Образ контейнера
+
+Каждый мердж в `main` и каждый тег `v*` публикуют образ
+`ghcr.io/badrabbit00/llm-wiki` (`.github/workflows/release.yml`). Теги: `main` —
+последний мердж, `sha-<7 символов коммита>` — конкретная сборка, `vX.Y.Z` — релиз.
+Образ один на три службы. В нём только closures служб, git и CA-сертификаты,
+shell нет. `llama-server` в образ не входит и остаётся на хосте. Коммит, из которого
+собран образ, записан в метке `org.opencontainers.image.revision`.
+
+После первой публикации пакет в GHCR приватный. Сделайте его публичным
+(Package settings → Change visibility) или войдите на сервере токеном с правом
+`read:packages`.
+
+С рабочей машины проверьте, что образ собран этим репозиторием, и узнайте дайджест.
+На сервере тяните и запускайте только по дайджесту: тег `main` сдвигается.
+
+```sh
+skopeo inspect --format '{{.Digest}}' docker://ghcr.io/badrabbit00/llm-wiki:main
+gh attestation verify oci://ghcr.io/badrabbit00/llm-wiki@sha256:<дайджест> --owner BadRabbit00
+```
+
+| Служба | Команда | Пользователь | `--env-file` | Тома |
+|---|---|---|---|---|
+| wikisvc | `wikisvc serve` | `llm-wiki` | `service.env` | `/var/lib/llm-wiki`, `/etc/llm-wiki:ro` |
+| wikiagent | `wikiagent serve` | `llm-wiki` | `service.env`, `agent.env` | `/var/lib/llm-wiki`, `/etc/llm-wiki:ro` |
+| wiki-ui | `wiki-ui` | `llm-ui` | `ui.env` | `/etc/llm-wiki:ro` |
+
+Общие флаги повторяют hardening systemd-юнитов: `--network host` (службы и модель
+слушают loopback хоста), `--read-only --tmpfs /tmp`, `--cap-drop ALL`,
+`--security-opt no-new-privileges`, `--user` с uid и gid владельца данных. Флаги
+одинаковы для podman и docker; `scripts/smoke-image.sh` запускает образ именно так.
+
+```sh
+image=ghcr.io/badrabbit00/llm-wiki@sha256:<дайджест>
+podman pull "$image"
+podman run --detach --name wikisvc --network host --read-only --tmpfs /tmp \
+  --cap-drop ALL --security-opt no-new-privileges \
+  --user "$(id -u llm-wiki):$(id -g llm-wiki)" --env-file /etc/llm-wiki/service.env \
+  --volume /var/lib/llm-wiki:/var/lib/llm-wiki --volume /etc/llm-wiki:/etc/llm-wiki:ro \
+  "$image" wikisvc serve
+```
+
+Команды обслуживания идут тем же образом с теми же флагами, но с `--rm` вместо
+`--detach --name`: `"$image" wikisvc schema upgrade`, `wikisvc reindex --full`,
+`wikisvc lint`. Порядок обновления и резервное копирование — как в разделе выше:
+службы останавливаются, данные копируются, затем запускается новый дайджест.
+Откат — запуск предыдущего дайджеста. Если релиз изменил схему, сначала
+восстановите копию данных.

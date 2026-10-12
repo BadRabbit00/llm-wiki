@@ -60,6 +60,12 @@
             app = self.packages.${system}.default;
             ui = self.packages.${system}.ui;
           };
+          image = import ./deploy/image.nix {
+            pkgs = e.pkgs;
+            app = self.packages.${system}.default;
+            ui = self.packages.${system}.ui;
+            revision = self.shortRev or self.dirtyShortRev or "unknown";
+          };
         });
       apps = eachSystem (system: {
         ui = {
