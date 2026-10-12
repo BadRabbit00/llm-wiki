@@ -251,6 +251,80 @@ def test_sessions_bind_cancel_and_access(
     assert wiki.forbidden_attempts == 0
 
 
+def test_short_reply_to_open_question_reaches_planner(
+    client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seed_chat(client, config)
+    agent, human = tokens(client)
+    monkeypatch.setenv("WIKIAGENT_TOKEN", agent)
+    settings = agent_config(tmp_path / "agent")
+    wiki = wiki_client(client, settings)
+    # Verbatim router output from the server incident.
+    english = (
+        "The user provided a single character 'Я' (Russian for 'I'), which is likely an "
+        "incomplete thought or a placeholder. Please provide the specific instruction or feedback."
+    )
+
+    def respond(task: str, data: dict[str, Any]) -> dict[str, Any]:
+        if task == "route":
+            intent = {"Я": "other", "отмени": "cancel"}.get(data["message"], "intake")
+            return {"intent": intent, "clarification": english}
+        if task == "extract_claims":
+            return {"claims": [claim()]}
+        return {
+            "relations": [
+                {
+                    "relation": "conflicts_with",
+                    "target": "rule-http-requests-sync",
+                    "confidence": 0.95,
+                    "quote": "Используй requests для синхронных HTTP запросов Python.",
+                    "reason": "requests блокирует асинхронный обработчик.",
+                }
+            ]
+        }
+
+    fake = FakeLLM(respond)
+    models = ModelClient(settings, AgentState(settings.state_dir), fake.http)
+    with TestClient(create_app(settings, wiki, models)) as chat:
+        chat.headers["Authorization"] = "Bearer " + human
+        sid = chat.post("/chat/sessions", json={"profile": "python-fastapi"}).json()["id"]
+
+        def send(text: str) -> dict[str, Any]:
+            return event(chat.post(f"/chat/sessions/{sid}/messages", json={"text": text}))
+
+        def extractions() -> int:
+            return [task for task, _ in fake.calls].count("extract_claims")
+
+        plan = send("Мы используем только async код")["plan"]
+        assert [q["id"] for q in plan["questions"]] == ["conflict-rule-http-requests-sync"]
+        reply = send("Я")
+        assert reply["plan"]["proposal"] == plan["proposal"] and extractions() == 2
+        assert send("отмени")["plan"]["cancelled"]
+        closed = send("Я")
+        assert closed == {"text": "Уточните, какое правило или решение нужно оформить."}
+        assert extractions() == 2
+    assert wiki.forbidden_attempts == 0
+
+
+@pytest.mark.parametrize(
+    ("text", "shown"),
+    [
+        ("Какое правило заменить: rule-http-requests-sync?", True),
+        ("Кого назначить владельцем правила?", True),
+        ("The user provided a single character 'Я' (Russian for 'I').", False),
+        ("Уточните правило. " * 20, False),
+        ("", False),
+        (None, False),
+    ],
+)
+def test_router_clarification_reaches_person_only_as_short_russian(
+    text: str | None, shown: bool
+) -> None:
+    from wikiagent.chat.loop import clarify
+
+    assert (clarify(text) == text) is shown
+
+
 def test_shared_mcp_contracts(client: TestClient) -> None:
     from wikisvc.mcp_server import create_server
     from wikisvc.tool_contracts import definitions
