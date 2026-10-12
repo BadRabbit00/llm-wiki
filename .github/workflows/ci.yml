@@ -28,6 +28,16 @@ jobs:
         with:
           persist-credentials: false
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      # The project pins Python 3.12 and nixpkgs defaults to 3.14, so cache.nixos.org has
+      # none of its packages: without this every job builds them and runs their own,
+      # timing-sensitive test suites. A job falls back to any job's store, and a store
+      # saved on main (release.yml) is visible to every branch and pull request.
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ github.job }}-${{ hashFiles('flake.lock', 'flake.nix', 'ui/package.nix', 'deploy/*.nix') }}
+          restore-prefixes-first-match: |
+            nix-${{ runner.os }}-${{ github.job }}-
+            nix-${{ runner.os }}-
       - name: Flake outputs evaluate
         run: nix flake check --no-build
       - name: Ruff and mypy
@@ -57,6 +67,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ github.job }}-${{ hashFiles('flake.lock', 'flake.nix', 'ui/package.nix', 'deploy/*.nix') }}
+          restore-prefixes-first-match: |
+            nix-${{ runner.os }}-${{ github.job }}-
+            nix-${{ runner.os }}-
       - run: nix flake check -L
       # Reuses the closures the check just built; only the image layers are new.
       - name: Container image starts
@@ -75,6 +91,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ github.job }}-${{ hashFiles('flake.lock', 'flake.nix', 'ui/package.nix', 'deploy/*.nix') }}
+          restore-prefixes-first-match: |
+            nix-${{ runner.os }}-${{ github.job }}-
+            nix-${{ runner.os }}-
       - name: UI dependencies
         run: nix develop -c npm --prefix ui ci --no-audit --no-fund
       # The runner image ships Google Chrome; Playwright's own Chromium would need apt.
