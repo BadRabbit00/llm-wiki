@@ -381,3 +381,43 @@ def test_scope_extension_changes_existing_rule_only_after_review(
     assert set(after["applies_to"]) == {"lang:python", "app:cli"}
     assert after["lifecycle"] == "active" and after["level"] == before["level"]
     assert after["status"] == "verified" and after["verified_by"] == "alice"
+
+
+def test_must_owner_is_named_at_acceptance_not_asked_in_chat(
+    client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from wikiagent.planner.pipeline import Planner
+
+    seed_chat(client, config)
+    agent, human = tokens(client)
+    monkeypatch.setenv("WIKIAGENT_TOKEN", agent)
+    settings = agent_config(tmp_path / "agent")
+    wiki = wiki_client(client, settings)
+
+    def respond(task: str, data: dict[str, Any]) -> dict[str, Any]:
+        if task == "extract_claims":
+            return {"claims": [claim(level_guess="must")]}
+        return {"relations": [{"relation": "new", "confidence": 1, "reason": "Нет совпадений."}]}
+
+    models = ModelClient(settings, AgentState(settings.state_dir), FakeLLM(respond).http)
+    text = "Обязательно пиши только асинхронный код Python"
+    plan = Planner(wiki, models).run(
+        text, {"id": "owner-test", "owner": "alice", "plan": None}, text
+    )[0]
+    # An open question keeps «Принять» disabled, and no chat reply is guaranteed to close it.
+    assert plan["questions"] == []
+    assert "Владельца обязательного правила человек указывает при принятии." in plan["assumptions"]
+    promote = plan["accept_body"]["promote"]
+    assert promote == [
+        {"id": "rule-async-only", "level": "must", "priority": 3, "applies_to": ["lang:python"]}
+    ]
+    accept = f"/api/v1/proposals/{plan['proposal']}/accept"
+    headers = {"Authorization": "Bearer " + human}
+    refused = client.post(accept, headers=headers, json=plan["accept_body"])
+    assert refused.status_code == 422 and "E_MUST_NEEDS_OWNER" in refused.text, refused.text
+    owned = {**plan["accept_body"], "promote": [{**promote[0], "owner": "team-python"}]}
+    result = client.post(accept, headers=headers, json=owned)
+    assert result.status_code == 200, result.text
+    page = wiki.request("GET", "/pages/rule-async-only")
+    assert page["lifecycle"] == "active" and page["level"] == "must"
+    assert page["owner"] == "team-python" and page["verified_by"] == "alice"

@@ -38,14 +38,6 @@ def plan_changes(
                 "options": applies,
             }
         )
-    if claim.level_guess == "must" and not claim.owner:
-        questions.append(
-            {
-                "id": "owner-" + claim.id,
-                "text": "Кто владелец обязательного правила?",
-                "options": [],
-            }
-        )
     item: dict[str, Any] = {
         "action": "create_rule",
         "target": claim.id,
@@ -108,6 +100,13 @@ def plan_changes(
         "assumptions": [
             "Области: " + ", ".join(applies),
             "Уровень: " + claim.level_guess,
+            # Not a question: the person names the owner when promoting (SPEC §4.1), and
+            # a chat reply could fill it only if the model rewrote the claim.
+            *(
+                ["Владельца обязательного правила человек указывает при принятии."]
+                if claim.level_guess == "must" and not claim.owner
+                else []
+            ),
             "Примеры предложены моделью, проверьте.",
         ],
     }
