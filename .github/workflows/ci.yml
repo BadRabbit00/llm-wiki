@@ -2,7 +2,8 @@ name: CI
 
 # develop: fast static checks on every push. A pull request into main is a release
 # candidate: it additionally builds every flake output (pytest with coverage, Go
-# and TypeScript, deployment shellcheck) and runs the browser scenarios.
+# and TypeScript, deployment shellcheck), starts the container image and runs the
+# browser scenarios. Publishing the image is release.yml's job, not this one.
 on:
   push:
     branches: [develop]
@@ -57,6 +58,11 @@ jobs:
           persist-credentials: false
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
       - run: nix flake check -L
+      # Reuses the closures the check just built; only the image layers are new.
+      - name: Container image starts
+        run: |
+          nix build .#image --out-link image.tar.gz
+          scripts/smoke-image.sh image.tar.gz
 
   e2e:
     name: Browser scenarios
