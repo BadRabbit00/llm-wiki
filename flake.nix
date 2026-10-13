@@ -33,10 +33,15 @@
             pname = "wikisvc";
             version = "0.2.0";
             pyproject = true;
-            # The UI is built independently; frontend edits do not rebuild Python.
+            # The UI is built independently; frontend edits do not rebuild Python. Nor do
+            # Nix expressions (image, host bundle, VM test) or CI workflows, which no
+            # Python test reads; flake.nix stays because a test checks its version.
             src = e.pkgs.lib.cleanSourceWith {
               src = ./.;
-              filter = path: _type: builtins.baseNameOf path != "ui";
+              filter = path: _type:
+                let name = builtins.baseNameOf path; in
+                name != "ui" && name != ".github"
+                && (name == "flake.nix" || !e.pkgs.lib.hasSuffix ".nix" name);
             };
             build-system = [ e.py.pkgs.hatchling ];
             dependencies = e.runtime;
@@ -57,8 +62,7 @@
         } // e.pkgs.lib.optionalAttrs e.pkgs.stdenv.hostPlatform.isLinux {
           deployment = import ./deploy/package.nix {
             pkgs = e.pkgs;
-            app = self.packages.${system}.default;
-            ui = self.packages.${system}.ui;
+            inherit (self.packages.${system}.default) version;
           };
           image = import ./deploy/image.nix {
             pkgs = e.pkgs;
@@ -89,6 +93,11 @@
         default = self.packages.${system}.default;
       } // nixpkgs.lib.optionalAttrs nixpkgs.legacyPackages.${system}.stdenv.hostPlatform.isLinux {
         deployment = self.packages.${system}.deployment;
+        # A NixOS VM with podman installs the bundle and runs the image through the units.
+        deployment-vm = import ./deploy/vm-test.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+          inherit (self.packages.${system}) deployment image;
+        };
       });
       devShells = eachSystem (system:
         let e = env system; in {

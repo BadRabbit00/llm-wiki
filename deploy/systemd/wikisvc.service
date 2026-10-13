@@ -1,27 +1,26 @@
 [Unit]
 Description=Git-backed wiki API
-After=network.target
-RequiresMountsFor=/nix/store /var/lib/llm-wiki /opt/llm-wiki
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/nix/store /var/lib/llm-wiki /etc/llm-wiki /opt/llm-wiki
 StartLimitIntervalSec=0
 
 [Service]
-Type=exec
-User=llm-wiki
-Group=llm-wiki
-WorkingDirectory=/var/lib/llm-wiki
-EnvironmentFile=/etc/llm-wiki/service.env
-Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/llm-wiki/current/bin/wikisvc serve
+# Container confinement (uid, read-only root, capabilities, writable paths) is in
+# llm-wiki-run. podman stop gives in-flight requests and extractions time to finish.
+Type=notify
+NotifyAccess=all
+Delegate=yes
+KillMode=mixed
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Environment=LLM_WIKI_CIDFILE=%t/%n.ctr-id
+ExecStart=/opt/llm-wiki/current/bin/llm-wiki-run daemon wikisvc
+ExecStop=/usr/bin/podman stop --ignore --time 170 --cidfile %t/%n.ctr-id
+ExecStopPost=/usr/bin/podman rm --force --ignore --cidfile %t/%n.ctr-id
 Restart=on-failure
 RestartSec=10
+TimeoutStartSec=120
 TimeoutStopSec=180
-UMask=0077
-NoNewPrivileges=true
-PrivateTmp=true
-PrivateDevices=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/lib/llm-wiki
 
 [Install]
 WantedBy=multi-user.target

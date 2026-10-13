@@ -27,10 +27,11 @@ work/
 
 ## Запуск
 
-Для постоянного развёртывания на **Linux через Nix**:
-[пошаговая установка](docs/deploy-linux.md). Комплект `nix build .#deployment`
-содержит установщик, четыре systemd-службы, конфигурацию, проверку готовности и
-команду восстановления worktrees после переноса. Ниже — запуск для разработки.
+Для постоянного развёртывания на **Linux с podman**:
+[пошаговая установка](docs/deploy-linux.md). Службы приходят образом релиза
+`ghcr.io/badrabbit00/llm-wiki`, а хост-часть `nix build .#deployment` содержит
+установщик, четыре systemd-юнита, конфигурацию и `llm-wiki-admin` для
+обслуживания. Ниже — запуск для разработки.
 
 ```sh
 git clone git@github.com:BadRabbit00/llm-wiki.git backend

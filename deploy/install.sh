@@ -9,6 +9,11 @@ if [[ $# -ne 0 ]]; then
     echo 'Usage: llm-wiki-install (installs this built version; preserves configuration and data)' >&2
     exit 2
 fi
+# The services are containers of the release image; the units expect the host's podman.
+if [[ ! -x /usr/bin/podman ]]; then
+    echo 'Install podman from the distribution first (Arch: pacman -S podman).' >&2
+    exit 1
+fi
 for unit in wikisvc wikiagent wiki-ui llm-wiki-backup; do
     state=$(systemctl is-active "$unit.service" 2>/dev/null || true)
     if [[ $state == active || $state == activating || $state == deactivating || $state == reloading ]]; then
@@ -47,6 +52,10 @@ for file in service.env agent.env wikiagent.yaml llama.env ui.env backup.env rol
             "@bundle@/share/llm-wiki/linux/$file" "/etc/llm-wiki/$file"
     fi
 done
+# Names the release image, not a secret; llm-wiki-updater rewrites it.
+if [[ ! -e /etc/llm-wiki/image.env ]]; then
+    install -m 0644 -o root -g root "@bundle@/share/llm-wiki/linux/image.env" /etc/llm-wiki/image.env
+fi
 # Permanent GC roots: the current and previous bundles survive deletion of result/checkout.
 install -d -m 0755 /nix/var/nix/gcroots/llm-wiki
 if [[ -L /opt/llm-wiki/current ]]; then
@@ -67,4 +76,5 @@ install -m 0644 "@bundle@/share/llm-wiki/systemd/llm-wiki-backup.timer" \
     /etc/systemd/system/llm-wiki-backup.timer
 ln -sfn /opt/llm-wiki/current/bin/llm-wiki-admin /usr/local/sbin/llm-wiki-admin
 systemctl daemon-reload
-echo 'Installed. Configuration preserved. Follow docs/deploy-linux.md to initialize/restore and start.'
+echo 'Installed. Configuration preserved. Pin the release image in /etc/llm-wiki/image.env,'
+echo 'then follow docs/deploy-linux.md to initialize/restore and start.'
