@@ -203,3 +203,42 @@ export interface Schema {
   tags: string[];
   scopes: string[];
 }
+export interface ReleaseImage {
+  tag: string;
+  digest: string;
+  revision: string;
+}
+export interface UpdateStep {
+  name: string;
+  status: "running" | "done" | "failed";
+  at: string;
+  detail?: string;
+}
+export interface UpdateJob {
+  id: string;
+  kind: string;
+  status: string;
+  updated_at: string;
+}
+export interface UpdateOperation {
+  id: string;
+  from: ReleaseImage;
+  to: ReleaseImage;
+  started_by: string;
+  state: "running" | "succeeded" | "rolled_back" | "failed" | "interrupted";
+  steps: UpdateStep[] | null;
+  jobs_before: UpdateJob[] | null;
+  jobs_after: UpdateJob[] | null;
+  archive?: string;
+  error?: string;
+  started_at: string;
+  finished_at?: string;
+}
+export interface UpdaterStatus {
+  channel: "release" | "beta";
+  current: ReleaseImage;
+  available: ReleaseImage | null;
+  checked_at: string | null;
+  check_error?: string;
+  operation: UpdateOperation | null;
+}

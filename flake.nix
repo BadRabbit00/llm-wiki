@@ -60,9 +60,14 @@
           wikisvc = self.packages.${system}.default;
           wikiagent = self.packages.${system}.default;
         } // e.pkgs.lib.optionalAttrs e.pkgs.stdenv.hostPlatform.isLinux {
+          updater = import ./updater/package.nix {
+            pkgs = e.pkgs;
+            inherit (self.packages.${system}.default) version;
+          };
           deployment = import ./deploy/package.nix {
             pkgs = e.pkgs;
             inherit (self.packages.${system}.default) version;
+            inherit (self.packages.${system}) updater;
           };
           image = import ./deploy/image.nix {
             pkgs = e.pkgs;
@@ -97,6 +102,17 @@
         deployment-vm = import ./deploy/vm-test.nix {
           pkgs = nixpkgs.legacyPackages.${system};
           inherit (self.packages.${system}) deployment image;
+        };
+        # The updater installs a release and rolls back one that does not run its tag.
+        updater-vm = import ./deploy/vm-update-test.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+          inherit (self.packages.${system}) deployment;
+          image = revision: import ./deploy/image.nix {
+            pkgs = nixpkgs.legacyPackages.${system};
+            app = self.packages.${system}.default;
+            ui = self.packages.${system}.ui;
+            inherit revision;
+          };
         };
       });
       devShells = eachSystem (system:

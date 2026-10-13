@@ -66,7 +66,7 @@ func oidcFixture(t *testing.T) *fakeOIDC {
 		t.Fatal(err)
 	}
 	t.Cleanup(f.auth.close)
-	base, err := handler(testFiles(), f.wiki.URL, f.wiki.URL)
+	base, err := handler(testFiles(), f.wiki.URL, f.wiki.URL, "/nonexistent/updater.sock")
 	if err != nil {
 		t.Fatal(err)
 	}

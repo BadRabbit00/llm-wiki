@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tests"))
 
+import fake_updater
 from agent_helpers import agent_config, seed_chat, tokens, wiki_client
 from fake_llm import FakeLLM, claim
 
@@ -71,6 +72,7 @@ def main() -> None:
             "groups:\n  human: {role: reviewer, clearance: restricted}\n"
             "  reviewer: {role: reviewer, clearance: restricted}\n"
             "  reader: {role: reader, clearance: internal}\n"
+            "  admin: {role: admin, clearance: restricted}\n"
         )
         initialize(config.wiki_root)
         source, target = SafeFS(ROOT / "tests/fixtures/wiki"), SafeFS(config.wiki_root)
@@ -142,7 +144,9 @@ def main() -> None:
                 "WIKI_UI_OIDC_REDIRECT_URL": "http://127.0.0.1:18789/auth/callback",
                 "WIKI_UI_OIDC_INSECURE_HTTP": "1",
                 "WIKI_UI_COOKIE_SECURE": "0",
+                "WIKI_UI_UPDATER_SOCKET": str(base / "updater.sock"),
             }
+            updater = fake_updater.serve(base / "updater.sock")
             try:
                 with subprocess.Popen([str(folder / "wiki-ui")], env=env) as process:
                     try:
@@ -157,6 +161,7 @@ def main() -> None:
                     server.should_exit = True
                 for thread in threads:
                     thread.join(timeout=20)
+                updater.shutdown()
                 credentials.unlink(missing_ok=True)
 
 

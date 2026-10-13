@@ -1,7 +1,7 @@
 [Unit]
 Description=Wiki web workspace
-Wants=wikisvc.service wikiagent.service
-After=network-online.target wikisvc.service
+Wants=wikisvc.service wikiagent.service llm-wiki-updater.socket
+After=network-online.target wikisvc.service llm-wiki-updater.socket
 RequiresMountsFor=/nix/store /etc/llm-wiki /opt/llm-wiki
 StartLimitIntervalSec=0
 
