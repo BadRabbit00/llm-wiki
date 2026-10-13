@@ -232,7 +232,14 @@ def token_revoke(name: str) -> None:
     from wikisvc.services.auth import Auth
     from wikisvc.storage.state_db import StateDB
 
-    Auth(StateDB(settings().state_dir)).revoke(name)
+    state = StateDB(settings().state_dir)
+    active = state.rows("SELECT name FROM tokens WHERE name=? AND revoked_at IS NULL", (name,))
+    # revoke() still runs so a failed attempt keeps its ok=0 audit record, but a
+    # mistyped name must not be reported as revoked while the real token stays valid.
+    Auth(state).revoke(name)
+    if not active:
+        typer.echo("E_NOT_FOUND: Токен не найден или уже отозван.", err=True)
+        raise typer.Exit(1)
     typer.echo("Revoked")
 
 
