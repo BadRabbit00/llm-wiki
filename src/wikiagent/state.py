@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from wikisvc.storage.db_version import AGENT_SCHEMA, refuse_newer, stamp
 from wikisvc.storage.state_db import now
 
 
@@ -15,6 +16,13 @@ class AgentState:
         directory.chmod(0o700)
         self.path = directory / "agent.db"
         with self.connect() as db:
+            refuse_newer(
+                db,
+                "agent.db",
+                AGENT_SCHEMA,
+                "Запустите версию не старше той, что записала базу, или восстановите копию "
+                "данных, снятую до обновления.",
+            )
             db.executescript("""
             CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY,kind TEXT NOT NULL,status TEXT NOT NULL,owner TEXT NOT NULL,clearance TEXT NOT NULL,payload TEXT NOT NULL,progress TEXT NOT NULL,error TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS job_state(job_id TEXT NOT NULL,key TEXT NOT NULL,value TEXT NOT NULL,PRIMARY KEY(job_id,key));
@@ -24,6 +32,7 @@ class AgentState:
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS model_calls(day TEXT NOT NULL,role TEXT NOT NULL,task TEXT NOT NULL,ts TEXT NOT NULL);
             """)
+            stamp(db, AGENT_SCHEMA)
         self.path.chmod(0o600)
 
     @contextmanager
