@@ -64,6 +64,29 @@ def test_accept_promote_and_revert(client: TestClient, config: Settings) -> None
     GitRepo(config.wiki_root).ensure_main()
 
 
+@pytest.mark.parametrize(
+    "decisions",
+    [
+        {"promote": [{"id": "rule-stack-example-1", "level": "should"}]},
+        {
+            "promote": [{"id": "rule-logging", "level": "should"}],
+            "deprecate": [{"id": "rule-logging", "reason": "Повтор"}],
+        },
+    ],
+)
+def test_accept_rejects_rule_outside_proposal(
+    client: TestClient, config: Settings, decisions: dict[str, Any]
+) -> None:
+    pid = candidate(client)
+    reviewer(client, config)
+    head = GitRepo(config.wiki_root).head()
+    response = client.post(f"/api/v1/proposals/{pid}/accept", json=decisions)
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "E_RULE_NOT_IN_PROPOSAL"
+    assert GitRepo(config.wiki_root).head() == head
+    assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "draft"
+
+
 @pytest.mark.parametrize("failure", ["commit", "validation", "target", "owner"])
 def test_accept_transaction_rollback(
     client: TestClient, config: Settings, monkeypatch: pytest.MonkeyPatch, failure: str

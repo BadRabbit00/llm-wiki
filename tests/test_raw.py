@@ -1,4 +1,6 @@
 import io
+import zipfile
+from typing import Any
 
 from fastapi.testclient import TestClient
 from test_proposals import proposal, reviewer
@@ -92,4 +94,87 @@ def test_upload_rejections(client: TestClient, config: Settings) -> None:
     )
     assert response.status_code == 413
     response = client.get("/api/v1/raw/raw%2Fdocs%2F..%2F..%2F..%2Fetc%2Fpasswd")
-    assert response.status_code in (400, 404)
+    # SafeFS rejects `..` before the raw_files lookup that would answer 404.
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "E_PATH_UNSAFE"
+
+
+def epub(entries: dict[str, bytes]) -> bytes:
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("mimetype", b"application/epub+zip")
+        archive.writestr("META-INF/container.xml", b"<container/>")
+        for name, data in entries.items():
+            archive.writestr(name, data)
+    return stream.getvalue()
+
+
+def test_epub_archive_limits(client: TestClient, config: Settings) -> None:
+    reviewer(client, config)
+    config.max_library_upload_mb = 1
+    limit = 10 * 1024 * 1024
+    header = len(b"application/epub+zip") + len(b"<container/>")
+
+    def upload(name: str, data: bytes) -> Any:
+        return client.post(
+            "/api/v1/raw", files={"file": (name, data)}, data={"category": "library"}
+        )
+
+    for name, entries in [
+        ("bomb.epub", {"OEBPS/zeros.txt": b"\0" * (limit - header + 1)}),
+        ("parent.epub", {"../outside.xhtml": b"<html/>"}),
+        ("absolute.epub", {"/etc/outside.xhtml": b"<html/>"}),
+    ]:
+        data = epub(entries)
+        assert len(data) < 1024 * 1024
+        response = upload(name, data)
+        assert response.status_code == 422, response.text
+        assert response.json()["error"]["code"] == "E_RAW_SIGNATURE"
+    exact = upload("exact.epub", epub({"OEBPS/zeros.txt": b"\0" * (limit - header)}))
+    assert exact.status_code == 200, exact.text
+    assert exact.json()["path"].startswith("library/")
+
+
+def test_source_hash_and_raw_path(client: TestClient, config: Settings) -> None:
+    reviewer(client, config)
+    first, second = (
+        client.post(
+            "/api/v1/raw", files={"file": (name, content)}, data={"category": "docs"}
+        ).json()
+        for name, content in [("first.txt", b"First source text"), ("second.txt", b"Second")]
+    )
+    pid = proposal(client)
+
+    def put_source(raw_path: str, sha: str) -> Any:
+        return client.put(
+            f"/api/v1/proposals/{pid}/pages/src-checked",
+            json={
+                "frontmatter": {
+                    "id": "src-checked",
+                    "type": "source",
+                    "kind": "doc",
+                    "title": "Проверяемый источник",
+                    "summary": "Источник для проверки хэша и пути файла сырья.",
+                    "raw_path": raw_path,
+                    "raw_sha256": sha,
+                    "ingested_at": "2026-09-30T00:00:00+00:00",
+                },
+                "body_md": "## Кратко\n\nФакты.\n\n## Ключевые факты\n\nФакты.\n\n"
+                "## Что изменилось в вики\n\nИсточник.",
+            },
+        )
+
+    for raw_path, sha, status, code in [
+        (first["path"], second["sha256"], 422, "E_SOURCE_HASH"),
+        ("raw/../../etc/passwd", first["sha256"], 400, "E_PATH_UNSAFE"),
+        ("raw/..", first["sha256"], 400, "E_PATH_UNSAFE"),
+        ("/etc/passwd", first["sha256"], 422, "E_FRONTMATTER_INVALID"),
+        (str(config.wiki_root / first["path"]), first["sha256"], 422, "E_FRONTMATTER_INVALID"),
+    ]:
+        response = put_source(raw_path, sha)
+        assert response.status_code == status, response.text
+        assert response.json()["error"]["code"] == code
+        assert client.get(f"/api/v1/proposals/{pid}").json()["pages"] == []
+    accepted = put_source(first["path"], first["sha256"])
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["raw_sha256"] == first["sha256"]
