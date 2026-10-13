@@ -1,6 +1,7 @@
 import hashlib
 import io
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
@@ -133,11 +134,47 @@ class Citation:
     quote: str | None = None
 
 
+CITATION = re.compile(r'\[@(src-[a-z0-9-]+)(?:\s+(стр\.|гл\.)\s+(\d+)(?:-(\d+))?\s+"([^"\n]+)")?\]')
+
+
 def citations(text: str) -> list[Citation]:
     return [
         Citation(m[1], m[2], int(m[3]) if m[3] else None, int(m[4] or m[3]) if m[3] else None, m[5])
-        for m in re.finditer(
-            r'\[@(src-[a-z0-9-]+)(?:\s+(стр\.|гл\.)\s+(\d+)(?:-(\d+))?\s+"([^"\n]+)")?\]',
-            without_code(text),
-        )
+        for m in CITATION.finditer(without_code(text))
     ]
+
+
+def unparsed_citations(text: str) -> list[str]:
+    """Source references with a locator that `citations()` skips, e.g. a quote with an inner `"`.
+
+    Such a reference yields neither a quote check nor a graph edge, so it must not stay silent.
+    """
+    clean = without_code(text)
+    return [
+        m[0]
+        for m in re.finditer(r"\[@src-[^\s\]]*\s+(?:стр\.|гл\.)", clean)
+        if not CITATION.match(clean, m.start())
+    ]
+
+
+def normalize_quote(text: str) -> str:
+    text = unicodedata.normalize("NFKC", text).casefold().replace("\u00ad", "")
+    text = re.sub(r"(?<=\w)-\s*\n\s*(?=\w)", "", text)
+    replacements: dict[str, str | int | None] = {
+        "«": '"',
+        "»": '"',
+        "“": '"',
+        "”": '"',
+        "‘": "'",
+        "’": "'",
+        "—": "-",
+        "–": "-",
+        "‑": "-",
+    }
+    text = text.translate(str.maketrans(replacements))
+    return " ".join(text.split())
+
+
+def quote_too_short(quote: str) -> bool:
+    # An empty normalized quote is a substring of any text, so it would "prove" nothing.
+    return len(re.findall(r"\w+", normalize_quote(quote))) < 2

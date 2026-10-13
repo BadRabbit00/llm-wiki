@@ -8,14 +8,13 @@ import sys
 import tempfile
 import threading
 import time
-import unicodedata
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from wikisvc.domain.errors import WikiError
-from wikisvc.domain.markdown import citations
+from wikisvc.domain.markdown import citations, normalize_quote, quote_too_short
 from wikisvc.domain.models import LintIssue, Page, Principal
 from wikisvc.domain.validate import issue
 from wikisvc.services.auth import require_role
@@ -24,24 +23,6 @@ from wikisvc.storage.state_db import now
 
 if TYPE_CHECKING:
     from wikisvc.services.runtime import Runtime
-
-
-def normalize_quote(text: str) -> str:
-    text = unicodedata.normalize("NFKC", text).casefold().replace("\u00ad", "")
-    text = re.sub(r"(?<=\w)-\s*\n\s*(?=\w)", "", text)
-    replacements: dict[str, str | int | None] = {
-        "«": '"',
-        "»": '"',
-        "“": '"',
-        "”": '"',
-        "‘": "'",
-        "’": "'",
-        "—": "-",
-        "–": "-",
-        "‑": "-",
-    }
-    text = text.translate(str.maketrans(replacements))
-    return " ".join(text.split())
 
 
 def clean_pages(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -412,6 +393,15 @@ class Extractions:
                 continue
             for citation in citations(page.body_md):
                 if citation.start is None or citation.quote is None:
+                    continue
+                if quote_too_short(citation.quote):
+                    result.append(
+                        issue(
+                            "E_QUOTE_TOO_SHORT",
+                            page.id,
+                            "Цитата слишком короткая: нужно не меньше двух слов источника.",
+                        )
+                    )
                     continue
                 source = by_id.get(citation.source)
                 if source is None:

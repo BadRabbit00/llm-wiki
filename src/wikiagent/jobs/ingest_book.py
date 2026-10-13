@@ -17,7 +17,7 @@ from wikiagent.planner.claims import Category, StrictModel
 from wikiagent.planner.classify import Classification, verify
 from wikiagent.state import AgentState
 from wikisvc.domain.errors import WikiError
-from wikisvc.services.extractions import normalize_quote
+from wikisvc.domain.markdown import normalize_quote, quote_too_short
 from wikisvc.storage.state_db import now
 
 
@@ -299,6 +299,12 @@ class IngestBook:
                                         "max_chars": 60000,
                                     },
                                 )["text"]
+                            # The service rejects it on write; here the model still gets a retry.
+                            if quote_too_short(candidate.quote):
+                                raise WikiError(
+                                    "E_QUOTE_TOO_SHORT",
+                                    "Цитата слишком короткая: нужно не меньше двух слов источника.",
+                                )
                             if normalize_quote(candidate.quote) not in normalize_quote(excerpt):
                                 raise WikiError(
                                     "E_QUOTE_NOT_FOUND",
