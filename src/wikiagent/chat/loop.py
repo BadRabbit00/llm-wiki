@@ -150,12 +150,12 @@ class Chat:
                     # A request to change an existing page never reaches extract_claims,
                     # where it used to become not_rule and «Новых правок не требуется».
                     result = self.reviser.run(text, session, actor)
-                elif (
-                    intent.intent == "cancel"
-                    and session["plan"]
-                    and session["plan"].get("proposal")
+                elif intent.intent == "cancel" and (
+                    pid := (session["plan"] or {}).get("proposal")
+                    # A session opened on a proposal has no plan until the agent writes
+                    # one; without the binding «отмени» there fell through to a question.
+                    or (session["bind"]["id"] if session["bind"]["type"] == "proposal" else None)
                 ):
-                    pid = session["plan"]["proposal"]
                     current = self.client.request("GET", "/proposals/" + pid)
                     if current["status"] == "accepted":
                         result = {
@@ -169,7 +169,7 @@ class Chat:
                         self.client.request("POST", f"/proposals/{pid}/abandon")
                         result = {
                             "text": "Предложение отменено.",
-                            "plan": {**session["plan"], "cancelled": True},
+                            "plan": {**(session["plan"] or {}), "proposal": pid, "cancelled": True},
                         }
                 elif intent.intent == "revert":
                     pid = (session["plan"] or {}).get("proposal") or (
