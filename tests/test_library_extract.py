@@ -52,10 +52,17 @@ def test_library_extract_outline_text_citations(
     path = uploaded["path"]
     assert uploaded["storage"] == "local" and not (config.wiki_root / path).exists()
     assert (config.state_dir / path).is_file()
-    assert library(client, "other." + extension, data)["duplicate"]
+    duplicate = library(client, "other." + extension, data)
+    assert (duplicate["duplicate"], duplicate["path"], duplicate["sha256"]) == (
+        True,
+        path,
+        uploaded["sha256"],
+    )
     assert repo.head() == head
     repo.ensure_main()
-    assert client.get("/api/v1/raw/" + path + "/text", params={"chapter": 2}).status_code == 409
+    unextracted = client.get("/api/v1/raw/" + path + "/text", params={"chapter": 2})
+    assert unextracted.status_code == 409
+    assert unextracted.json()["error"]["code"] == "E_EXTRACT_PENDING"
     result = extract(client, path)
     assert client.post("/api/v1/raw/" + path + "/extract").json()["sha256"] == result["sha256"]
     outline = client.get("/api/v1/raw/" + path + "/outline").json()

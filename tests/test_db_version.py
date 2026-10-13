@@ -81,16 +81,21 @@ def test_older_code_refuses_a_newer_database_and_leaves_it_alone(tmp_path: Path,
 
 
 def test_a_full_reindex_replaces_an_index_a_newer_version_wrote(config: Settings) -> None:
-    Runtime(config).reindex(True)
+    original = Runtime(config)
+    issues = original.reindex(True)
+    with original.index.connect() as db:
+        pages = [row[0] for row in db.execute("SELECT id FROM pages ORDER BY id")]
+    assert len(pages) >= 30
     set_user_version(config.index_dir / "wiki.db", INDEX_SCHEMA + 1)
     with pytest.raises(WikiError) as refused:
         Runtime(config)
     assert refused.value.code == "E_SCHEMA_NEWER" and "reindex --full" in refused.value.hint
     runtime = Runtime(config, discard_newer_index=True)
-    assert runtime.reindex(True) is not None
+    # The rebuilt index reports the same corpus as before the newer version touched it.
+    assert runtime.reindex(True) == issues
     assert user_version(config.index_dir / "wiki.db") == INDEX_SCHEMA
     with runtime.index.connect() as db:
-        assert db.execute("SELECT count(*) FROM pages").fetchone()[0] > 0
+        assert [row[0] for row in db.execute("SELECT id FROM pages ORDER BY id")] == pages
         assert not db.execute(
             "SELECT name FROM sqlite_master WHERE name='written_by_newer_code'"
         ).fetchone()

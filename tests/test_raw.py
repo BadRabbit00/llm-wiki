@@ -7,6 +7,7 @@ from test_proposals import proposal, reviewer
 
 from wikisvc.config import Settings
 from wikisvc.services.auth import Auth
+from wikisvc.storage.gitrepo import GitRepo
 from wikisvc.storage.state_db import StateDB
 
 
@@ -71,21 +72,36 @@ def test_upload_pending_ingest(client: TestClient, config: Settings) -> None:
 
 def test_upload_rejections(client: TestClient, config: Settings) -> None:
     reviewer(client, config)
-    for filename, content in [
-        ("evil.exe", b"MZ"),
-        ("image.png", b"not png"),
-        ("data.json", b"{broken"),
-        ("text.txt", b"MZ\x00binary"),
-        ("file.docx", b"PK-not-zip"),
+    repo = GitRepo(config.wiki_root)
+    head = repo.head()
+    stored = client.get("/api/v1/raw").json()["items"]
+    for filename, content, code in [
+        ("evil.exe", b"MZ", "E_RAW_EXTENSION"),
+        ("image.png", b"not png", "E_RAW_SIGNATURE"),
+        ("data.json", b"{broken", "E_RAW_SIGNATURE"),
+        ("text.txt", b"MZ\x00binary", "E_RAW_SIGNATURE"),
+        ("file.docx", b"PK-not-zip", "E_RAW_SIGNATURE"),
     ]:
         response = client.post(
             "/api/v1/raw", files={"file": (filename, content)}, data={"category": "docs"}
         )
         assert response.status_code == 422, response.text
+        assert response.json()["error"]["code"] == code, filename
     response = client.post(
         "/api/v1/raw", files={"file": ("ok.txt", b"fine")}, data={"category": "../bad"}
     )
     assert response.status_code == 400
+    assert response.json()["error"]["code"] == "E_RAW_CATEGORY"
+    # The allowlist is the operator's narrowing, separate from the signature check:
+    # a well-formed Markdown file is refused once `md` is no longer allowed.
+    config.allowed_raw_ext = "txt,pdf"
+    response = client.post(
+        "/api/v1/raw",
+        files={"file": ("notes.md", b"# Valid markdown\n")},
+        data={"category": "docs"},
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "E_RAW_EXTENSION"
     config.max_upload_mb = 1
     response = client.post(
         "/api/v1/raw",
@@ -93,6 +109,9 @@ def test_upload_rejections(client: TestClient, config: Settings) -> None:
         data={"category": "docs"},
     )
     assert response.status_code == 413
+    assert response.json()["error"]["code"] == "E_UPLOAD_TOO_LARGE"
+    assert repo.head() == head
+    assert client.get("/api/v1/raw").json()["items"] == stored
     response = client.get("/api/v1/raw/raw%2Fdocs%2F..%2F..%2F..%2Fetc%2Fpasswd")
     # SafeFS rejects `..` before the raw_files lookup that would answer 404.
     assert response.status_code == 400

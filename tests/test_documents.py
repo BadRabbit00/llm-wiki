@@ -31,13 +31,28 @@ def test_real_pdf_and_docx_in_worker(client: TestClient, config: Settings) -> No
     pypdf = pytest.importorskip("pypdf")
     docx = pytest.importorskip("docx")
     reviewer(client, config)
+    generic = pytest.importorskip("pypdf.generic")
     pdf = io.BytesIO()
     writer = pypdf.PdfWriter()
-    writer.add_blank_page(width=100, height=100)
+    page = writer.add_blank_page(width=300, height=100)
+    font = generic.DictionaryObject(
+        {
+            generic.NameObject("/Type"): generic.NameObject("/Font"),
+            generic.NameObject("/Subtype"): generic.NameObject("/Type1"),
+            generic.NameObject("/BaseFont"): generic.NameObject("/Helvetica"),
+        }
+    )
+    page[generic.NameObject("/Resources")] = generic.DictionaryObject(
+        {generic.NameObject("/Font"): generic.DictionaryObject({generic.NameObject("/F1"): font})}
+    )
+    content = generic.ContentStream(None, None)
+    content.set_data(b"BT /F1 12 Tf 10 50 Td (Company handbook) Tj ET")
+    page.replace_contents(content)
     writer.write(pdf)
     pdf_path = upload(client, "sample.pdf", pdf.getvalue())
     response = client.get("/api/v1/raw/" + pdf_path + "/text")
     assert response.status_code == 200, response.text
+    assert response.json()["text"] == "Company handbook"
     document = docx.Document()
     document.add_paragraph("Документ компании")
     output = io.BytesIO()

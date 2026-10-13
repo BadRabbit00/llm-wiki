@@ -128,24 +128,37 @@ def test_backup_archive_permissions_retention_and_failure(
         assert not any(name.startswith("var/lib/llm-wiki/index") for name in names)
 
 
+NOT_ROOT = "Run through llm-wiki-backup.service as root, with wiki services stopped.\n"
+BAD_SETTINGS = (
+    "Set an absolute BACKUP_DIR and BACKUP_KEEP_DAYS between 1 and 99999 in backup.env.\n"
+)
+INSIDE_DATA = (
+    "BACKUP_DIR must be a separate directory outside the archived data and configuration.\n"
+)
+
+
 @pytest.mark.parametrize(
-    ("key", "value"),
+    ("key", "value", "returncode", "stderr"),
     [
-        ("BACKUP_DIR", "relative"),
-        ("BACKUP_DIR", "/"),
-        ("BACKUP_DIR", "/var/lib/llm-wiki/backups"),
-        ("BACKUP_DIR", "/etc/llm-wiki/backups"),
-        ("BACKUP_KEEP_DAYS", "0"),
-        ("BACKUP_KEEP_DAYS", "-1"),
-        ("BACKUP_KEEP_DAYS", "bad"),
-        ("TEST_UID", "1000"),
+        ("BACKUP_DIR", "relative", 2, BAD_SETTINGS),
+        ("BACKUP_DIR", "/", 2, INSIDE_DATA),
+        ("BACKUP_DIR", "/var/lib/llm-wiki", 2, INSIDE_DATA),
+        ("BACKUP_DIR", "/var/lib/llm-wiki/backups", 2, INSIDE_DATA),
+        ("BACKUP_DIR", "/var/lib/llm-wiki/../llm-wiki/state", 2, INSIDE_DATA),
+        ("BACKUP_DIR", "/etc/llm-wiki", 2, INSIDE_DATA),
+        ("BACKUP_DIR", "/etc/llm-wiki/backups", 2, INSIDE_DATA),
+        ("BACKUP_KEEP_DAYS", "0", 2, BAD_SETTINGS),
+        ("BACKUP_KEEP_DAYS", "-1", 2, BAD_SETTINGS),
+        ("BACKUP_KEEP_DAYS", "bad", 2, BAD_SETTINGS),
+        ("TEST_UID", "1000", 1, NOT_ROOT),
     ],
 )
 def test_backup_rejects_invalid_configuration_before_writing(
-    backup_environment: dict[str, str], key: str, value: str
+    backup_environment: dict[str, str], key: str, value: str, returncode: int, stderr: str
 ) -> None:
     backup_environment[key] = value
-    assert run_backup(backup_environment).returncode != 0
+    result = run_backup(backup_environment)
+    assert (result.returncode, result.stderr, result.stdout) == (returncode, stderr, "")
     assert not (Path(backup_environment["TEST_ROOT"]) / "backups").exists()
 
 
@@ -154,4 +167,5 @@ def test_backup_rejects_directory_symlink_into_archived_data(
 ) -> None:
     directory = Path(backup_environment["BACKUP_DIR"])
     directory.symlink_to("/var/lib/llm-wiki/state")
-    assert run_backup(backup_environment).returncode == 2
+    result = run_backup(backup_environment)
+    assert (result.returncode, result.stderr) == (2, INSIDE_DATA)

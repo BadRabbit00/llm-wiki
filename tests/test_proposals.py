@@ -122,8 +122,22 @@ def test_patch_atomic_and_versions(client: TestClient, config: Settings) -> None
     )
     assert good.status_code == 200, good.text
     assert "Исправленная заметка" in good.json()["body_md"]
-    assert client.delete(f"/api/v1/proposals/{pid}/pages/sys-example-1").status_code == 422
-    assert client.delete(endpoint).status_code == 200
+    linked = client.delete(f"/api/v1/proposals/{pid}/pages/sys-example-1")
+    assert linked.status_code == 422
+    assert linked.json()["error"]["code"] == "E_LINK_UNRESOLVED"
+    deleted = client.delete(endpoint)
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json() == {"id": "term-orphan", "change": "deleted"}
+    assert [
+        (page["id"], page["change"])
+        for page in client.get(f"/api/v1/proposals/{pid}/diff").json()["pages"]
+    ] == [("term-orphan", "deleted")]
+    assert not (branch.root / "wiki/domain/glossary/orphan.md").exists()
+    assert (
+        branch.run("ls-tree", "--name-only", "HEAD", "--", "wiki/domain/glossary/orphan.md") == ""
+    )
+    assert branch.run("log", "-1", "--format=%s") == "Delete term-orphan"
+    assert (config.wiki_root / "wiki/domain/glossary/orphan.md").exists()
 
 
 def test_self_review_and_conflict(client: TestClient, config: Settings) -> None:

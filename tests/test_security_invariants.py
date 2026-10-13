@@ -551,7 +551,23 @@ def test_healer_fix_limited_to_pair(
 
 # В6. wikisvc makes no outgoing network calls and does not call the agent.
 
-FORBIDDEN_IMPORTS = ("httpx", "requests", "socket", "urllib.request", "aiohttp", "wikiagent")
+# The guard matches module paths, so `from asyncio import open_connection` is caught but an
+# attribute call on a plain `import asyncio` is not; asyncio itself stays allowed.
+FORBIDDEN_IMPORTS = (
+    "httpx",
+    "requests",
+    "socket",
+    "urllib.request",
+    "aiohttp",
+    "wikiagent",
+    "http.client",
+    "urllib3",
+    "ftplib",
+    "smtplib",
+    "ssl",
+    "asyncio.open_connection",
+    "asyncio.open_unix_connection",
+)
 
 
 def forbidden_imports(source: str) -> list[str]:
@@ -591,10 +607,26 @@ def forbidden_imports(source: str) -> list[str]:
         "from wikiagent.client import WikiClient",
         "__import__('requests')",
         "import importlib\nimportlib.import_module('aiohttp')",
+        "import http.client",
+        "from http import client",
+        "from http.client import HTTPSConnection",
+        "import urllib3",
+        "from ftplib import FTP",
+        "import smtplib",
+        "import ssl",
+        "from asyncio import open_connection",
+        "from asyncio import open_unix_connection",
     ],
 )
 def test_import_guard_detects_network_imports(source: str) -> None:
     assert forbidden_imports(source)
+
+
+@pytest.mark.parametrize(
+    "source", ["import asyncio", "from http import HTTPStatus", "from asyncio import gather"]
+)
+def test_import_guard_allows_local_modules(source: str) -> None:
+    assert forbidden_imports(source) == []
 
 
 def test_wikisvc_has_no_network_or_agent_imports() -> None:

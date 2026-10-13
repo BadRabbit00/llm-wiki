@@ -133,12 +133,12 @@ def test_state_git_and_lock(tmp_path: Path) -> None:
     database.audit("alice", "test", "id")
     assert database.rows("SELECT token_name FROM audit")[0]["token_name"] == "alice"
     assert database.path.stat().st_mode & 0o777 == 0o600
-    assert (
-        subprocess.run(
-            ["git", "status", "--porcelain"], cwd=root, capture_output=True, check=False
-        ).returncode
-        == 0
+    # ensure_main refused, so the local edit is left untouched and nothing else changed.
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=root, capture_output=True, text=True, check=True
     )
+    assert status.stdout == "?? wiki/uncommitted.md\n"
+    assert (root / "wiki/uncommitted.md").read_text() == "local content"
 
 
 def test_existing_state_schema_migrates_without_data_loss(tmp_path: Path) -> None:
