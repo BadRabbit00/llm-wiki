@@ -1,9 +1,18 @@
 """Disposable document parser. Limits are installed before importing parser libraries."""
 
+import os
 import resource
 import sys
 from collections.abc import Iterable
 from pathlib import Path
+
+
+def worker_env() -> dict[str, str]:
+    # Nix glibc maps the whole locale-archive named by LOCALE_ARCHIVE* into memory at startup,
+    # eating the RLIMIT_AS budget before the parser even runs. The parser needs no locale.
+    env = {key: value for key, value in os.environ.items() if not key.startswith("LOCALE_ARCHIVE")}
+    env["LC_ALL"] = "C.UTF-8"
+    return env
 
 
 def extract(file: Path) -> Iterable[str]:
@@ -50,6 +59,8 @@ def main() -> int:
         sys.stdout.buffer.write("\n\n".join(parts).encode("utf-8"))
     except ImportError:
         return 2
+    except MemoryError:  # RLIMIT_AS exhausted: a resource limit, not a malformed document
+        return 4
     except Exception:  # noqa: BLE001 -- isolate all parser failures in the disposable worker
         return 3
     return 0
