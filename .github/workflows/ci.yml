@@ -48,9 +48,10 @@ jobs:
         run: nix develop -c npm --prefix ui run format:check
       - name: TypeScript
         run: nix develop -c npm --prefix ui run typecheck
-      - name: Go vet and gofmt
+      - name: Go vet and gofmt (wiki-ui, llm-wiki-updater)
         run: |
           nix develop -c go -C ui vet ./...
+          nix develop -c go -C updater vet ./...
           unformatted=$(git ls-files -z '*.go' | xargs -0 nix develop -c gofmt -l)
           test -z "$unformatted" || { echo "gofmt would change: $unformatted"; exit 1; }
       - name: ShellCheck

@@ -10,6 +10,7 @@ import {
   Activity,
   BookOpen,
   ChevronRight,
+  Download,
   FileCheck2,
   FileText,
   LayoutDashboard,
@@ -24,9 +25,9 @@ import {
   Sparkles,
   Sun,
 } from "lucide-react";
-import { useAPI } from "../api";
+import { useAPI, useUpdater } from "../api";
 import { useAuth, canReview } from "../auth";
-import type { Page } from "../types";
+import type { Page, UpdaterStatus } from "../types";
 import { Badge, Empty, ErrorBanner, Loading, Modal, labels } from "./common";
 
 export function Mark({ small = false }: { small?: boolean }) {
@@ -151,7 +152,9 @@ export default function Layout() {
   const { actor } = useAuth(),
     location = useLocation(),
     [search, setSearch] = useState(false),
-    [mobile, setMobile] = useState(false);
+    [mobile, setMobile] = useState(false),
+    admin = actor?.kind === "human" && actor.role === "admin",
+    updates = useUpdater<UpdaterStatus>("/v1/status", admin, 30 * 60 * 1000);
   const [theme, setTheme] = useState(
     localStorage.getItem("wiki.theme") || "light",
   );
@@ -271,6 +274,12 @@ export default function Layout() {
             <strong>{current?.label || "Настройки"}</strong>
           </div>
           <div className="topbar-actions">
+            {updates.data?.available && (
+              <NavLink className="update-badge" to="/settings#updates">
+                <Download size={14} /> Доступно обновление{" "}
+                {updates.data.available.tag}
+              </NavLink>
+            )}
             <span className="private-label">
               <ShieldCheck size={14} /> Ваши знания — внутри команды
             </span>

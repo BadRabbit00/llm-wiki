@@ -2,7 +2,7 @@
 # install, run, back up and maintain the services. The services themselves come from
 # the release image (deploy/image.nix), so this closure builds in seconds and holds
 # no application code.
-{ pkgs, version }:
+{ pkgs, version, updater }:
 pkgs.runCommand "llm-wiki-deployment-${version}" {
   nativeBuildInputs = [ pkgs.shellcheck ];
 } ''
@@ -23,4 +23,5 @@ pkgs.runCommand "llm-wiki-deployment-${version}" {
   render ${./run.sh} llm-wiki-run
   render ${./model.sh} llm-wiki-model
   render ${./backup.sh} llm-wiki-backup
+  ln -s ${updater}/bin/llm-wiki-updater "$out/bin/llm-wiki-updater"
 ''

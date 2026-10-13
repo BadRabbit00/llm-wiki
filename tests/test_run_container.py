@@ -98,6 +98,7 @@ def test_daemon_services_keep_their_unit_confinement(environment: dict[str, str]
     assert run(environment, "daemon", "wiki-ui")[1] == [
         *detach, "--name", "wiki-ui", *cid, *notify, *COMMON,
         "--env-file", "/etc/llm-wiki/ui.env", *ETC,
+        "--volume", "/run/llm-wiki-updater:/run/llm-wiki-updater",
         "--user", "992:993", DIGEST, "wiki-ui",
     ]  # fmt: skip
 

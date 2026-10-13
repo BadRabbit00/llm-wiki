@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -43,6 +44,25 @@ func upstream(address, prefix string) (http.Handler, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	transport.ResponseHeaderTimeout = 5 * time.Minute
+	return proxied(target, transport, prefix), nil
+}
+
+// socketUpstream reaches llm-wiki-updater. It runs as root and listens only on a
+// Unix socket that the wiki-ui user, and no other service, may open.
+func socketUpstream(socket, prefix string) http.Handler {
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, "unix", socket)
+		},
+		ResponseHeaderTimeout: 3 * time.Minute, // a check verifies signatures
+	}
+	return proxied(&url.URL{Scheme: "http", Host: "llm-wiki-updater"}, transport, prefix)
+}
+
+// proxied forwards a signed-in request with the same limits for every upstream:
+// a bearer token, known methods, a bounded body and no browser cookies or origin.
+func proxied(target *url.URL, transport http.RoundTripper, prefix string) http.Handler {
 	proxy := &httputil.ReverseProxy{
 		Transport:     transport,
 		FlushInterval: -1, // Deliver every SSE event immediately.
@@ -94,10 +114,10 @@ func upstream(address, prefix string) (http.Handler, error) {
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		proxy.ServeHTTP(w, r)
-	}), nil
+	})
 }
 
-func handler(files fs.FS, wikiURL, agentURL string) (http.Handler, error) {
+func handler(files fs.FS, wikiURL, agentURL, updaterSocket string) (http.Handler, error) {
 	wiki, err := upstream(wikiURL, "")
 	if err != nil {
 		return nil, err
@@ -110,6 +130,7 @@ func handler(files fs.FS, wikiURL, agentURL string) (http.Handler, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/", wiki)
 	mux.Handle("/agent-api/", agent)
+	mux.Handle("/updater-api/", socketUpstream(updaterSocket, "/updater-api"))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok","service":"wiki-ui"}`))
@@ -120,7 +141,7 @@ func handler(files fs.FS, wikiURL, agentURL string) (http.Handler, error) {
 			return
 		}
 		name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
-		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "api/") || strings.HasPrefix(name, "agent-api/") {
+		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "api/") || strings.HasPrefix(name, "agent-api/") || strings.HasPrefix(name, "updater-api/") {
 			http.NotFound(w, r)
 			return
 		}
@@ -163,7 +184,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer auth.close()
-	h, err := handler(files, wikiURL, env("WIKI_UI_AGENT_URL", "http://127.0.0.1:8788"))
+	h, err := handler(files, wikiURL, env("WIKI_UI_AGENT_URL", "http://127.0.0.1:8788"), env("WIKI_UI_UPDATER_SOCKET", "/run/llm-wiki-updater/api.sock"))
 	if err != nil {
 		log.Fatal(err)
 	}

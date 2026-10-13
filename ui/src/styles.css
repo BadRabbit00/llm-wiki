@@ -5158,3 +5158,111 @@ dd {
     scroll-behavior: auto !important;
   }
 }
+
+/* Updates: offered release, confirmation, progress and the last outcome. */
+.updates-card {
+  grid-column: 1 / -1;
+}
+.updates-card select {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+.update-offer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 14px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.update-offer > div {
+  display: grid;
+  gap: 4px;
+}
+.update-offer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+.update-actions {
+  margin-top: 12px;
+}
+.update-outcome {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--muted);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+.update-outcome.succeeded {
+  border-left-color: var(--green);
+}
+.update-outcome.rolled_back,
+.update-outcome.failed,
+.update-outcome.interrupted {
+  border-left-color: var(--accent);
+}
+.update-outcome p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.update-outcome .update-error {
+  color: var(--text);
+}
+.update-steps {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.update-step {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  column-gap: 8px;
+  font-size: 14px;
+}
+.update-step.done svg {
+  color: var(--green);
+}
+.update-step.failed svg {
+  color: var(--accent);
+}
+.update-step small {
+  grid-column: 2;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.update-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (max-width: 720px) {
+  .update-offer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.settings-page > .updates-card {
+  margin-top: 18px;
+}
