@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from mcp.types import CallToolResult, InitializeResult, ListToolsResult, TextContent
 from pydantic import ValidationError
 from starlette.types import Message, Scope
+from test_policies import seed_policies
 from typer.testing import CliRunner
 
 from wikisvc.cli import app as cli_app
@@ -29,6 +30,7 @@ FULL_TOOLS = {
     "get_policies",
     "get_rule",
     "rules_related",
+    "list_rules",
     "graph_impact",
     "search",
     "get_page",
@@ -167,6 +169,75 @@ def test_http_policies_match_rest(mcp_client: TestClient, use_profile: bool) -> 
     result = call(mcp_client, "get_policies", arguments)
     assert not result.isError
     assert result.structuredContent == response.json()
+
+
+def test_http_list_rules_matches_rest(config: Settings) -> None:
+    config.mcp_http_enabled = True
+    # External agents get the default profile, so list_rules must be served there.
+    assert config.mcp_profile == "coding"
+    keys = Auth(StateDB(config.state_dir))
+    internal = {"Authorization": "Bearer " + keys.create("rules-internal", "reader", "internal")}
+    restricted = {
+        "Authorization": "Bearer " + keys.create("rules-restricted", "reader", "restricted")
+    }
+    fixtures = [
+        f"rule-{kind}-example-{n}" for kind in ("conv", "sec", "stack", "test") for n in (1, 2)
+    ]
+
+    def policies(*numbers: range) -> list[str]:
+        return [f"rule-policy-{n:02}" for numbers_ in numbers for n in numbers_]
+
+    # MCP arguments, the same filters as GET /rules query parameters, and the rules a
+    # restricted reader gets; rule-policy-09 is the only restricted one in the corpus.
+    cases: list[tuple[dict[str, object], dict[str, str], list[str]]] = [
+        ({}, {}, sorted(fixtures + policies(range(40)))),
+        ({"lifecycle": ["candidate"]}, {"lifecycle": "candidate"}, policies(range(30, 40))),
+        (
+            {"lifecycle": ["active"], "applies_to": "lang:python,lang:go"},
+            {"lifecycle": "active", "applies_to": "lang:python,lang:go"},
+            sorted(fixtures + policies(range(10), range(20, 30))),
+        ),
+        (
+            {"category": "security"},
+            {"category": "security"},
+            ["rule-sec-example-1", "rule-sec-example-2"],
+        ),
+        ({"q": "Правило проекта 9"}, {"q": "Правило проекта 9"}, policies(range(40))),
+    ]
+    with TestClient(create_app(config), base_url="http://127.0.0.1:8787") as client:
+        seed_policies(client, config)
+        for headers, hidden in ((restricted, set()), (internal, {"rule-policy-09"})):
+            for arguments, params, visible in cases:
+                response = client.get("/api/v1/rules", params=params, headers=headers)
+                assert response.status_code == 200, response.text
+                assert [item["id"] for item in response.json()["items"]] == [
+                    rule for rule in visible if rule not in hidden
+                ], params
+                assert response.json()["next_cursor"] is None
+                result = call(client, "list_rules", arguments, headers=headers)
+                assert not result.isError, result
+                assert result.structuredContent == response.json(), arguments
+        # GET /rules takes sort; the MCP contract does not, so it must fail, not be dropped.
+        # The error has the same shape as a WikiError raised inside a tool.
+        unknown = call(
+            client,
+            "list_rules",
+            {"sort": "priority", "category": "security", "limit": 1},
+            headers=internal,
+        )
+        assert unknown.isError and unknown.structuredContent is None
+        assert isinstance(unknown.content[0], TextContent)
+        assert unknown.content[0].text == "Error executing tool list_rules: " + json.dumps(
+            {
+                "error": {
+                    "code": "E_REQUEST_INVALID",
+                    "message": "Неизвестные аргументы: limit, sort.",
+                    "hint": "Проверьте запрос и схему через /schema.",
+                    "details": [],
+                }
+            },
+            ensure_ascii=False,
+        )
 
 
 def test_http_reader_cannot_create_proposal(mcp_client: TestClient, config: Settings) -> None:

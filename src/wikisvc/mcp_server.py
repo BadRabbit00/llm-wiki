@@ -9,6 +9,8 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase
+from pydantic import create_model, model_validator
 from starlette.concurrency import run_in_threadpool
 
 from wikisvc.domain.errors import WikiError
@@ -31,6 +33,24 @@ def checked[**P, R](function: Callable[P, R]) -> Callable[P, Awaitable[R]]:
             raise ToolError(json.dumps(exc.response(), ensure_ascii=False)) from None
 
     return wrapper
+
+
+class KnownArguments(ArgModelBase):
+    """Argument model mixin: unknown keys fail as a WikiError, as errors inside a tool do."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def known_arguments(cls, data: object) -> object:
+        names = {field.alias or name for name, field in cls.model_fields.items()}
+        if isinstance(data, dict) and (unknown := sorted(str(key) for key in set(data) - names)):
+            error = WikiError(
+                "E_REQUEST_INVALID",
+                "Неизвестные аргументы: " + ", ".join(unknown) + ".",
+                status=400,
+            )
+            # Not a ValueError, so pydantic passes it through as the tool's own error.
+            raise ToolError(json.dumps(error.response(), ensure_ascii=False))
+        return data
 
 
 def create_server(runtime: Runtime, profile: str = "full") -> FastMCP:
@@ -90,6 +110,24 @@ def create_server(runtime: Runtime, profile: str = "full") -> FastMCP:
     def rules_related(q: str, scopes: list[str] | None = None, limit: int = 10) -> dict[str, Any]:
         """Подбери действующие, снятые и кандидатные правила и затронутые страницы."""
         return runtime.rules.related(q, actor(), scopes, limit)
+
+    @tool
+    @checked
+    def list_rules(
+        q: str | None = None,
+        lifecycle: list[str] | None = None,
+        applies_to: str | None = None,
+        category: str | None = None,
+    ) -> dict[str, Any]:
+        """Список правил по фильтрам, как GET /rules; applies_to — области через запятую."""
+        # The shared contract types applies_to as a string; split it the way GET /rules does.
+        return runtime.rules.list_rules(
+            actor(),
+            category,
+            lifecycle=lifecycle,
+            applies_to=applies_to.split(",") if applies_to else None,
+            q=q,
+        )
 
     @tool
     @checked
@@ -256,4 +294,10 @@ def create_server(runtime: Runtime, profile: str = "full") -> FastMCP:
     for registered in server._tool_manager.list_tools():
         if registered.name in contracts:
             registered.parameters = contracts[registered.name]
+            # The published schema forbids unknown arguments, but FastMCP drops them silently,
+            # so a misspelled filter would widen the result instead of failing.
+            arguments = registered.fn_metadata.arg_model
+            registered.fn_metadata.arg_model = create_model(
+                arguments.__name__, __base__=(arguments, KnownArguments)
+            )
     return server

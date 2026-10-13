@@ -211,7 +211,7 @@ wk init --url https://wiki.company --profile go-service --template go-service
 
 ## 5. Как этим пользуется агент
 
-Через MCP (20 инструментов, профиль `coding` — 13) или HTTP. Порядок работы:
+Через MCP (21 инструмент, профиль `coding` — 14) или HTTP. Порядок работы:
 
 1. `get_instructions` — всегда первым;
 2. `get_policies(profile)` — компактный свод действующих правил под задачу;

@@ -288,6 +288,14 @@ def test_restricted_rule_hidden_from_internal(service: TestClient, config: Setti
         call(service, "rules_related", {"q": "журнал аудита платежей"}, headers=bearer(internal))
     )
     assert SECRET_RULE not in json.dumps(related, ensure_ascii=False)
+    # MCP list_rules filters by clearance exactly as GET /rules does, for both principals.
+    for token, visible in ((secret_reviewer, True), (internal, False)):
+        rest = service.get(f"{API}/rules", headers=bearer(token))
+        assert rest.status_code == 200, rest.text
+        listed = tool_result(call(service, "list_rules", {}, headers=bearer(token)))
+        assert listed == rest.json()
+        assert (SECRET_RULE in {i["id"] for i in listed["items"]}) is visible
+        assert (SECRET_SUMMARY in json.dumps(listed, ensure_ascii=False)) is visible
     control = tool_result(
         call(
             service, "get_policies", {"profile": "python-fastapi"}, headers=bearer(secret_reviewer)
