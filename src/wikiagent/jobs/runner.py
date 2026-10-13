@@ -10,6 +10,10 @@ from wikiagent.models import ModelClient
 from wikiagent.state import AgentState
 from wikisvc.domain.errors import WikiError, not_found
 
+# Statuses recover() restarts after the agent restarts. llm-wiki-updater lists jobs
+# with these statuses before an update and checks them again afterwards.
+RESUMABLE = ("running", "pending", "paused", "waiting_chat")
+
 
 class JobStopped(Exception):
     pass
@@ -90,7 +94,7 @@ class JobRunner:
 
     def recover(self) -> None:
         for row in self.state.rows(
-            "SELECT id FROM jobs WHERE status IN ('running','pending','paused','waiting_chat')"
+            f"SELECT id FROM jobs WHERE status IN ({','.join('?' * len(RESUMABLE))})", RESUMABLE
         ):
             self.start(row["id"])
 
