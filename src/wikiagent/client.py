@@ -27,9 +27,24 @@ class WikiClient:
             "PATCH": r"/proposals/[a-f0-9]+/pages/[a-z0-9-]+",
             "DELETE": r"/proposals/[a-f0-9]+/pages/[a-z0-9-]+",
         }
-        if not re.fullmatch(reads if method == "GET" else writes.get(method, r"(?!)"), path) or any(
-            part in path.split("/")
-            for part in ("accept", "promote", "deprecate", "revert", "reject", "verify")
+        # httpx removes dot segments before sending, so "/raw/../people" would pass the
+        # allowlist and reach /people; an encoded "%2e%2e" may be normalized by a proxy.
+        if (
+            not re.fullmatch(reads if method == "GET" else writes.get(method, r"(?!)"), path)
+            or "%" in path
+            or any(
+                part in path.split("/")
+                for part in (
+                    "accept",
+                    "promote",
+                    "deprecate",
+                    "revert",
+                    "reject",
+                    "verify",
+                    ".",
+                    "..",
+                )
+            )
         ):
             self.forbidden_attempts += 1
             raise WikiError(
