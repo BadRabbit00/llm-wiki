@@ -37,8 +37,12 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["wikisvc.domain", "wikisvc.index", "wikisvc.services.policies", "wikiagent.planner", "wikiagent.jobs.docs_audit"]
+source = ["wikisvc", "wikiagent"]
+branch = true
+patch = ["subprocess"]
+parallel = true
 
 [tool.coverage.report]
 show_missing = true
 fail_under = 85
+exclude_also = ['if __name__ == "__main__":']
