@@ -58,6 +58,10 @@ def seed_heal(client: TestClient, config: Settings, count: int = 40) -> None:
     rt.reindex()
 
 
+# The strict json_schema grammar requires every key, so a fix names unused fields as null.
+NO_FIX = dict.fromkeys(("field", "value", "rel", "target", "heading", "text"))
+
+
 def verdict(task: str, data: dict[str, Any]) -> dict[str, Any]:
     pages = {p["id"]: p for p in data["pages"]}
     pairs = {
@@ -68,12 +72,24 @@ def verdict(task: str, data: dict[str, Any]) -> dict[str, Any]:
     }
     ids = tuple(sorted(pages))
     if ids not in pairs:
-        return {"relation": "none", "confidence": 0.99, "explanation": "Нет проблемы."}
+        return {
+            "relation": "none",
+            "confidence": 0.99,
+            "explanation": "Нет проблемы.",
+            "evidence": [],
+            "suggested_fix": [],
+        }
     relation, rel = pairs[ids]
     fix = (
-        {"page": ids[0], "op": "add_relation", "rel": rel, "target": ids[1]}
+        {**NO_FIX, "page": ids[0], "op": "add_relation", "rel": rel, "target": ids[1]}
         if rel
-        else {"page": ids[0], "op": "set_field", "field": "applies_to", "value": ["lang:dotnet"]}
+        else {
+            **NO_FIX,
+            "page": ids[0],
+            "op": "set_field",
+            "field": "applies_to",
+            "value": ["lang:dotnet"],
+        }
     )
     return {
         "relation": relation,
@@ -96,7 +112,7 @@ def test_heal_five_problems_cache_changed_and_dismissed(
     settings.heal.max_model_calls_per_day = 10000
     state = AgentState(settings.state_dir)
     wiki = wiki_client(client, settings)
-    fake = FakeLLM(verdict)
+    fake = FakeLLM(verdict, check_schema=True)
     models = ModelClient(settings, state, fake.http)
     chat = Chat(wiki, models, state)
     healer = Healer(wiki, models, state, chat, lambda _: None)
@@ -138,6 +154,21 @@ def test_heal_five_problems_cache_changed_and_dismissed(
     healer.run(state.job("heal", actor, {}), {})
     assert len(fake.calls) == previous_calls
     assert not [f for f in wiki.all("/findings", status="open") if f["kind"] == "conflicts"]
+    # No CLI or API clears the pair cache, so the rows are deleted the way a lost or corrupt
+    # agent.db would lose them. The model then judges every pair again and confirms the
+    # dismissed conflict; only the service may keep the human's dismissal.
+    findings_before = sorted((f["id"], f["status"]) for f in wiki.all("/findings"))
+    assert (dismissed["id"], "dismissed") in findings_before
+    heal_proposals = sorted(p["pid"] for p in wiki.all("/proposals", kind="heal"))
+    with state.connect() as db:
+        db.execute("DELETE FROM pair_checks")
+    rerun = state.job("heal", actor, {"scope": "full"})
+    healer.run(rerun, {"scope": "full"})
+    assert fake.calls[previous_calls:] == fake.calls[:previous_calls]
+    assert state.restore(rerun, "report")["findings"] == []
+    assert sorted((f["id"], f["status"]) for f in wiki.all("/findings")) == findings_before
+    assert sorted(p["pid"] for p in wiki.all("/proposals", kind="heal")) == heal_proposals
+    previous_calls = len(fake.calls)
     fs = SafeFS(config.wiki_root)
     path = "wiki/rules/heal-00.md"
     fs.write(path, fs.read(path) + "\nУточнение для повторной проверки.\n")
@@ -169,7 +200,7 @@ def test_heal_quote_rejection_and_budget(
         result["evidence"][0]["quote"] = "Фраза, которой нигде нет."
         return result
 
-    fake = FakeLLM(hallucinate)
+    fake = FakeLLM(hallucinate, check_schema=True)
     models = ModelClient(settings, state, fake.http)
     healer = Healer(wiki, models, state, Chat(wiki, models, state), lambda _: None)
     job = state.job("heal", wiki.check_writer(), {})
@@ -204,9 +235,15 @@ def test_heal_chat_priority_and_api(
         if not first.is_set():
             first.set()
             assert release_pair.wait(15)
-        return {"relation": "none", "confidence": 1, "explanation": "Нет проблемы."}
+        return {
+            "relation": "none",
+            "confidence": 1,
+            "explanation": "Нет проблемы.",
+            "evidence": [],
+            "suggested_fix": [],
+        }
 
-    fake = FakeLLM(respond)
+    fake = FakeLLM(respond, check_schema=True)
     models = ModelClient(settings, state, fake.http)
     with (
         TestClient(create_app(settings, wiki, models)) as api,
@@ -262,40 +299,92 @@ def test_scheduler_idle_windows_and_full_sweep(
     settings = agent_config(tmp_path / "agent")
     state = AgentState(settings.state_dir)
     wiki = wiki_client(client, settings)
-    models = ModelClient(settings, state, FakeLLM(verdict).http)
+    # Holds the first sweep inside its model call, so the busy check is seen while it runs.
+    entered, gate = threading.Event(), threading.Event()
+
+    def respond(task: str, data: dict[str, Any]) -> dict[str, Any]:
+        entered.set()
+        assert gate.wait(15)
+        return verdict(task, data)
+
+    fake = FakeLLM(respond, check_schema=True)
+    models = ModelClient(settings, state, fake.http)
     runner = JobRunner(state, wiki, models, Chat(wiki, models, state))
     scheduler = Scheduler(runner)
     moment = datetime(2026, 10, 6, 2, tzinfo=UTC)
     scheduler.started = moment - timedelta(hours=1)
-    started: list[str] = []
-    monkeypatch.setattr(runner, "start", started.append)
+
+    def payload(job_id: str) -> dict[str, Any]:
+        result: dict[str, Any] = json.loads(
+            state.rows("SELECT payload FROM jobs WHERE id=?", (job_id,))[0]["payload"]
+        )
+        return result
+
+    def finished(job_id: str) -> str:
+        deadline = time.monotonic() + 30
+        status = ""
+        while time.monotonic() < deadline:
+            status = state.rows("SELECT status FROM jobs WHERE id=?", (job_id,))[0]["status"]
+            if status in ("done", "failed", "paused"):
+                break
+            time.sleep(0.02)
+        return status
+
+    def window(day: datetime) -> datetime:
+        # The first hour of the default 01:00-06:00 window, timestamps compared in UTC.
+        return day.replace(hour=2, minute=0, second=0, microsecond=0)
+
     try:
         assert in_window(moment, ["23:00-04:00"])
         assert scheduler.tick(moment.replace(hour=12)) is None
         scheduler.started = moment
         assert scheduler.tick(moment) is None
         scheduler.started -= timedelta(hours=1)
-        job = scheduler.tick(moment)
-        assert job and started == [job]
-        assert state.rows("SELECT payload FROM jobs WHERE id=?", (job,))[0][
-            "payload"
-        ] == json.dumps({"scope": "full", "scheduled": True})
-        assert scheduler.tick(moment) is None
-        state.status(job, "done")
-        # Simulate a successful full sweep and a subsequent idle interval.
-        state.checkpoint("heal", "last_full", moment.isoformat())
-        state.checkpoint(
-            "heal",
-            "hashes",
-            {
-                p["id"]: p["version"]
-                for p in wiki.all("/rules", lifecycle="candidate,active,deprecated")
-            },
+        first = scheduler.tick(moment)
+        assert first is not None and payload(first) == {"scope": "full", "scheduled": True}
+        assert entered.wait(10)
+        # No last_full yet and the agent is idle, so only the running sweep holds it back.
+        assert scheduler.tick(window(datetime.now(UTC) + timedelta(days=1))) is None
+        gate.set()
+        assert finished(first) == "done"
+        report = state.restore(first, "report")
+        assert report["checked_pairs"] == 1 and report["budget_exhausted"] is False
+        rules = {
+            p["id"]: p["version"]
+            for p in wiki.all("/rules", lifecycle="candidate,active,deprecated")
+        }
+        assert sorted(rules) == ["rule-heal-00", "rule-heal-01"]
+        assert state.restore("heal", "hashes") == rules
+        last_full = state.restore("heal", "last_full")
+        swept = datetime.fromisoformat(last_full)
+        assert (
+            datetime.fromisoformat(state.rows("SELECT created_at FROM jobs")[0]["created_at"])
+            <= swept
         )
-        with state.connect() as db:
-            db.execute("UPDATE jobs SET updated_at=?", ((moment - timedelta(hours=1)).isoformat(),))
-        assert scheduler.tick(moment) is None
-        state.checkpoint("heal", "hashes", {})
-        assert scheduler.tick(moment)
+        assert swept <= datetime.now(UTC)
+        # A day later nothing changed and the sweep is fresh: no job.
+        fresh = window(swept + timedelta(days=1))
+        assert scheduler.tick(fresh) is None
+        fs = SafeFS(config.wiki_root)
+        rule = "wiki/rules/heal-00.md"
+        fs.write(rule, fs.read(rule) + "\nУточнение для повторной проверки.\n")
+        GitRepo(config.wiki_root).commit("Change one rule", "fixtures")
+        client.app.state.runtime.reindex()
+        changed = scheduler.tick(fresh)
+        assert changed is not None and payload(changed) == {"scope": "changed", "scheduled": True}
+        assert finished(changed) == "done"
+        assert state.restore("heal", "last_full") == last_full
+        assert state.restore("heal", "hashes") == {
+            p["id"]: p["version"]
+            for p in wiki.all("/rules", lifecycle="candidate,active,deprecated")
+        }
+        assert scheduler.tick(fresh) is None
+        # Eight days after the sweep, more than full_sweep_days=7: a full sweep with no changes.
+        stale = window(swept + timedelta(days=8))
+        full = scheduler.tick(stale)
+        assert full is not None and payload(full) == {"scope": "full", "scheduled": True}
+        assert finished(full) == "done"
+        assert datetime.fromisoformat(state.restore("heal", "last_full")) > swept
     finally:
+        gate.set()
         runner.close()
