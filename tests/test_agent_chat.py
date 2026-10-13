@@ -111,7 +111,14 @@ def test_chat_plan_reply_accept_revert(
             "pat-fastapi-sync-endpoint",
         }
         assert len(plan["questions"]) == 1 and plan["questions"][0]["id"].startswith("conflict-")
-        assert plan["assumptions"] and plan["impact"]["pages"]
+        # Both claims take the profile scopes, level should and both examples, so
+        # their identical assumptions collapse into one list in the planner.
+        assert plan["assumptions"] == [
+            "Области: lang:python, framework:fastapi, app:service",
+            "Уровень: should",
+            "Примеры предложены моделью, проверьте.",
+        ]
+        assert plan["impact"]["pages"]
         assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "draft"
         assert client.get(f"/api/v1/proposals/{pid}/validate").json()["errors"] == []
         reply = event(chat.post(f"/chat/sessions/{sid}/messages", json={"text": "заменить"}))[
@@ -481,6 +488,12 @@ def test_must_owner_is_named_at_acceptance_not_asked_in_chat(
     # An open question keeps «Принять» disabled, and no chat reply is guaranteed to close it.
     assert plan["questions"] == []
     assert "Владельца обязательного правила человек указывает при принятии." in plan["assumptions"]
+    pages = wiki.request("GET", "/proposals/" + plan["proposal"])["pages"]
+    body = next(p["body_md"] for p in pages if p["id"] == "rule-async-only")
+    assert (
+        "## Примеры\n\nПримеры предложены моделью, проверьте.\n\n"
+        "Так:\n\nawait client.get(url)\n\nНе так:\n\nrequests.get(url)"
+    ) in body
     promote = plan["accept_body"]["promote"]
     assert promote == [
         {"id": "rule-async-only", "level": "must", "priority": 3, "applies_to": ["lang:python"]}
@@ -495,3 +508,46 @@ def test_must_owner_is_named_at_acceptance_not_asked_in_chat(
     page = wiki.request("GET", "/pages/rule-async-only")
     assert page["lifecycle"] == "active" and page["level"] == "must"
     assert page["owner"] == "team-python" and page["verified_by"] == "alice"
+
+
+@pytest.mark.parametrize(
+    ("good", "present", "absent"),
+    [
+        ("", ["Примеров нет"], ["Так:", "Не так:"]),
+        ("await client.get(url)", ["Так:\n\nawait client.get(url)"], ["Не так:", "Примеров нет"]),
+    ],
+    ids=["none", "only-good"],
+)
+def test_rule_without_examples_says_so_instead_of_empty_blocks(
+    client: TestClient,
+    config: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    good: str,
+    present: list[str],
+    absent: list[str],
+) -> None:
+    from wikiagent.planner.pipeline import Planner
+
+    seed_chat(client, config)
+    agent, _ = tokens(client)
+    monkeypatch.setenv("WIKIAGENT_TOKEN", agent)
+    settings = agent_config(tmp_path / "agent")
+    wiki = wiki_client(client, settings)
+
+    def respond(task: str, data: dict[str, Any]) -> dict[str, Any]:
+        if task == "extract_claims":
+            return {"claims": [claim(good_example=good, bad_example="")]}
+        return {"relations": [{"relation": "new", "confidence": 1, "reason": "Нет совпадений."}]}
+
+    models = ModelClient(settings, AgentState(settings.state_dir), FakeLLM(respond).http)
+    text = "Пиши только асинхронный код Python"
+    plan = Planner(wiki, models).run(
+        text, {"id": "examples-test", "owner": "alice", "plan": None}, text
+    )[0]
+    assert "Примеры неполные: добавьте недостающие до принятия." in plan["assumptions"]
+    assert "Примеры предложены моделью, проверьте." not in plan["assumptions"]
+    pages = wiki.request("GET", "/proposals/" + plan["proposal"])["pages"]
+    body = next(p["body_md"] for p in pages if p["id"] == "rule-async-only")
+    assert all(fragment in body for fragment in present), body
+    assert not any(fragment in body for fragment in absent), body

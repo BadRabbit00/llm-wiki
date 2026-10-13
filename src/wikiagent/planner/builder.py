@@ -23,6 +23,15 @@ class Repairs(StrictModel):
     pages: list[Repair] = Field(max_length=10)
 
 
+def examples_md(good: str, bad: str) -> str:
+    """Empty «Так/Не так» blocks hid missing examples from review, so only real ones are shown."""
+    good, bad = good.strip(), bad.strip()
+    if not good and not bad:
+        return "Примеров нет: модель их не предложила. Добавьте до принятия."
+    blocks = ([f"Так:\n\n{good}"] if good else []) + ([f"Не так:\n\n{bad}"] if bad else [])
+    return "\n\n".join(["Примеры предложены моделью, проверьте.", *blocks])
+
+
 class Builder:
     def __init__(self, client: WikiClient, models: ModelClient) -> None:
         self.client, self.models = client, models
@@ -97,7 +106,10 @@ class Builder:
             "sources": [source],
             "relations": item["relations"],
         }
-        body = f"## Правило\n\n{claim.thesis}\n\n## Обоснование\n\n{claim.rationale}\n\nРешение: [@{source}].\n\n## Примеры\n\nПримеры предложены моделью, проверьте.\n\nТак:\n\n{claim.good_example}\n\nНе так:\n\n{claim.bad_example}"
+        body = (
+            f"## Правило\n\n{claim.thesis}\n\n## Обоснование\n\n{claim.rationale}\n\nРешение: [@{source}].\n\n## Примеры\n\n"
+            + examples_md(claim.good_example, claim.bad_example)
+        )
         self.put(pid, item["target"], metadata, body)
         for old in item["deprecate"]:
             page = self.client.request("GET", "/pages/" + old["id"])
