@@ -57,8 +57,7 @@
         } // e.pkgs.lib.optionalAttrs e.pkgs.stdenv.hostPlatform.isLinux {
           deployment = import ./deploy/package.nix {
             pkgs = e.pkgs;
-            app = self.packages.${system}.default;
-            ui = self.packages.${system}.ui;
+            inherit (self.packages.${system}.default) version;
           };
           image = import ./deploy/image.nix {
             pkgs = e.pkgs;
@@ -89,6 +88,11 @@
         default = self.packages.${system}.default;
       } // nixpkgs.lib.optionalAttrs nixpkgs.legacyPackages.${system}.stdenv.hostPlatform.isLinux {
         deployment = self.packages.${system}.deployment;
+        # A NixOS VM with podman installs the bundle and runs the image through the units.
+        deployment-vm = import ./deploy/vm-test.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+          inherit (self.packages.${system}) deployment image;
+        };
       });
       devShells = eachSystem (system:
         let e = env system; in {

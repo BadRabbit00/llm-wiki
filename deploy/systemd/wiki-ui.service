@@ -1,26 +1,25 @@
 [Unit]
 Description=Wiki web workspace
 Wants=wikisvc.service wikiagent.service
-After=network.target wikisvc.service
-RequiresMountsFor=/nix/store /opt/llm-wiki
+After=network-online.target wikisvc.service
+RequiresMountsFor=/nix/store /etc/llm-wiki /opt/llm-wiki
 StartLimitIntervalSec=0
 
 [Service]
-Type=exec
-User=llm-ui
-Group=llm-ui
-EnvironmentFile=/etc/llm-wiki/ui.env
-ExecStart=/opt/llm-wiki/current/bin/wiki-ui
+# Container confinement is in llm-wiki-run.
+Type=notify
+NotifyAccess=all
+Delegate=yes
+KillMode=mixed
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Environment=LLM_WIKI_CIDFILE=%t/%n.ctr-id
+ExecStart=/opt/llm-wiki/current/bin/llm-wiki-run daemon wiki-ui
+ExecStop=/usr/bin/podman stop --ignore --time 15 --cidfile %t/%n.ctr-id
+ExecStopPost=/usr/bin/podman rm --force --ignore --cidfile %t/%n.ctr-id
 Restart=on-failure
 RestartSec=5
+TimeoutStartSec=120
 TimeoutStopSec=20
-UMask=0077
-NoNewPrivileges=true
-PrivateTmp=true
-PrivateDevices=true
-ProtectSystem=strict
-ProtectHome=true
-RestrictSUIDSGID=true
 
 [Install]
 WantedBy=multi-user.target
