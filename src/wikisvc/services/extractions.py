@@ -19,6 +19,7 @@ from wikisvc.domain.markdown import citations
 from wikisvc.domain.models import LintIssue, Page, Principal
 from wikisvc.domain.validate import issue
 from wikisvc.services.auth import require_role
+from wikisvc.services.extract_worker import worker_env
 from wikisvc.storage.safefs import SafeFS
 from wikisvc.storage.state_db import now
 
@@ -209,8 +210,13 @@ class Extractions:
                             stderr=subprocess.DEVNULL,
                             stdin=subprocess.DEVNULL,
                             cwd=temporary,
+                            env=worker_env(),
                             timeout=min(remaining, self.rt.settings.extract_timeout_seconds),
                             check=False,
+                        )
+                    if completed.returncode == 4:
+                        raise WikiError(
+                            "E_TEXT_LIMIT", "Превышен лимит памяти при извлечении текста."
                         )
                     if completed.returncode != 0:
                         raise WikiError(
