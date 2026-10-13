@@ -90,6 +90,22 @@ def harness(
     )
 
 
+# Small enough that a 40 KB project file cannot fit, large enough for the seeded pairs.
+SMALL_CONTEXT = 4096
+
+
+def oversized() -> dict[str, str]:
+    line = "Сервис заказов разворачивается в контейнере и пишет журнал в stdout.\n"
+    return {"path": "docs/stack/deployment.md", "text": line * 600}
+
+
+def audit(h: Harness, request: dict[str, object]) -> tuple[str, str, dict[str, object]]:
+    job = h.state.job("docs_audit", h.audit.client.whoami(h.human), request)
+    h.audit.run(job, request)
+    status = h.state.rows("SELECT status FROM jobs WHERE id=?", (job,))[0]["status"]
+    return job, str(status), dict(h.state.restore(job, "report"))
+
+
 def new_job(h: Harness) -> str:
     return h.state.job("docs_audit", h.audit.client.whoami(h.human), payload())
 
@@ -440,13 +456,19 @@ def test_scope_drift_transport_failure_and_stale_snapshot(
     with pytest.raises(WikiError, match="Политики изменились"):
         h.audit.run(new_job(h), payload())
     monkeypatch.setattr(h.audit.client, "request", original)
-
-    def unavailable(*args: object, **kwargs: object) -> AuditVerdict:
-        raise WikiError("E_MODEL_CONTEXT", "Context unavailable")
-
-    monkeypatch.setattr(h.audit.models, "structured", unavailable)
-    with pytest.raises(WikiError, match="Context unavailable"):
-        h.audit.run(new_job(h), payload())
+    # The only project file outgrows the model's context: refused before any request, it
+    # is reported for each policy instead of failing the audit or being kept as checked.
+    h.config.models["planner"].context = SMALL_CONTEXT
+    calls = len(h.fake.calls)
+    request = payload()
+    request["files"] = [{**oversized(), "path": "docs/stack/languages.md"}]
+    job, status, report = audit(h, request)
+    assert status == "awaiting_review" and not report["budget_exhausted"]
+    assert report["discarded"] == ["E_MODEL_CONTEXT"] * 2
+    assert report["checked_pairs"] == 0 and report["model_calls"] == 0
+    assert len(h.fake.calls) == calls and h.audit.calls() == calls
+    assert h.state.rows("SELECT * FROM pair_checks") == []
+    assert h.state.restore(job, "pending") is None
 
 
 def test_crash_between_post_and_checkpoint(
@@ -507,3 +529,35 @@ def test_unavailable_model_fails_the_audit_without_caching(harness: Harness) -> 
     # Both policies are audited on resume, as in a clean run of this payload.
     assert len(h.fake.calls) == h.config.limits.retries + 2
     assert len(h.audit.client.all("/findings", kind="docs-audit")) == 2
+
+
+def test_file_over_the_model_context_is_reported_on_every_run_not_cached(
+    harness: Harness,
+) -> None:
+    """Overflow is not a verdict: no "none" is cached, the next run tries and reports again."""
+    h = harness
+    h.config.models["planner"].context = SMALL_CONTEXT
+    request = payload()
+    request["files"] = [*request["files"], oversized()]
+    job, status, report = audit(h, request)
+    assert status == "awaiting_review" and not report["budget_exhausted"]
+    assert report["discarded"] == ["E_MODEL_CONTEXT"] * 2
+    # The file that fits is judged by the model for both policies, as without its neighbour.
+    assert report["checked_pairs"] == 2 and report["model_calls"] == 2
+    assert [d["untrusted_external"]["path"] for _, d in h.fake.calls] == [
+        "docs/stack/languages.md"
+    ] * 2
+    assert len(report["findings"]) == 2
+    assert len(h.audit.client.all("/findings", kind="docs-audit")) == 2
+    checked = h.state.rows("SELECT a_id, b_id, verdict FROM pair_checks ORDER BY a_id")
+    assert [(c["a_id"], c["b_id"]) for c in checked] == [
+        ("docs_audit:rule-http-requests-sync", "orders/docs/stack/languages.md"),
+        ("docs_audit:rule-python-type-hints", "orders/docs/stack/languages.md"),
+    ]
+    assert {json.loads(c["verdict"])["relation"] for c in checked} == {"violation"}
+    assert h.state.restore(job, "pending") is None
+    job, status, report = audit(h, request)
+    assert status == "awaiting_review" and not report["budget_exhausted"]
+    assert report["discarded"] == ["E_MODEL_CONTEXT"] * 2
+    assert report["checked_pairs"] == 0 and report["model_calls"] == 0
+    assert len(h.fake.calls) == 2 and len(h.state.rows("SELECT * FROM pair_checks")) == 2

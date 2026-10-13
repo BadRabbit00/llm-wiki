@@ -27,17 +27,29 @@ def library(client: TestClient, name: str, data: bytes) -> dict[str, Any]:
     return dict(response.json())
 
 
-def extract(client: TestClient, path: str) -> dict[str, Any]:
-    response = client.post("/api/v1/raw/" + path + "/extract")
-    assert response.status_code == 202, response.text
-    deadline = time.monotonic() + 60
+def finished(client: TestClient, path: str) -> dict[str, Any]:
+    # The job bounds itself: past EXTRACT_JOB_TIMEOUT it stops between batches with
+    # E_EXTRACT_TIMEOUT, and a running batch is killed after EXTRACT_TIMEOUT_SECONDS. Waiting
+    # on that bound, not on a fixed minute, keeps a slow run (coverage tracing every worker)
+    # from failing a job that is still within its limits; a stuck job still fails here.
+    settings = client.app.state.runtime.settings
+    deadline = (
+        time.monotonic() + settings.extract_job_timeout + settings.extract_timeout_seconds + 30
+    )
     while time.monotonic() < deadline:
         status = client.app.state.runtime.extractions.status(path)
         if status["status"] in ("done", "failed"):
-            assert status["status"] == "done", status
             return dict(status)
         time.sleep(0.02)
-    raise AssertionError("Extraction did not finish")
+    raise AssertionError("Extraction outlived its own job timeout")
+
+
+def extract(client: TestClient, path: str) -> dict[str, Any]:
+    response = client.post("/api/v1/raw/" + path + "/extract")
+    assert response.status_code == 202, response.text
+    status = finished(client, path)
+    assert status["status"] == "done", status
+    return status
 
 
 @pytest.mark.parametrize("extension", ["pdf", "epub"])
@@ -52,10 +64,17 @@ def test_library_extract_outline_text_citations(
     path = uploaded["path"]
     assert uploaded["storage"] == "local" and not (config.wiki_root / path).exists()
     assert (config.state_dir / path).is_file()
-    assert library(client, "other." + extension, data)["duplicate"]
+    duplicate = library(client, "other." + extension, data)
+    assert (duplicate["duplicate"], duplicate["path"], duplicate["sha256"]) == (
+        True,
+        path,
+        uploaded["sha256"],
+    )
     assert repo.head() == head
     repo.ensure_main()
-    assert client.get("/api/v1/raw/" + path + "/text", params={"chapter": 2}).status_code == 409
+    unextracted = client.get("/api/v1/raw/" + path + "/text", params={"chapter": 2})
+    assert unextracted.status_code == 409
+    assert unextracted.json()["error"]["code"] == "E_EXTRACT_PENDING"
     result = extract(client, path)
     assert client.post("/api/v1/raw/" + path + "/extract").json()["sha256"] == result["sha256"]
     outline = client.get("/api/v1/raw/" + path + "/outline").json()
@@ -151,16 +170,9 @@ def test_450_pages_and_scan(client: TestClient, config: Settings) -> None:
     output = io.BytesIO()
     writer.write(output)
     scan = library(client, "scan.pdf", output.getvalue())["path"]
-    client.post("/api/v1/raw/" + scan + "/extract")
-    deadline = time.monotonic() + 10
-    while time.monotonic() < deadline:
-        status = client.app.state.runtime.extractions.status(scan)
-        if status["status"] == "failed":
-            assert status["error"] == "E_NO_TEXT_LAYER"
-            break
-        time.sleep(0.02)
-    else:
-        raise AssertionError("Scan should fail")
+    assert client.post("/api/v1/raw/" + scan + "/extract").status_code == 202
+    status = finished(client, scan)
+    assert (status["status"], status["error"]) == ("failed", "E_NO_TEXT_LAYER")
 
 
 def test_text_cleanup_and_quote_normalization() -> None:

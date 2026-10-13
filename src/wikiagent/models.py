@@ -144,11 +144,20 @@ class ModelClient:
                     validate(parsed)
                 return parsed
             except (ValidationError, ValueError, WikiError) as exc:
-                if isinstance(exc, WikiError) and exc.code == "E_MODEL_UNAVAILABLE":
-                    unavailable = exc
-                else:
-                    answered = True
+                # An oversized input is refused before any request: the model saw nothing, so
+                # there is no answer to repair, and every retry would be refused alike.
+                # Reported as E_MODEL_OUTPUT it would be cached by callers as a verdict.
+                # Once the model has answered, the overflow comes from our repair message: the
+                # bad answer stands, so it ends as E_MODEL_OUTPUT like any unrepaired answer.
+                if isinstance(exc, WikiError) and exc.code == "E_MODEL_CONTEXT" and not answered:
+                    raise
                 error = str(exc)
+                if isinstance(exc, WikiError) and exc.code == "E_MODEL_UNAVAILABLE":
+                    # Nothing came back, so there is nothing to correct: the retry resends
+                    # the same messages rather than a repair note about an outage.
+                    unavailable = exc
+                    continue
+                answered = True
                 messages.append(
                     {
                         "role": "user",

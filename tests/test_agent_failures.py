@@ -7,7 +7,9 @@ the response_format grammar the agent sent, so it cannot take a shape llama.cpp 
 forbid. wikisvc, its git wiki and every agent class run for real.
 """
 
+import io
 import json
+import zipfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -276,12 +278,14 @@ def book(
     monkeypatch: pytest.MonkeyPatch,
     respond: Respond,
     observe: Callable[[httpx.Request], None] | None = None,
+    data: bytes | None = None,
 ) -> Book:
     seed_chat(client, config)
     ag = agent(client, tmp_path, monkeypatch, respond, observe)
     # Raw uploads need restricted clearance; the default test token is only internal.
     client.headers["Authorization"] = "Bearer " + ag.token
-    data = (Path(__file__).parent / "fixtures/books/handbook.epub").read_bytes()
+    if data is None:
+        data = (Path(__file__).parent / "fixtures/books/handbook.epub").read_bytes()
     raw = library(client, "handbook.epub", data)
     extract(client, raw["path"])
     payload = {"raw_path": raw["path"], "title": "Handbook"}
@@ -1138,3 +1142,164 @@ def test_book_chapter_waits_for_an_unavailable_model(
     retries = job.agent.settings.limits.retries
     chapters = [d["chapter"]["n"] for t, d in job.agent.fake.calls if t == "book_chapter"]
     assert chapters == [1, *[2] * retries, 2, 3]
+
+
+# An input the model's context cannot hold is refused before any request is sent. The
+# model never judged it, so it is neither an answer to repair nor a verdict to keep.
+
+SMALL_CONTEXT = 4096
+
+
+def test_structured_refuses_input_over_the_context_without_asking_the_model(
+    tmp_path: Path,
+) -> None:
+    settings = agent_config(tmp_path)
+    settings.models["chat"].context = SMALL_CONTEXT
+    state = AgentState(tmp_path)
+    answer = {"intent": "other", "clarification": "Какое правило нужно оформить?"}
+    fake = FakeLLM(lambda task, data: answer, check_schema=True)
+    model = ModelClient(settings, state, fake.http)
+    with pytest.raises(WikiError) as error:
+        model.structured("chat", "route", Intent, {"message": "Привет, вики. " * 1000})
+    assert error.value.code == "E_MODEL_CONTEXT" and error.value.status == 400
+    assert error.value.message == "Контекст модели превышен; уменьшите пакет данных."
+    assert fake.calls == [] and model.calls == 0
+    assert state.rows("SELECT COUNT(*) n FROM model_calls")[0]["n"] == 0
+    # The same client still asks the model about an input that fits.
+    assert model.structured("chat", "route", Intent, {"message": "Привет"}) == Intent(**answer)
+    assert len(fake.calls) == 1 and model.calls == 1
+
+
+def test_structured_bad_answer_whose_repair_outgrows_the_context_is_model_output(
+    tmp_path: Path,
+) -> None:
+    """The model did answer; only the repair note after it does not fit. That is its output."""
+    settings = agent_config(tmp_path)
+    settings.models["chat"].context = SMALL_CONTEXT
+    state = AgentState(tmp_path)
+    # What completion() admits, in characters of the serialized messages.
+    limit = int((SMALL_CONTEXT - SMALL_CONTEXT // 4) * 2.5)
+    # The prompt around the message, measured on the request a model actually receives.
+    answer = {"intent": "other", "clarification": None}
+    probe = FakeLLM(lambda task, data: answer, check_schema=True)
+    ModelClient(settings, state, probe.http).structured("chat", "route", Intent, {"message": ""})
+    base = len(json.dumps(probe.requests[0]["messages"], ensure_ascii=False))
+    # The input fits with 20 characters to spare; the note on a bad answer is far longer.
+    message = "а" * (limit - base - 20)
+    # Truncated JSON is what a model cut off by max_tokens actually sends.
+    fake = FakeLLM(lambda task, data: Reply(content='{"intent": "intake"'), check_schema=True)
+    model = ModelClient(settings, state, fake.http)
+    with pytest.raises(WikiError) as error:
+        model.structured("chat", "route", Intent, {"message": message})
+    assert error.value.code == "E_MODEL_OUTPUT" and error.value.status == 422
+    assert error.value.details == [{"error": "Контекст модели превышен; уменьшите пакет данных."}]
+    assert fake.calls == [("route", {"message": message})] and model.calls == 1
+
+
+def test_structured_retry_after_an_outage_resends_the_same_messages(tmp_path: Path) -> None:
+    """A 503 carries no answer to correct, so no repair note joins the retried request."""
+    answer = {"intent": "other", "clarification": "Какое правило нужно оформить?"}
+    replies: list[Data | Reply] = [DOWN, answer]
+    fake = FakeLLM(lambda task, data: replies.pop(0), check_schema=True)
+    model = ModelClient(agent_config(tmp_path), AgentState(tmp_path), fake.http)
+    assert model.structured("chat", "route", Intent, {"message": "Привет"}) == Intent(**answer)
+    assert replies == [] and model.calls == 2
+    first, second = fake.requests
+    assert len(first["messages"]) == 2 and second["messages"] == first["messages"]
+
+
+def grow_rule(client: TestClient, config: Settings, page_id: str, chars: int) -> None:
+    """A person writes a rule far longer than the planner's context holds."""
+    fs = SafeFS(config.wiki_root)
+    path = "wiki/rules/" + page_id.removeprefix("rule-") + ".md"
+    line = "Записывай в журнал идентификатор запроса и итог операции.\n"
+    fs.write(path, fs.read(path) + "\n" + line * (chars // len(line)))
+    GitRepo(config.wiki_root).commit("A very long rule", "alice")
+    client.app.state.runtime.reindex()
+
+
+def test_heal_pair_over_the_context_is_reported_not_cached(
+    client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seed_heal(client, config, 4)
+    grow_rule(client, config, "rule-heal-03", 40000)
+
+    def respond(task: str, data: Data) -> Data:
+        assert task == "heal_pair", task
+        assert "rule-heal-03" not in {p["id"] for p in data["pages"]}
+        return {
+            "relation": "none",
+            "confidence": 0.99,
+            "explanation": "Нет проблемы.",
+            "evidence": [],
+            "suggested_fix": [],
+        }
+
+    ag = agent(client, tmp_path, monkeypatch, respond)
+    ag.settings.models["planner"].context = SMALL_CONTEXT
+    instance = healer(ag)
+
+    def sweep() -> tuple[str, Data]:
+        job = ag.state.job("heal", ag.wiki.check_writer(), {"scope": "full"})
+        instance.run(job, {"scope": "full"})
+        status = ag.state.rows("SELECT status FROM jobs WHERE id=?", (job,))[0]["status"]
+        return str(status), dict(ag.state.restore(job, "report"))
+
+    refused = [{"pair": ["rule-heal-02", "rule-heal-03"], "code": "E_MODEL_CONTEXT"}]
+    status, report = sweep()
+    # Not a pause: the same pages would be refused again, so there is nothing to wait for.
+    assert status == "done" and not report["retry_needed"] and not report["budget_exhausted"]
+    assert report["discarded"] == refused
+    assert report["checked_pairs"] == 1 and report["model_calls"] == 1
+    # The pair beside it is judged by the model; the refused one is not kept as checked.
+    assert ag.fake.count("heal_pair") == 1
+    assert [(c["a_id"], c["b_id"]) for c in pair_checks(ag)] == [("rule-heal-00", "rule-heal-01")]
+    assert sorted(ag.state.restore("heal", "hashes")) == [f"rule-heal-{n:02}" for n in range(4)]
+    status, report = sweep()
+    # The next sweep tries the pair again and says so again; the checked pair stays cached.
+    assert status == "done" and not report["retry_needed"]
+    assert report["discarded"] == refused
+    assert report["checked_pairs"] == 0 and report["model_calls"] == 0
+    assert ag.fake.count("heal_pair") == 1 and len(pair_checks(ag)) == 1
+
+
+def long_chapter_book() -> bytes:
+    """The handbook with chapter 2 grown past what the planner's context holds."""
+    source = Path(__file__).parent / "fixtures/books/handbook.epub"
+    stream = io.BytesIO()
+    with (
+        zipfile.ZipFile(source) as original,
+        zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive,
+    ):
+        for item in original.infolist():
+            data = original.read(item.filename)
+            if item.filename == "chapter2.html":
+                detail = "<p>Original chapter 2 explanation goes on in more detail.</p>" * 280
+                data = data.replace(b"</body>", detail.encode() + b"</body>")
+            archive.writestr(item, data)
+    return stream.getvalue()
+
+
+def test_book_chapter_over_the_context_is_reported_and_skipped(
+    client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def respond(task: str, data: Data) -> Data:
+        if task == "book_chapter":
+            return chapter(candidate(data["chapter"]["n"]))
+        if task == "classify":
+            return NEW
+        assert task == "book_review", task
+        return EMPTY_REVIEW
+
+    job = book(client, config, tmp_path, monkeypatch, respond, data=long_chapter_book())
+    # Room for chapters 1 and 3 and their classification, not for the grown chapter 2.
+    job.agent.settings.models["planner"].context = 2 * SMALL_CONTEXT
+    job.run()
+    report = job.agent.state.restore(job.job, "report")
+    chapters = [d["chapter"]["n"] for t, d in job.agent.fake.calls if t == "book_chapter"]
+    # Chapter 2 never reached the model: it is reported by its own code, not as a bad answer.
+    assert report["errors"] == [{"chapter": 2, "code": "E_MODEL_CONTEXT"}]
+    assert chapters == [1, 3]
+    assert set(job.rules()) == {QUOTES[0], QUOTES[2]} and report["candidates"] == 2
+    assert report["chapters_done"] == report["chapters_total"] == 3
+    assert job.agent.wiki.request("GET", "/proposals/" + job.pid())["status"] == "submitted"

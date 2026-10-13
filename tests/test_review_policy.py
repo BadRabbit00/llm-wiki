@@ -116,9 +116,21 @@ def test_accept_transaction_rollback(
         else:
             response = client.post(f"/api/v1/proposals/{pid}/accept", json={"promote": [values]})
             assert response.status_code == 422, response.text
+            assert (
+                response.json()["error"]["code"]
+                == {
+                    "validation": "E_SCOPE_UNKNOWN",
+                    "target": "E_RULE_NOT_IN_PROPOSAL",
+                    "owner": "E_MUST_NEEDS_OWNER",
+                }[failure]
+            )
     assert repo.head() == head
     repo.ensure_main()
     assert not repo.git_path("MERGE_HEAD").exists()
+    assert not repo.git_path("wikisvc-transaction.json").exists()
+    assert repo.run("status", "--porcelain") == ""
+    assert not (config.wiki_root / "wiki/rules/logging.md").exists()
+    assert client.get("/api/v1/rules/rule-logging").status_code == 404
     assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "draft"
     assert (
         client.post(
@@ -306,14 +318,17 @@ def test_findings_usage_and_inbox(client: TestClient, config: Settings) -> None:
     assert client.post("/api/v1/findings", json=data).json()["status"] == "dismissed"
     assert client.get("/api/v1/findings/stats").json()["kinds"]["duplicate"]["recommendation"]
     assert client.post(f"/api/v1/findings/{finding['id']}/reopen").json()["status"] == "open"
-    denied = client.post(
+    restricted = client.post(
         "/api/v1/findings", json={**data, "pages": ["sys-restricted"], "evidence": []}
     )
-    assert denied.status_code == 200
+    assert restricted.status_code == 200
+    assert restricted.json()["pages"] == ["sys-restricted"]
     client.headers["Authorization"] = "Bearer " + Auth(client.app.state.runtime.state).create(
         "reader-low", "reader", "internal"
     )
-    assert len(client.get("/api/v1/findings").json()["items"]) == 1
+    assert [item["id"] for item in client.get("/api/v1/findings").json()["items"]] == [
+        finding["id"]
+    ]
 
 
 def test_cors_default_off_and_explicit(config: Settings) -> None:
@@ -394,6 +409,8 @@ def test_revert_process_death_recovery(
         ).status_code
         == 200
     )
+    repo = GitRepo(config.wiki_root)
+    accepted_head = repo.head()
     script = """
 import os
 from wikisvc.config import Settings
@@ -424,7 +441,17 @@ rt.proposals.revert(os.environ['PID'],Principal(name='human',role='reviewer',cle
     assert result.returncode == 9
     rt = Runtime(config)
     rt.reindex()
-    assert rt.state.rows("SELECT status FROM proposals WHERE pid=?", (pid,))[0]["status"] == (
-        "reverted" if after_commit else "accepted"
-    )
-    GitRepo(config.wiki_root).ensure_main()
+    row = rt.state.rows("SELECT status,reverted_commit FROM proposals WHERE pid=?", (pid,))[0]
+    main = repo.run("rev-parse", "main")
+    assert not repo.git_path("wikisvc-transaction.json").exists()
+    if after_commit:
+        # The revert commit landed before the crash; recovery must record exactly that commit.
+        assert main != accepted_head
+        assert repo.run("log", "-1", "--format=%s", main) == "Revert proposal " + pid
+        assert (row["status"], row["reverted_commit"]) == ("reverted", main)
+    else:
+        # The crash came before the commit: the journal rolled the worktree back to main.
+        assert main == accepted_head
+        assert (row["status"], row["reverted_commit"]) == ("accepted", None)
+        assert repo.run("status", "--porcelain") == ""
+    repo.ensure_main()

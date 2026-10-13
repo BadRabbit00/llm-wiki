@@ -22,6 +22,22 @@ from wikisvc.domain.markdown import render
 from wikisvc.storage.gitrepo import GitRepo
 from wikisvc.storage.safefs import SafeFS
 
+# The strict json_schema grammar makes the model emit every key; these are what it writes
+# for a candidate with no examples, relations or level of its own.
+CANDIDATE_DEFAULTS = {
+    "level_suggestion": "should",
+    "good_example": "",
+    "bad_example": "",
+    "relations": [],
+}
+NEW_IDEA = {
+    "relation": "new",
+    "target": None,
+    "confidence": 0.9,
+    "quote": "",
+    "reason": "New idea from the book.",
+}
+
 
 def test_book_resume_without_duplicates(
     client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -88,13 +104,14 @@ def test_book_resume_without_duplicates(
             return {
                 "candidates": [
                     {
+                        **CANDIDATE_DEFAULTS,
                         "title": "Chapter " + str(chapter) + " rule",
                         "thesis": quotes[chapter - 1],
                         "category": "architecture",
                         "applies_to_suggestion": ["lang:python"],
                         "aliases": ["правило книги", "book rule"],
                         "rationale": "The provided chapter describes this practice.",
-                        "locator": {"unit": "гл.", "start": chapter},
+                        "locator": {"unit": "гл.", "start": chapter, "end": None},
                         "quote": quotes[chapter - 1],
                         **(examples if chapter == 1 else {}),
                         "relations": [
@@ -120,11 +137,7 @@ def test_book_resume_without_duplicates(
                         }
                     ]
                 }
-            return {
-                "relations": [
-                    {"relation": "new", "confidence": 0.9, "reason": "New idea from the book."}
-                ]
-            }
+            return {"relations": [NEW_IDEA]}
         assert task == "book_review"
         return {
             "merge": [],
@@ -132,7 +145,7 @@ def test_book_resume_without_duplicates(
             "key_ideas": [{"id": c["id"], "text": c["summary"]} for c in data["candidates"]],
         }
 
-    fake = FakeLLM(respond)
+    fake = FakeLLM(respond, check_schema=True)
     models = ModelClient(settings, state, fake.http)
     payload = {"raw_path": raw["path"], "title": "Handbook", "scopes_hint": ["lang:python"]}
     actor = {"name": "alice", "person": "alice", "clearance": "restricted"}
@@ -174,7 +187,14 @@ def test_book_resume_without_duplicates(
         client.get("/api/v1/pages/" + collision.id).json()["summary"]
         == collision.frontmatter.summary
     )
-    assert report["conflicts"] and any(e["code"] == "SKIP_DEPRECATED" for e in report["errors"])
+    # Only chapter 2 contradicts rule-http-requests-sync, by the model and by classify.
+    conflicting = "rule-architecture-use-asynchronous-http-clients-in-async-handlers"
+    assert report["conflicts"] == [conflicting]
+    assert {p["id"]: p["relations"].get("conflicts_with") for p in rules} == {
+        collision.id + "-2": None,
+        conflicting: ["rule-http-requests-sync"],
+    }
+    assert any(e["code"] == "SKIP_DEPRECATED" for e in report["errors"])
     assert client.get(f"/api/v1/proposals/{report['proposal']}/validate").json()["errors"] == []
     assert len([c for c in fake.calls if c[0] == "book_chapter"]) == 3
     assert len(json.dumps(state.restore(job_id, "context"), ensure_ascii=False)) / 2.5 <= 1500
@@ -196,7 +216,8 @@ def test_book_job_api_needs_outline_and_resume(
     state = AgentState(settings.state_dir)
     wiki = wiki_client(client, settings)
     fake = FakeLLM(
-        lambda task, data: {"candidates": [], "state_summary": "Notes.", "open_references": []}
+        lambda task, data: {"candidates": [], "state_summary": "Notes.", "open_references": []},
+        check_schema=True,
     )
     models = ModelClient(settings, state, fake.http)
     with TestClient(create_app(settings, wiki, models)) as api:
@@ -220,6 +241,7 @@ def test_book_job_api_needs_outline_and_resume(
             ).status_code
             == 200
         )
+        assert not fake.calls
         assert api.post("/jobs/" + job_id + "/resume").status_code == 200
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline and api.get("/jobs/" + job_id).json()["status"] not in (
@@ -227,15 +249,21 @@ def test_book_job_api_needs_outline_and_resume(
             "failed",
         ):
             time.sleep(0.02)
-        assert api.get("/jobs/" + job_id).json()["status"] == "awaiting_review"
+        job = api.get("/jobs/" + job_id).json()
+        assert job["status"] == "awaiting_review"
         assert len(api.get("/jobs").json()["items"]) == 1
+        # The resumed job reads the person's outline, not the page-range fallback.
+        assert [(task, data["chapter"]) for task, data in fake.calls] == [
+            ("book_chapter", {"n": 1, "title": "Notes", "page_from": 1, "page_to": 1})
+        ]
+        assert (job["progress"]["chapters_done"], job["progress"]["chapters_total"]) == (1, 1)
 
 
 class RecordingLLM(FakeLLM):
     """Keeps the whole conversation, so the retry feedback sent to the model is visible."""
 
     def __init__(self, respond: Callable[[str, dict[str, Any]], dict[str, Any]]) -> None:
-        super().__init__(respond)
+        super().__init__(respond, check_schema=True)
         self.conversations: list[list[dict[str, Any]]] = []
 
     def handle(self, request: httpx.Request) -> httpx.Response:
@@ -273,11 +301,12 @@ def test_book_bad_chapter_range_is_sent_back_to_model(
         if task == "book_chapter":
             if data["chapter"]["n"] != 2:
                 return {"candidates": [], "state_summary": "Book.", "open_references": []}
-            locator = {"unit": "гл.", "start": 2} | ({} if attempts else {"end": bad_end})
+            locator = {"unit": "гл.", "start": 2, "end": None if attempts else bad_end}
             attempts.append(locator)
             return {
                 "candidates": [
                     {
+                        **CANDIDATE_DEFAULTS,
                         "title": "Async HTTP rule",
                         "thesis": quote,
                         "category": "architecture",
@@ -292,7 +321,7 @@ def test_book_bad_chapter_range_is_sent_back_to_model(
                 "open_references": [],
             }
         if task == "classify":
-            return {"relations": [{"relation": "new", "confidence": 0.9, "reason": "New."}]}
+            return {"relations": [NEW_IDEA]}
         assert task == "book_review"
         return {
             "merge": [],
@@ -307,7 +336,10 @@ def test_book_bad_chapter_range_is_sent_back_to_model(
     job_id = state.job("ingest_book", actor, payload)
     IngestBook(wiki_client(client, settings), models, state).run(job_id, payload)
 
-    assert attempts == [{"unit": "гл.", "start": 2, "end": bad_end}, {"unit": "гл.", "start": 2}]
+    assert attempts == [
+        {"unit": "гл.", "start": 2, "end": bad_end},
+        {"unit": "гл.", "start": 2, "end": None},
+    ]
     retries = [m for m in fake.conversations if "book_chapter" in m[0]["content"] and len(m) > 2]
     assert len(retries) == 1 and "Главы отсутствуют." in retries[0][-1]["content"]
     report = state.restore(job_id, "report")
@@ -343,26 +375,22 @@ def test_book_retries_one_word_quote(
             return {
                 "candidates": [
                     {
+                        **CANDIDATE_DEFAULTS,
                         "title": "Structured logs",
                         "thesis": thesis,
                         "category": "architecture",
                         "applies_to_suggestion": ["lang:python"],
                         "aliases": ["структурные логи", "structured logs"],
                         "rationale": "The provided chapter describes this practice.",
-                        "locator": {"unit": "гл.", "start": 1},
+                        "locator": {"unit": "гл.", "start": 1, "end": None},
                         "quote": next(quotes),
-                        "relations": [],
                     }
                 ],
                 "state_summary": "Book concepts so far.",
                 "open_references": [],
             }
         if task == "classify":
-            return {
-                "relations": [
-                    {"relation": "new", "confidence": 0.9, "reason": "New idea from the book."}
-                ]
-            }
+            return {"relations": [NEW_IDEA]}
         assert task == "book_review"
         return {
             "merge": [],
@@ -374,7 +402,7 @@ def test_book_retries_one_word_quote(
         """Keeps the correction messages the model receives on a retry."""
 
         def __init__(self) -> None:
-            super().__init__(respond)
+            super().__init__(respond, check_schema=True)
             self.feedback: list[tuple[int, list[str]]] = []
 
         def handle(self, request: httpx.Request) -> httpx.Response:
