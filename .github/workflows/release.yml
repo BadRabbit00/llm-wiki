@@ -1,8 +1,10 @@
 name: Release image
 
-# Every merge into main and every v* tag publishes the container image to GHCR.
-# The server pulls it by digest; the attestation proves that digest was built by
-# this workflow from this commit. CI stays read-only; only this job can write.
+# Every merge into main publishes the container image to GHCR as `main`. A version
+# tag on a main commit publishes a release: vX.Y.Z for the release channel,
+# vX.Y.Z-beta.N for beta; llm-wiki-updater offers only those. The server pulls by
+# digest, and the attestation proves the digest was built here from that commit.
+# CI stays read-only; only this job can write.
 on:
   push:
     branches: [main]
@@ -32,6 +34,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # origin/main is needed to prove a version tag is on main.
+          fetch-depth: 0
+      - name: Version tag names a main commit and the code's version
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: scripts/check-release-tag.sh "$TAG"
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
       # Saved on main, this store is the one every branch and pull request can restore;
       # see ci.yml for why the Nix store is cached at all.
