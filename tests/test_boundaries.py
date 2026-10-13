@@ -1,14 +1,16 @@
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pytest
 from conftest import make_page
 from fastapi.testclient import TestClient
 from test_proposals import payload, proposal, reviewer
+from test_rules_domain import rule
 
 from wikisvc.config import Settings
 from wikisvc.domain.errors import WikiError
-from wikisvc.domain.markdown import load_yaml, parse, render
+from wikisvc.domain.markdown import load_yaml, parse, render, sections
 from wikisvc.domain.patch import apply_patch
 from wikisvc.domain.registry import Registry
 from wikisvc.domain.validate import parse_page, validate_page
@@ -45,21 +47,75 @@ def test_patch_all_operations_and_nested_sections() -> None:
 
 
 @pytest.mark.parametrize(
-    "ops",
+    "ops,code",
     [
-        [],
-        [{"op": "unknown"}],
-        [{"op": "set_field", "field": "id", "value": "new"}],
-        [{"op": "replace_section", "heading": "missing", "text": "x"}],
-        [{"op": "add_section", "heading": "Existing", "text": "x", "level": 9}],
-        [{"op": "replace_text", "old": "", "new": "x"}],
-        [{"op": "replace_text"}],
-        [{"op": "append_to_section", "heading": "Existing", "text": None}],
+        ([], "E_PATCH_INVALID"),
+        ([{"op": "unknown"}], "E_PATCH_INVALID"),
+        ([{"op": "set_field", "field": "id", "value": "new"}], "E_PATCH_FIELD"),
+        ([{"op": "replace_section", "heading": "missing", "text": "x"}], "E_PATCH_SECTION"),
+        (
+            [{"op": "add_section", "heading": "Existing", "text": "x", "level": 9}],
+            "E_PATCH_SECTION",
+        ),
+        ([{"op": "replace_text", "old": "", "new": "x"}], "E_PATCH_COUNT"),
+        ([{"op": "replace_text"}], "E_PATCH_INVALID"),
+        ([{"op": "append_to_section", "heading": "Existing", "text": None}], "E_PATCH_INVALID"),
     ],
 )
-def test_patch_failures(ops: list[dict[str, object]]) -> None:
-    with pytest.raises(WikiError):
+def test_patch_failures(ops: list[dict[str, object]], code: str) -> None:
+    with pytest.raises(WikiError) as error:
         apply_patch({}, "## Existing\n\nText\n", ops)
+    assert error.value.code == code
+
+
+PREAMBLE_BODY = "Преамбула страницы.\n\n## Existing\n\nText\n\n### Sub\n\nSub text\n"
+HEADING_IN_TEXT = "Текст раздела не должен содержать заголовки его уровня или выше."
+
+
+@pytest.mark.parametrize(
+    "operation,message",
+    [
+        ({"op": "replace_section", "heading": "", "text": "x"}, "Раздел '' отсутствует"),
+        ({"op": "append_to_section", "heading": "", "text": "x"}, "Раздел '' отсутствует"),
+        ({"op": "replace_section", "heading": "  ", "text": "x"}, "Раздел '  ' отсутствует"),
+        (
+            {"op": "replace_section", "heading": "Existing", "text": "Новое\n\n## Existing\n\nx"},
+            HEADING_IN_TEXT,
+        ),
+        (
+            {"op": "append_to_section", "heading": "Existing", "text": "# Заголовок"},
+            HEADING_IN_TEXT,
+        ),
+        ({"op": "replace_section", "heading": "Sub", "text": "### Ещё"}, HEADING_IN_TEXT),
+        ({"op": "add_section", "heading": "New", "text": "x\n## Другой"}, HEADING_IN_TEXT),
+        ({"op": "add_section", "heading": "New", "level": 3, "text": "  ## X"}, HEADING_IN_TEXT),
+    ],
+)
+def test_patch_section_heading_boundaries(operation: dict[str, object], message: str) -> None:
+    with pytest.raises(WikiError) as error:
+        apply_patch({}, PREAMBLE_BODY, [operation])
+    assert error.value.code == "E_PATCH_SECTION"
+    assert error.value.message.startswith(message)
+
+
+def test_patch_section_allows_lower_headings_and_code() -> None:
+    _, body = apply_patch(
+        {},
+        PREAMBLE_BODY,
+        [
+            {
+                "op": "replace_section",
+                "heading": "Existing",
+                "text": "Новое\n\n### Подраздел\n\n```md\n## В коде\n```",
+            },
+            {"op": "add_section", "heading": "New", "level": 3, "text": "#### Глубже"},
+        ],
+    )
+    assert body == (
+        "Преамбула страницы.\n\n## Existing\n\nНовое\n\n### Подраздел\n\n```md\n## В коде\n```"
+        "\n\n### New\n\n#### Глубже\n\n"
+    )
+    assert [s.heading for s in sections(body)] == ["", "Existing", "Подраздел", "New"]
 
 
 def test_yaml_aliases_and_timestamps(registry: Registry) -> None:
@@ -214,3 +270,109 @@ def test_index_symlink_and_duplicate_id(
     issues = client.get("/api/v1/lint", params={"limit": 100}).json()["issues"]
     assert {"E_ID_DUPLICATE", "E_PATH_UNSAFE"} <= {i["code"] for i in issues}
     assert "PRIVATE_OUTSIDE_CONTENT" not in str(issues)
+
+
+def proposal_body(client: TestClient, pid: str, page_id: str) -> str:
+    pages = client.get(f"/api/v1/proposals/{pid}").json()["pages"]
+    return str(next(page["body_md"] for page in pages if page["id"] == page_id))
+
+
+def test_patch_api_section_edges(client: TestClient) -> None:
+    pid = proposal(client)
+    endpoint = f"/api/v1/proposals/{pid}/pages/term-preamble"
+    content = payload("term-preamble")
+    content["body_md"] = "Преамбула страницы.\n\n## Определение\n\nСтарый текст."
+    assert client.put(endpoint, json=content).status_code == 200
+    original = proposal_body(client, pid, "term-preamble")
+    for ops in (
+        [{"op": "replace_section", "heading": "", "text": "Всё тело"}],
+        [{"op": "append_to_section", "heading": " ", "text": "Всё тело"}],
+        [{"op": "replace_section", "heading": "Определение", "text": "x\n\n## Определение\n\ny"}],
+        [{"op": "add_section", "heading": "Заметки", "text": "# Заголовок"}],
+    ):
+        response = client.patch(endpoint, json={"ops": ops})
+        assert response.status_code == 422, response.text
+        assert response.json()["error"]["code"] == "E_PATCH_SECTION"
+        assert proposal_body(client, pid, "term-preamble") == original
+    allowed = client.patch(
+        endpoint,
+        json={
+            "ops": [
+                {
+                    "op": "replace_section",
+                    "heading": "Определение",
+                    "text": "Новый текст.\n\n### Подраздел\n\nДетали.",
+                }
+            ]
+        },
+    )
+    assert allowed.status_code == 200, allowed.text
+    assert allowed.json()["body_md"] == (
+        "Преамбула страницы.\n\n## Определение\n\nНовый текст.\n\n### Подраздел\n\nДетали.\n"
+    )
+    again = client.patch(
+        endpoint,
+        json={"ops": [{"op": "replace_section", "heading": "Определение", "text": "Итог."}]},
+    )
+    assert again.status_code == 200, again.text
+    assert proposal_body(client, pid, "term-preamble") == (
+        "Преамбула страницы.\n\n## Определение\n\nИтог.\n"
+    )
+
+
+@pytest.mark.parametrize("page_id", ["term", "unknown-page"])
+@pytest.mark.parametrize("method", ["put", "patch", "delete"])
+def test_page_id_requires_type_prefix(client: TestClient, method: str, page_id: str) -> None:
+    pid = proposal(client)
+    endpoint = f"/api/v1/proposals/{pid}/pages/{page_id}"
+    if method == "put":
+        response = client.put(endpoint, json=payload(page_id))
+    elif method == "patch":
+        response = client.patch(
+            endpoint, json={"ops": [{"op": "set_field", "field": "title", "value": "Новое"}]}
+        )
+    else:
+        response = client.delete(endpoint)
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "E_ID_INVALID"
+    assert client.get(f"/api/v1/proposals/{pid}").json()["pages"] == []
+
+
+@pytest.mark.parametrize("limit,status", [(0, 400), (1, 200), (100, 200), (101, 400)])
+def test_paginate_limit_bounds(client: TestClient, limit: int, status: int) -> None:
+    created = [proposal(client, "First page"), proposal(client, "Second page")]
+    response = client.get("/api/v1/proposals", params={"limit": limit})
+    assert response.status_code == status, response.text
+    if status == 400:
+        assert response.json()["error"]["code"] == "E_REQUEST_INVALID"
+        return
+    result = response.json()
+    assert [item["pid"] for item in result["items"]] == created[:limit]
+    assert (result["next_cursor"] is not None) is (limit < len(created))
+
+
+def test_rule_thesis_and_quote_length_bounds(client: TestClient) -> None:
+
+    pid = proposal(client)
+    page = rule(client.app.state.runtime.registry, sources=["src-example-1"])
+
+    def put_rule(summary: str, quote_words: int) -> Any:
+        metadata = page.frontmatter.model_dump(mode="json")
+        metadata["summary"] = summary
+        quote = " ".join(["слово"] * quote_words)
+        body = page.body_md + f'\n\n[@src-example-1 стр. 1 "{quote}"]'
+        return client.put(
+            f"/api/v1/proposals/{pid}/pages/{page.id}",
+            json={"frontmatter": metadata, "body_md": body},
+        )
+
+    exact = "Т" * 160
+    assert put_rule(exact, 30).status_code == 200
+    assert proposal_body(client, pid, page.id).count("слово") == 30
+    long_thesis = put_rule(exact + "Т", 30)
+    assert long_thesis.status_code == 422
+    assert long_thesis.json()["error"]["code"] == "E_SUMMARY_TOO_LONG"
+    long_quote = put_rule(exact, 31)
+    assert long_quote.status_code == 422
+    assert long_quote.json()["error"]["code"] == "E_QUOTE_TOO_LONG"
+    assert proposal_body(client, pid, page.id).count("слово") == 30

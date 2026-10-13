@@ -12,6 +12,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from starlette.concurrency import run_in_threadpool
 
 from wikisvc.domain.errors import WikiError
+from wikisvc.domain.ids import check_page_id
 from wikisvc.domain.models import Principal, Role
 from wikisvc.services.auth import require_role
 from wikisvc.services.runtime import Runtime
@@ -209,7 +210,9 @@ def create_server(runtime: Runtime, profile: str = "full") -> FastMCP:
         base_version: str | None = None,
     ) -> dict[str, Any]:
         """Создай/замени страницу в предложении; для страницы из main укажи base_version из get_page. Даты ставит сервис."""
-        return runtime.proposals.put(pid, id, actor("writer"), frontmatter, body_md, base_version)
+        writer = actor("writer")
+        check_page_id(runtime.registry, id)
+        return runtime.proposals.put(pid, id, writer, frontmatter, body_md, base_version)
 
     @tool
     @checked
@@ -217,7 +220,9 @@ def create_server(runtime: Runtime, profile: str = "full") -> FastMCP:
         pid: str, id: str, ops: list[dict[str, Any]], base_version: str | None = None
     ) -> dict[str, Any]:
         """Атомарные правки полей, тегов, источников, связей и разделов. Ошибка операции отменяет весь PATCH."""
-        return runtime.proposals.patch(pid, id, actor("writer"), ops, base_version)
+        writer = actor("writer")
+        check_page_id(runtime.registry, id)
+        return runtime.proposals.patch(pid, id, writer, ops, base_version)
 
     @tool
     @checked

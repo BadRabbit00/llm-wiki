@@ -402,3 +402,39 @@ def test_stdio_profile_option(
     result = CliRunner().invoke(cli_app, ["mcp", *arguments])
     assert result.exit_code == 0, result.output
     assert profiles == [expected]
+
+
+def test_http_patch_page_operation_limit(mcp_client: TestClient) -> None:
+    created = call(mcp_client, "create_proposal", {"title": "Operation limit"})
+    assert created.structuredContent is not None
+    pid = created.structuredContent["pid"]
+    version = mcp_client.get("/api/v1/pages/term-orphan").json()["version"]
+
+    def patch(count: int) -> CallToolResult:
+        ops = [
+            {"op": "set_field", "field": "title", "value": f"Заголовок {index}"}
+            for index in range(count)
+        ]
+        arguments = {"pid": pid, "id": "term-orphan", "ops": ops, "base_version": version}
+        return call(mcp_client, "patch_page", arguments)
+
+    assert error_code(patch(101)) == "E_PATCH_INVALID"
+    assert mcp_client.get(f"/api/v1/proposals/{pid}").json()["pages"] == []
+    accepted = patch(100)
+    assert not accepted.isError and accepted.structuredContent is not None
+    assert accepted.structuredContent["title"] == "Заголовок 99"
+
+
+@pytest.mark.parametrize("tool", ["put_page", "patch_page"])
+def test_http_page_id_requires_type_prefix(mcp_client: TestClient, tool: str) -> None:
+    created = call(mcp_client, "create_proposal", {"title": "Prefixless page"})
+    assert created.structuredContent is not None
+    arguments: dict[str, object] = {"pid": created.structuredContent["pid"], "id": "term"}
+    if tool == "put_page":
+        arguments.update(
+            frontmatter={"id": "term", "type": "term", "title": "Без префикса"},
+            body_md="## Определение\n\nТекст.",
+        )
+    else:
+        arguments["ops"] = [{"op": "set_field", "field": "title", "value": "Новое"}]
+    assert error_code(call(mcp_client, tool, arguments)) == "E_ID_INVALID"

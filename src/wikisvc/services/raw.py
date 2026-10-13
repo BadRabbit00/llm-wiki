@@ -17,6 +17,7 @@ from wikisvc.domain.errors import WikiError, not_found
 from wikisvc.domain.markdown import load_yaml
 from wikisvc.domain.models import Principal
 from wikisvc.services.auth import require_role
+from wikisvc.services.extract_worker import worker_env
 from wikisvc.services.pages import paginate
 from wikisvc.storage.gitrepo import GitRepo
 from wikisvc.storage.lock import write_lock
@@ -335,6 +336,7 @@ class Raw:
                         str(self.config.extract_timeout_seconds),
                     ],
                     cwd=directory,
+                    env=worker_env(),
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.DEVNULL,
@@ -349,6 +351,8 @@ class Raw:
                 "Установите необязательные pypdf / python-docx.",
                 status=400,
             )
+        if result.returncode == 4:
+            raise WikiError("E_TEXT_LIMIT", "Превышен лимит памяти при извлечении текста.")
         if result.returncode != 0:
             raise WikiError(
                 "E_TEXT_INVALID", "Не удалось извлечь текст в пределах ограничений ресурсов."

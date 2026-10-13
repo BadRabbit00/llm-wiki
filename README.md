@@ -227,8 +227,10 @@ Raw и library требуют clearance=restricted. Ответы помечен�
   ответ. Продолжение: `pages=next_pages&offset=next_offset`; полный слишком большой
   текст даёт `E_TEXT_TOO_LARGE`. Не готовый кэш — 409.
 - Цитаты `[@src-id стр. 12 "до 30 слов"]` или `гл. 2` проверяются по кэшу;
-  ошибки: `E_QUOTE_NOT_FOUND`, `E_QUOTE_TOO_LONG`, `E_LOCATOR_OUT_OF_RANGE`.
-  Без извлечённого текста — `W_QUOTE_UNVERIFIED`.
+  ошибки: `E_QUOTE_NOT_FOUND`, `E_QUOTE_TOO_LONG`, `E_QUOTE_TOO_SHORT` (меньше двух
+  слов, даже без кэша), `E_LOCATOR_OUT_OF_RANGE`.
+  Без извлечённого текста — `W_QUOTE_UNVERIFIED`. Ссылку с локатором, которую разбор
+  не распознал (например, `"` внутри цитаты), — `W_CITATION_UNPARSED`.
 
 В wikiagent вызовите `POST /jobs/ingest-book` с `raw_path`, необязательными title,
 author, year, scopes_hint. Чтение идёт по главам с ограниченным контекстом.

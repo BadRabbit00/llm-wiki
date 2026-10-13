@@ -1,6 +1,7 @@
 import hashlib
 import io
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
@@ -54,20 +55,41 @@ def without_code(text: str) -> str:
     """Mask code with spaces, preserving offsets for section edits."""
     lines = text.splitlines(keepends=True)
     marker, width = "", 0
+    # CommonMark: indented code cannot interrupt a paragraph, and inside a list item it
+    # starts only at the item's content indent + 4; `previous` and `item` track both.
+    previous, item = "blank", -1
     output: list[str] = []
     for line in lines:
-        fence = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line.rstrip("\n"))
-        hidden = bool(marker) or line.startswith(("    ", "\t"))
+        content = line.rstrip("\n")
+        stripped = content.lstrip(" \t")
+        indent = len(content[: len(content) - len(stripped)].expandtabs(4))
+        if not marker and stripped and indent < item and previous == "blank":
+            item = -1
+        base = max(item, 0)
+        fence = re.match(r"(`{3,}|~{3,})(.*)$", stripped) if indent <= base + 3 else None
+        bullet = re.match(r"([-+*]|\d{1,9}[.)])( +|$)", stripped) if indent < base + 4 else None
+        hidden = bool(marker) or (bool(stripped) and indent >= base + 4 and previous != "text")
         if fence:
             hidden = True
             if not marker:
                 marker, width = fence[1][0], len(fence[1])
             elif fence[1][0] == marker and len(fence[1]) >= width and not fence[2].strip():
                 marker = ""
+        elif bullet and not hidden:
+            item = indent + len(bullet[1]) + (len(bullet[2]) if 0 < len(bullet[2]) <= 4 else 1)
+        if not stripped:
+            previous = "blank"
+        elif hidden or re.match(r"#{1,6}(?:[ \t]|$)", stripped):
+            previous = "block"
+        else:
+            previous = "text"
         output.append(re.sub(r"[^\n]", " ", line) if hidden else line)
     masked = "".join(output)
+    # A code span never continues past a blank line; an unmatched backtick stays text.
     return re.sub(
-        r"(`+)(?!`)([\s\S]*?)(?<!`)\1(?!`)", lambda m: re.sub(r"[^\n]", " ", m[0]), masked
+        r"(`+)(?!`)((?:(?!\n[ \t]*\n)[\s\S])*?)(?<!`)\1(?!`)",
+        lambda m: re.sub(r"[^\n]", " ", m[0]),
+        masked,
     )
 
 
@@ -133,11 +155,47 @@ class Citation:
     quote: str | None = None
 
 
+CITATION = re.compile(r'\[@(src-[a-z0-9-]+)(?:\s+(стр\.|гл\.)\s+(\d+)(?:-(\d+))?\s+"([^"\n]+)")?\]')
+
+
 def citations(text: str) -> list[Citation]:
     return [
         Citation(m[1], m[2], int(m[3]) if m[3] else None, int(m[4] or m[3]) if m[3] else None, m[5])
-        for m in re.finditer(
-            r'\[@(src-[a-z0-9-]+)(?:\s+(стр\.|гл\.)\s+(\d+)(?:-(\d+))?\s+"([^"\n]+)")?\]',
-            without_code(text),
-        )
+        for m in CITATION.finditer(without_code(text))
     ]
+
+
+def unparsed_citations(text: str) -> list[str]:
+    """Source references with a locator that `citations()` skips, e.g. a quote with an inner `"`.
+
+    Such a reference yields neither a quote check nor a graph edge, so it must not stay silent.
+    """
+    clean = without_code(text)
+    return [
+        m[0]
+        for m in re.finditer(r"\[@src-[^\s\]]*\s+(?:стр\.|гл\.)", clean)
+        if not CITATION.match(clean, m.start())
+    ]
+
+
+def normalize_quote(text: str) -> str:
+    text = unicodedata.normalize("NFKC", text).casefold().replace("\u00ad", "")
+    text = re.sub(r"(?<=\w)-\s*\n\s*(?=\w)", "", text)
+    replacements: dict[str, str | int | None] = {
+        "«": '"',
+        "»": '"',
+        "“": '"',
+        "”": '"',
+        "‘": "'",
+        "’": "'",
+        "—": "-",
+        "–": "-",
+        "‑": "-",
+    }
+    text = text.translate(str.maketrans(replacements))
+    return " ".join(text.split())
+
+
+def quote_too_short(quote: str) -> bool:
+    # An empty normalized quote is a substring of any text, so it would "prove" nothing.
+    return len(re.findall(r"\w+", normalize_quote(quote))) < 2

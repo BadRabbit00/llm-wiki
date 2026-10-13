@@ -4,6 +4,7 @@ from collections import Counter
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from wikisvc.domain.errors import WikiError
 from wikisvc.domain.markdown import edges
 from wikisvc.domain.models import LintIssue, Principal
 from wikisvc.domain.validate import issue
@@ -104,7 +105,19 @@ class Lint:
             )
         unique = {(value.code, value.page, value.message): value for value in issues}
         for profile in self.rt.registry.profiles:
-            if self.rt.policies.compile(actor, profile=profile, count_usage=False)["over_budget"]:
+            try:
+                compiled = self.rt.policies.compile(actor, profile=profile, count_usage=False)
+            except WikiError as exc:
+                # One broken profile is reported here instead of failing lint for every profile.
+                problem = issue(
+                    "E_PROFILE_INVALID",
+                    None,
+                    f"Профиль {profile} не компилируется: {exc.message.rstrip('.')}.",
+                    "Исправьте scopes, budget_tokens профиля или поля его правил.",
+                )
+                unique[(problem.code, problem.page, problem.message)] = problem
+                continue
+            if compiled["over_budget"]:
                 problem = issue(
                     "W_PROFILE_OVER_BUDGET",
                     None,

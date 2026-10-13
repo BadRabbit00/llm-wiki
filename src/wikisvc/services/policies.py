@@ -142,6 +142,11 @@ class Policies:
             else:
                 omitted.append({"id": page.id, "reason": "budget"})
                 counts["budget"] = counts.get("budget", 0) + 1
+        for page in included:
+            if "category" not in (page.frontmatter.model_extra or {}):
+                raise WikiError(
+                    "E_RULE_FIELDS", f"Правило {page.id} без обязательного поля category."
+                )
         markdown, used, version = self._render(included, parameters)
         return {
             "profile": parameters["profile"],

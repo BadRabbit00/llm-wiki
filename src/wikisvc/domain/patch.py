@@ -1,14 +1,16 @@
+import re
 from copy import deepcopy
 from typing import Any
 
 from wikisvc.domain.errors import WikiError
-from wikisvc.domain.markdown import sections
+from wikisvc.domain.markdown import sections, without_code
 
 
 def section_span(body: str, heading: str) -> tuple[int, int, int, int]:
     parts = sections(body)
     matches = [(i, part) for i, part in enumerate(parts) if part.heading == heading]
-    if len(matches) != 1:
+    # An empty heading names the preamble, never a section: it would replace the whole body.
+    if len(matches) != 1 or not isinstance(heading, str) or not heading.strip():
         raise WikiError(
             "E_PATCH_SECTION",
             f"Раздел '{heading}' отсутствует или неоднозначен.",
@@ -20,6 +22,18 @@ def section_span(body: str, heading: str) -> tuple[int, int, int, int]:
         len(body),
     )
     return part.start, part.body_start, end, part.level
+
+
+def section_text(text: str, level: int) -> str:
+    """A heading of the section's level or higher in its text would split it into a duplicate."""
+    if any(
+        len(match[1]) <= level
+        for match in re.finditer(r"^ {0,3}(#{1,6})(?:[ \t]|$)", without_code(text), re.MULTILINE)
+    ):
+        raise WikiError(
+            "E_PATCH_SECTION", "Текст раздела не должен содержать заголовки его уровня или выше."
+        )
+    return text.strip()
 
 
 def apply_patch(
@@ -64,8 +78,8 @@ def apply_patch(
                 if not values:
                     result["relations"].pop(operation["rel"])
             elif op in ("replace_section", "append_to_section"):
-                _, start, end, _ = section_span(body, operation["heading"])
-                replacement = "\n" + operation["text"].strip() + "\n\n"
+                _, start, end, level = section_span(body, operation["heading"])
+                replacement = "\n" + section_text(operation["text"], level) + "\n\n"
                 body = (
                     body[:start]
                     + (body[start:end].rstrip() + "\n" if op == "append_to_section" else "")
@@ -91,7 +105,7 @@ def apply_patch(
                     + " "
                     + heading
                     + "\n\n"
-                    + operation["text"].strip()
+                    + section_text(operation["text"], level)
                     + "\n\n"
                     + body[position:]
                 )

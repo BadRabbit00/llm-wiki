@@ -14,6 +14,16 @@ def check_id(value: str) -> str:
     return value
 
 
+def check_page_id(registry: Registry, value: str) -> str:
+    """A page ID is `<type prefix>-<slug>`; without a known prefix no page path can exist."""
+    check_id(value)
+    if not any(value.startswith(t.prefix + "-") for t in registry.page_types.values()):
+        raise WikiError(
+            "E_ID_INVALID", "ID страницы должен начинаться с префикса типа: <префикс>-<название>."
+        )
+    return value
+
+
 def page_path(registry: Registry, type_name: str, page_id: str, parent: str | None = None) -> str:
     check_id(page_id)
     definition = registry.page_type(type_name)

@@ -13,7 +13,7 @@ from wikiagent.state import AgentState
 from wikisvc.domain.errors import WikiError
 from wikisvc.storage.state_db import now
 
-PROMPT_VERSION = "policy-layer-v2.5"
+PROMPT_VERSION = "policy-layer-v2.6"
 SYSTEM = (Path(__file__).parent / "prompts/system.md").read_text()
 
 
@@ -127,6 +127,8 @@ class ModelClient:
                 "strict": True,
             }
         error = ""
+        unavailable: WikiError | None = None
+        answered = False
         for _ in range(
             min(self.config.limits.retries, max_attempts)
             if max_attempts is not None
@@ -142,6 +144,10 @@ class ModelClient:
                     validate(parsed)
                 return parsed
             except (ValidationError, ValueError, WikiError) as exc:
+                if isinstance(exc, WikiError) and exc.code == "E_MODEL_UNAVAILABLE":
+                    unavailable = exc
+                else:
+                    answered = True
                 error = str(exc)
                 messages.append(
                     {
@@ -151,6 +157,11 @@ class ModelClient:
                         + ". Верни исправленный JSON, опираясь только на исходные данные.",
                     }
                 )
+        # A model that never answered is down, not wrong. Callers keep E_MODEL_OUTPUT as a
+        # final verdict (the healer caches the pair as checked), so unavailability stays
+        # E_MODEL_UNAVAILABLE, exactly as completion() reported it, and is retried later.
+        if unavailable is not None and not answered:
+            raise unavailable
         raise WikiError(
             "E_MODEL_OUTPUT",
             "Модель не вернула проверяемый результат после повторов.",

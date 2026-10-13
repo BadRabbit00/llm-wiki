@@ -80,6 +80,7 @@ export interface Plan {
     reason?: string;
     confidence?: number;
     scopes?: string[];
+    headings?: string[];
   }[];
   questions: { id: string; text: string; options: string[] }[];
   assumptions: string[];

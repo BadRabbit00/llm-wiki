@@ -7,7 +7,16 @@ from hypothesis import strategies as st
 
 from wikisvc.domain.errors import WikiError
 from wikisvc.domain.ids import check_id, page_path
-from wikisvc.domain.markdown import content_hash, edges, parse, render, sections, without_code
+from wikisvc.domain.markdown import (
+    Citation,
+    citations,
+    content_hash,
+    edges,
+    parse,
+    render,
+    sections,
+    without_code,
+)
 from wikisvc.domain.registry import Registry
 from wikisvc.domain.secrets import secret_kinds
 from wikisvc.domain.validate import (
@@ -41,6 +50,66 @@ text
     assert [s.heading for s in sections(page.body_md)] == ["Определение", "Детали"]
     assert len(without_code(page.body_md)) == len(page.body_md)
     assert content_hash("abc\r\n") == content_hash("abc\n")
+
+
+def test_unpaired_backtick_does_not_hide_next_paragraphs(registry: Registry) -> None:
+    page = make_page(registry)
+    page.body_md = """Вступление с `незакрытой кавычкой.
+
+## Определение
+
+См. [[sys-after-tick]] и [@src-after-tick стр. 3 "Цитата после абзаца"].
+
+Текст с `code`.
+"""
+    assert {edge.dst for edge in edges(page)} == {"sys-after-tick", "src-after-tick"}
+    assert [s.heading for s in sections(page.body_md)] == ["", "Определение"]
+    assert citations(page.body_md) == [
+        Citation("src-after-tick", "стр.", 3, 3, "Цитата после абзаца")
+    ]
+    problems = validate_set([page], registry)
+    assert "E_SECTION_MISSING" not in {problem.code for problem in problems}
+    assert sorted(p.message for p in problems if p.code == "E_LINK_UNRESOLVED") == [
+        "Ссылка cites ведёт на отсутствующий ID src-after-tick.",
+        "Ссылка links_to ведёт на отсутствующий ID sys-after-tick.",
+    ]
+    assert len(without_code(page.body_md)) == len(page.body_md)
+
+
+def test_indented_lines_are_code_only_outside_paragraphs_and_lists(registry: Registry) -> None:
+    page = make_page(registry)
+    page.body_md = """## Определение
+
+- Пункт списка
+    продолжение со ссылкой [[sys-list-tail]]
+
+1. Шаг
+    ```text
+    ## Не раздел [[sys-fenced-in-item]]
+    ```
+
+    Абзац шага [@src-step]
+
+        [[sys-code-in-item]]
+
+Абзац
+    ленивое продолжение [[sys-lazy]]
+
+    [[sys-real-code]]
+### Детали
+
+text
+"""
+    assert {edge.dst for edge in edges(page)} == {"sys-list-tail", "src-step", "sys-lazy"}
+    assert [s.heading for s in sections(page.body_md)] == ["Определение", "Детали"]
+    assert [c.source for c in citations(page.body_md)] == ["src-step"]
+    problems = validate_set([page], registry)
+    assert "E_SECTION_MISSING" not in {problem.code for problem in problems}
+    assert sorted(p.message for p in problems if p.code == "E_LINK_UNRESOLVED") == [
+        "Ссылка cites ведёт на отсутствующий ID src-step.",
+        "Ссылка links_to ведёт на отсутствующий ID sys-lazy.",
+        "Ссылка links_to ведёт на отсутствующий ID sys-list-tail.",
+    ]
 
 
 @pytest.mark.parametrize(
