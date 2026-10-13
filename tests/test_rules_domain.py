@@ -194,13 +194,20 @@ def test_schema_upgrade_preserves_custom_instructions_unless_requested(client: T
     rt = client.app.state.runtime
     fs, repo = SafeFS(rt.settings.wiki_root), GitRepo(rt.settings.wiki_root)
     fs.write("AGENTS.md", "# Custom instructions\n")
-    repo.commit("Custom instructions", "fixture")
+    # AGENTS.md is outside GitRepo.managed: without the explicit path it stays uncommitted,
+    # the refresh then restores HEAD's copy and commits nothing, and the commit check
+    # below compares two unchanged heads.
+    repo.commit("Custom instructions", "fixture", ["AGENTS.md"])
     actor = Principal(name="admin", role="admin", clearance="restricted")
     upgrade_schema(rt, actor)
     assert fs.read("AGENTS.md") == "# Custom instructions\n"
+    assert repo.run("show", "HEAD:AGENTS.md") == "# Custom instructions"
+    before = repo.head()
     first = upgrade_schema(rt, actor, refresh_instructions=True)
     assert "get_policies" in fs.read("AGENTS.md")
     assert first["updated"] == ["AGENTS.md"]
+    assert first["commit"] == repo.head() != before
+    assert "get_policies" in repo.run("show", "HEAD:AGENTS.md")
     second = upgrade_schema(rt, actor, refresh_instructions=True)
     assert second["commit"] == first["commit"] and not second["updated"]
     repo.ensure_main()
