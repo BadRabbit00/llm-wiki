@@ -316,3 +316,89 @@ def test_book_bad_chapter_range_is_sent_back_to_model(
     bodies = [p["body_md"] for p in proposal["pages"] if p["type"] == "rule"]
     assert len(bodies) == 1 and f'гл. 2 "{quote}"' in bodies[0]
     assert client.get(f"/api/v1/proposals/{report['proposal']}/validate").json()["errors"] == []
+
+
+def test_book_retries_one_word_quote(
+    client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    agent, _ = tokens(client)
+    client.headers["Authorization"] = "Bearer " + agent
+    monkeypatch.setenv("WIKIAGENT_TOKEN", agent)
+    raw = library(
+        client,
+        "handbook.epub",
+        (Path(__file__).parent / "fixtures/books/handbook.epub").read_bytes(),
+    )
+    extract(client, raw["path"])
+    settings = agent_config(tmp_path / "agent")
+    state = AgentState(settings.state_dir)
+    thesis = "Use structured logs for every operation."
+    # "structured" is in chapter 1, so only the length check can turn it away.
+    quotes = iter(["structured", thesis])
+
+    def respond(task: str, data: dict[str, Any]) -> dict[str, Any]:
+        if task == "book_chapter":
+            if data["chapter"]["n"] != 1:
+                return {"candidates": [], "state_summary": "", "open_references": []}
+            return {
+                "candidates": [
+                    {
+                        "title": "Structured logs",
+                        "thesis": thesis,
+                        "category": "architecture",
+                        "applies_to_suggestion": ["lang:python"],
+                        "aliases": ["структурные логи", "structured logs"],
+                        "rationale": "The provided chapter describes this practice.",
+                        "locator": {"unit": "гл.", "start": 1},
+                        "quote": next(quotes),
+                        "relations": [],
+                    }
+                ],
+                "state_summary": "Book concepts so far.",
+                "open_references": [],
+            }
+        if task == "classify":
+            return {
+                "relations": [
+                    {"relation": "new", "confidence": 0.9, "reason": "New idea from the book."}
+                ]
+            }
+        assert task == "book_review"
+        return {
+            "merge": [],
+            "links": [],
+            "key_ideas": [{"id": c["id"], "text": c["summary"]} for c in data["candidates"]],
+        }
+
+    class Recording(FakeLLM):
+        """Keeps the correction messages the model receives on a retry."""
+
+        def __init__(self) -> None:
+            super().__init__(respond)
+            self.feedback: list[tuple[int, list[str]]] = []
+
+        def handle(self, request: httpx.Request) -> httpx.Response:
+            response = super().handle(request)
+            task, data = self.calls[-1]
+            if task == "book_chapter":
+                messages = json.loads(request.content)["messages"][2:]
+                self.feedback.append((data["chapter"]["n"], [m["content"] for m in messages]))
+            return response
+
+    fake = Recording()
+    models = ModelClient(settings, state, fake.http)
+    payload = {"raw_path": raw["path"], "title": "Handbook", "scopes_hint": ["lang:python"]}
+    actor = {"name": "alice", "person": "alice", "clearance": "restricted"}
+    job_id = state.job("ingest_book", actor, payload)
+    IngestBook(wiki_client(client, settings), models, state).run(job_id, payload)
+    first = [messages for chapter, messages in fake.feedback if chapter == 1]
+    assert len(first) == 2 and first[0] == []
+    assert len(first[1]) == 1
+    assert "Цитата слишком короткая: нужно не меньше двух слов источника." in first[1][0]
+    report = state.restore(job_id, "report")
+    assert report["errors"] == []
+    proposal = client.get("/api/v1/proposals/" + report["proposal"]).json()
+    rules = [p for p in proposal["pages"] if p["type"] == "rule"]
+    assert len(rules) == 1 and rules[0]["summary"] == thesis
+    assert f'гл. 1 "{thesis}"]' in rules[0]["body_md"]
+    assert client.get(f"/api/v1/proposals/{report['proposal']}/validate").json()["errors"] == []

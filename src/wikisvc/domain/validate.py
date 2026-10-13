@@ -6,7 +6,16 @@ from pydantic import ValidationError
 
 from wikisvc.domain.errors import WikiError
 from wikisvc.domain.ids import check_id, page_path
-from wikisvc.domain.markdown import citations, content_hash, edges, parse, render, sections
+from wikisvc.domain.markdown import (
+    citations,
+    content_hash,
+    edges,
+    parse,
+    quote_too_short,
+    render,
+    sections,
+    unparsed_citations,
+)
 from wikisvc.domain.models import Edge, Frontmatter, LintIssue, Page
 from wikisvc.domain.registry import ExtraField, Registry
 from wikisvc.domain.secrets import secret_kinds
@@ -111,6 +120,14 @@ def validate_page(
             result.append(
                 issue("E_QUOTE_TOO_LONG", page.id, "Цитата должна содержать не более 30 слов.")
             )
+    for _ in unparsed_citations(page.body_md):
+        result.append(
+            issue(
+                "W_CITATION_UNPARSED",
+                page.id,
+                "Ссылка на источник не распознана: проверьте формат и кавычки.",
+            )
+        )
     safe_metadata = fm.model_dump(
         mode="json", exclude={"created", "updated", "verified_by", "verified_at"}
     )
@@ -211,8 +228,11 @@ def validate_rule(page: Page, registry: Registry) -> list[LintIssue]:
             result.append(
                 issue("E_RULE_FIELDS", page.id, "Правило из книги или статьи требует sources.")
             )
-        if not re.search(
-            r'\[@src-[a-z0-9-]+\s+(?:стр\.|гл\.)\s+\d+(?:-\d+)?\s+"[^"\n]+"\]', page.body_md
+        if all(
+            quote_too_short(m[1])
+            for m in re.finditer(
+                r'\[@src-[a-z0-9-]+\s+(?:стр\.|гл\.)\s+\d+(?:-\d+)?\s+"([^"\n]+)"\]', page.body_md
+            )
         ):
             result.append(
                 issue("W_NO_CITATION", page.id, "Нужна короткая цитата со страницей или главой.")
