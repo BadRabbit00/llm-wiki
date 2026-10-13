@@ -89,8 +89,11 @@ class IngestBook:
         models: ModelClient,
         state: AgentState,
         checkpoint: Callable[[str], None] | None = None,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.client, self.models, self.state = client, models, state
+        # Time is an outside boundary like the model: the extraction deadline is testable.
+        self.clock = clock
         self.builder = Builder(client, models)
         self.boundary = checkpoint or (lambda job_id: None)
 
@@ -175,14 +178,14 @@ class IngestBook:
     def run(self, job_id: str, payload: dict[str, Any]) -> None:
         path = payload["raw_path"]
         status = self.client.request("POST", "/raw/" + path + "/extract")
-        deadline = time.monotonic() + self.models.config.models["planner"].timeout_seconds + 600
+        deadline = self.clock() + self.models.config.models["planner"].timeout_seconds + 600
         while status["status"] != "done":
             self.boundary(job_id)
             if status["status"] == "failed":
                 raise WikiError(
                     status.get("error") or "E_EXTRACT_FAILED", "Не удалось извлечь книгу."
                 )
-            if time.monotonic() > deadline:
+            if self.clock() > deadline:
                 raise WikiError("E_EXTRACT_TIMEOUT", "Ожидание извлечения превысило лимит.")
             time.sleep(0.1)
             status = self.client.request("POST", "/raw/" + path + "/extract")
