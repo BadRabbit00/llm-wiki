@@ -34,7 +34,7 @@ const errorText: Record<string, string> = {
     "В документе не найден текстовый слой. Загрузите версию с распознанным текстом.",
   E_EXTRACT_TIMEOUT: "Извлечение текста не уложилось в отведённое время.",
   E_AGENT_TOKEN: "Рабочий токен агента настроен неверно.",
-  E_CONTEXT_BUDGET: "Материал не помещается в контекст модели.",
+  E_MODEL_CONTEXT: "Материал не помещается в контекст модели.",
 };
 export default function Jobs() {
   const { actor } = useAuth(),
