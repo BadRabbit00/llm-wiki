@@ -49,10 +49,26 @@
             nativeCheckInputs = e.dev ++ [ e.pkgs.git e.pkgs.ruff e.py.pkgs.pytestCheckHook ];
             pythonImportsCheck = [ "wikisvc" "wikiagent" "pypdf" "docx" ];
             pytestFlags = [ "--cov" "--cov-report=term-missing" ];
+            # Coverage's patch = ["subprocess"] starts children through its a1_coverage.pth, and
+            # Python runs .pth files only in site directories. Here dependencies arrive on
+            # PYTHONPATH, so the parser worker went unmeasured. For the tests alone, a
+            # sitecustomize on PYTHONPATH does what that .pth does; it shadows the nixpkgs one,
+            # which acts only on NIX_PYTHON* variables the build does not set.
             preCheck = ''
               ruff check .
               ruff format --check .
               mypy src
+              mkdir -p "$TMPDIR/coverage-startup"
+              cat > "$TMPDIR/coverage-startup/sitecustomize.py" <<'EOF'
+              import coverage
+
+              coverage.process_startup()
+              EOF
+              pythonPathBeforeCheck="$PYTHONPATH"
+              export PYTHONPATH="$TMPDIR/coverage-startup:$PYTHONPATH"
+            '';
+            postCheck = ''
+              export PYTHONPATH="$pythonPathBeforeCheck"
             '';
           };
           # OIDC stays in Go; its pinned modules and vendor hash live with the UI derivation.

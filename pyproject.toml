@@ -44,5 +44,5 @@ parallel = true
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 96
+fail_under = 98
 exclude_also = ['if __name__ == "__main__":']
