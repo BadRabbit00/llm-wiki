@@ -181,12 +181,16 @@ class Builder:
                 "proposal": None,
                 "summary": "Новых правок не требуется.",
             }
-        if pid and self.client.request("GET", "/proposals/" + pid)["status"] not in (
-            "draft",
-            "changes_requested",
-        ):
-            pid = None
+        owner: str | None = None
+        if pid:
+            current = self.client.request("GET", "/proposals/" + pid)
+            if current["status"] not in ("draft", "changes_requested"):
+                pid = None
+            else:
+                # Continuing a draft keeps its owner: a reviewer's reply must not take it over.
+                owner = (current.get("notes") or {}).get("owner")
         if not pid:
+            owner = session["owner"]
             pid = self.client.request(
                 "POST",
                 "/proposals",
@@ -232,6 +236,8 @@ class Builder:
         result = {
             **plan,
             "proposal": pid,
+            # Who may revise this draft through the agent later (planner/revise.py).
+            **({"owner": owner} if owner else {}),
             "source": source,
             "validation": validation,
             "impact": impact,

@@ -438,6 +438,7 @@ function PlanCard({
             <div>
               <Badge value={item.action} />
               <strong>{item.thesis || item.target}</strong>
+              {item.headings?.length ? <p>{item.headings.join(", ")}</p> : null}
               {item.reason && <p>{item.reason}</p>}
             </div>
           </div>
