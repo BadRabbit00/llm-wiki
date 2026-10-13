@@ -77,6 +77,7 @@ export const labels: Record<string, string> = {
   role: "Роль",
   data: "Данные",
   create_rule: "Новое правило",
+  revise_page: "Правка раздела",
   update_rule: "Изменить правило",
   deprecate_rule: "В архив",
   flag_page: "Проверить страницу",

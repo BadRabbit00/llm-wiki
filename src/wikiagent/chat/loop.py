@@ -8,6 +8,7 @@ from wikiagent.chat.sessions import Sessions
 from wikiagent.client import WikiClient
 from wikiagent.models import SYSTEM, ModelClient
 from wikiagent.planner.pipeline import Planner
+from wikiagent.planner.revise import Reviser
 from wikiagent.state import AgentState
 from wikiagent.tools import definitions, execute
 from wikisvc.domain.errors import WikiError
@@ -34,6 +35,7 @@ class Chat:
         self.client, self.models, self.state = client, models, state
         self.sessions = Sessions(state)
         self.planner = Planner(client, models)
+        self.reviser = Reviser(client, models)
         self.active = 0
         self.condition = threading.Condition()
         self.session_locks: dict[str, threading.Lock] = {}
@@ -144,6 +146,10 @@ class Chat:
                         "plan": plans[0],
                         "plans": plans,
                     }
+                elif intent.intent == "revise":
+                    # A request to change an existing page never reaches extract_claims,
+                    # where it used to become not_rule and «Новых правок не требуется».
+                    result = self.reviser.run(text, session, actor)
                 elif (
                     intent.intent == "cancel"
                     and session["plan"]

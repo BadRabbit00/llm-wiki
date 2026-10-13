@@ -4,5 +4,5 @@ from wikiagent.planner.claims import StrictModel
 
 
 class Intent(StrictModel):
-    intent: Literal["intake", "question", "edit", "revert", "cancel", "other"]
+    intent: Literal["intake", "question", "edit", "revise", "revert", "cancel", "other"]
     clarification: str | None = None
