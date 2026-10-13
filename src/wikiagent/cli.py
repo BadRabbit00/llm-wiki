@@ -46,6 +46,23 @@ def check_deployment(
 
 
 @app.command()
+def jobs() -> None:
+    """Jobs the agent resumes after a restart, as JSON: identity and status, no payload."""
+    import json
+
+    from wikiagent.jobs.runner import RESUMABLE
+    from wikiagent.state import AgentState
+
+    state = AgentState(load_config().state_dir)
+    rows = state.rows(
+        "SELECT id,kind,status,updated_at FROM jobs "
+        f"WHERE status IN ({','.join('?' * len(RESUMABLE))}) ORDER BY created_at,id",
+        RESUMABLE,
+    )
+    typer.echo(json.dumps(rows))
+
+
+@app.command()
 def serve(config: Path | None = None) -> None:
     import uvicorn
 
