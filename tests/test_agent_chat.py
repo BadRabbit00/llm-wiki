@@ -1,6 +1,8 @@
+import json
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from agent_helpers import agent_config, event, seed_chat, tokens, wiki_client
 from fake_llm import FakeLLM, claim
@@ -237,7 +239,6 @@ def test_sessions_bind_cancel_and_access(
         sid = chat.post("/chat/sessions", json={"bind": {"type": "proposal", "id": pid}}).json()[
             "id"
         ]
-        app.state.chat.sessions.message(sid, "assistant", "Черновик готов", {"proposal": pid})
         result = event(chat.post(f"/chat/sessions/{sid}/messages", json={"text": "отмени"}))
         assert result["plan"]["cancelled"]
         assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "abandoned"
@@ -264,6 +265,184 @@ def test_sessions_bind_cancel_and_access(
         assert chat.post("/chat/sessions", json={}).status_code == 403
         assert chat.get("/chat/sessions").status_code == 403
     assert wiki.forbidden_attempts == 0
+
+
+def sse(response: httpx.Response) -> list[tuple[str, dict[str, Any]]]:
+    """Every event of a chat reply in order: what the person's browser receives."""
+    assert response.status_code == 200, response.text
+    events: list[tuple[str, dict[str, Any]]] = []
+    for block in response.text.strip().split("\n\n"):
+        name, data = block.split("\n", 1)
+        events.append((name.removeprefix("event: "), json.loads(data.removeprefix("data: "))))
+    return events
+
+
+def cancel_in_chat(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    author: str,
+    accept: bool = False,
+    abandon: bool = False,
+    bind: bool = True,
+    bind_rule: str | None = None,
+) -> tuple[str, list[tuple[str, dict[str, Any]]], dict[str, Any]]:
+    """A fresh session says «отмени» as its first message, so it has no plan of its own.
+
+    The proposal is written through wikisvc by ``author``; the model only routes.
+    ``bind_rule`` binds the session to that rule instead of the proposal.
+    """
+    from test_review_policy import candidate
+
+    agent, human = tokens(client)
+    monkeypatch.setenv("WIKIAGENT_TOKEN", agent)
+    settings = agent_config(tmp_path / "agent")
+    wiki = wiki_client(client, settings)
+    client.headers["Authorization"] = "Bearer " + {"agent": agent, "human": human}[author]
+    pid = candidate(client)
+    if abandon:
+        abandoned = client.post(f"/api/v1/proposals/{pid}/abandon")
+        assert abandoned.status_code == 200, abandoned.text
+    client.headers["Authorization"] = "Bearer " + human
+    if accept:
+        accepted = client.post(
+            f"/api/v1/proposals/{pid}/accept",
+            json={"promote": [{"id": "rule-logging", "level": "should"}]},
+        )
+        assert accepted.status_code == 200, accepted.text
+    fake = FakeLLM(
+        lambda task, data: {"intent": "cancel", "clarification": None}, check_schema=True
+    )
+    models = ModelClient(settings, AgentState(settings.state_dir), fake.http)
+    with TestClient(create_app(settings, wiki, models)) as chat:
+        chat.headers["Authorization"] = "Bearer " + human
+        target = {"type": "rule", "id": bind_rule} if bind_rule else {"type": "proposal", "id": pid}
+        created = chat.post("/chat/sessions", json={"bind": target} if bind else {})
+        assert created.status_code == 200, created.text
+        sid = created.json()["id"]
+        events = sse(chat.post(f"/chat/sessions/{sid}/messages", json={"text": "отмени"}))
+        session = chat.get(f"/chat/sessions/{sid}").json()
+    assert [task for task, _ in fake.calls] == ["route"]
+    assert wiki.forbidden_attempts == 0
+    return pid, events, session
+
+
+def test_bound_chat_cancels_agent_draft_without_plan(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pid, events, session = cancel_in_chat(client, tmp_path, monkeypatch, author="agent")
+    cancelled = {"proposal": pid, "cancelled": True}
+    assert events == [
+        ("status", {"status": "planning"}),
+        ("message", {"text": "Предложение отменено.", "plan": cancelled}),
+    ]
+    assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "abandoned"
+    # The UI renders the stored plan as «Предложение отменено» (PlanCard, plan.cancelled).
+    assert session["plan"] == cancelled
+    assert [(m["role"], m["plan"]) for m in session["messages"]] == [
+        ("user", None),
+        ("assistant", cancelled),
+    ]
+
+
+def test_bound_chat_cancel_of_accepted_proposal_asks_human_to_revert(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pid, events, session = cancel_in_chat(
+        client, tmp_path, monkeypatch, author="agent", accept=True
+    )
+    assert events == [
+        ("status", {"status": "planning"}),
+        (
+            "message",
+            {
+                "text": "Для отката нужно подтверждение человека.",
+                "human_action": {"method": "POST", "path": f"/api/v1/proposals/{pid}/revert"},
+            },
+        ),
+    ]
+    assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "accepted"
+    assert session["plan"] is None
+
+
+def test_bound_chat_cancel_of_human_proposal_reports_forbidden(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The agent abandons with its own writer token; a proposal it did not write is
+    # refused by wikisvc, and the person sees that refusal rather than silence.
+    pid, events, session = cancel_in_chat(client, tmp_path, monkeypatch, author="human")
+    assert events == [
+        ("status", {"status": "planning"}),
+        (
+            "error",
+            {
+                "error": {
+                    "code": "E_FORBIDDEN",
+                    "message": "Недостаточно прав.",
+                    "hint": "Проверьте запрос и схему через /schema.",
+                    "details": [],
+                }
+            },
+        ),
+    ]
+    assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "draft"
+    assert session["plan"] is None
+    assert [m["role"] for m in session["messages"]] == ["user"]
+
+
+def test_unbound_chat_without_plan_cancel_asks_instead(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pid, events, session = cancel_in_chat(client, tmp_path, monkeypatch, author="agent", bind=False)
+    assert events == [
+        ("status", {"status": "planning"}),
+        ("message", {"text": "Уточните, какое правило или решение нужно оформить."}),
+    ]
+    assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "draft"
+    assert session["plan"] is None
+
+
+def test_rule_bound_chat_without_plan_cancel_asks_instead(
+    client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Only a proposal binding names something to cancel; a rule ID is not a proposal.
+    seed_chat(client, config)
+    pid, events, session = cancel_in_chat(
+        client, tmp_path, monkeypatch, author="agent", bind_rule="rule-http-requests-sync"
+    )
+    assert session["bind"] == {"type": "rule", "id": "rule-http-requests-sync"}
+    assert events == [
+        ("status", {"status": "planning"}),
+        ("message", {"text": "Уточните, какое правило или решение нужно оформить."}),
+    ]
+    assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "draft"
+    assert session["plan"] is None
+
+
+def test_bound_chat_cancel_of_abandoned_proposal_reports_state(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pid, events, session = cancel_in_chat(
+        client, tmp_path, monkeypatch, author="agent", abandon=True
+    )
+    assert events == [
+        ("status", {"status": "planning"}),
+        (
+            "error",
+            {
+                "error": {
+                    "code": "E_PROPOSAL_STATE",
+                    "message": "Переход состояния недопустим.",
+                    "hint": "Проверьте запрос и схему через /schema.",
+                    "details": [],
+                }
+            },
+        ),
+    ]
+    assert client.get(f"/api/v1/proposals/{pid}").json()["status"] == "abandoned"
+    assert session["plan"] is None
+    assert [m["role"] for m in session["messages"]] == ["user"]
 
 
 def test_short_reply_to_open_question_reaches_planner(
