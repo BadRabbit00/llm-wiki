@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from wikisvc.api.deps import Reader, Reviewer, Services, Writer
 from wikisvc.api.routers.rules import Deprecate, Promote
+from wikisvc.domain.ids import check_page_id
 from wikisvc.domain.markdown import parse
 
 router = APIRouter(prefix="/proposals")
@@ -64,6 +65,7 @@ def put(
     actor: Writer,
     base_version: Annotated[str | None, Header(alias="If-Match")] = None,
 ) -> dict[str, Any]:
+    check_page_id(services.registry, page_id)
     if isinstance(payload, str):
         metadata, body = parse(payload)
         return services.proposals.put(pid, page_id, actor, metadata, body, base_version)
@@ -76,6 +78,7 @@ def put(
 def patch(
     pid: str, page_id: str, payload: PatchPage, services: Services, actor: Writer
 ) -> dict[str, Any]:
+    check_page_id(services.registry, page_id)
     return services.proposals.patch(pid, page_id, actor, payload.ops, payload.base_version)
 
 
@@ -83,6 +86,7 @@ def patch(
 def delete(
     pid: str, page_id: str, services: Services, actor: Writer, base_version: str | None = None
 ) -> dict[str, str]:
+    check_page_id(services.registry, page_id)
     return services.proposals.delete(pid, page_id, actor, base_version)
 
 
