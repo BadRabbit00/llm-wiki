@@ -1,4 +1,5 @@
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -27,8 +28,17 @@ def agent_config(path: Path) -> AgentConfig:
     )
 
 
-def wiki_client(client: TestClient, config: AgentConfig) -> WikiClient:
+def wiki_client(
+    client: TestClient,
+    config: AgentConfig,
+    observe: Callable[[httpx.Request], None] | None = None,
+) -> WikiClient:
+    """``observe`` sees each request before wikisvc does: to record it, or to raise as a
+    crashed process would, or to change the wiki as a concurrent person would."""
+
     def forward(request: httpx.Request) -> httpx.Response:
+        if observe is not None:
+            observe(request)
         response = client.request(
             request.method, str(request.url), headers=dict(request.headers), content=request.content
         )

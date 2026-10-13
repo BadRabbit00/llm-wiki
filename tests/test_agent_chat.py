@@ -146,7 +146,15 @@ def test_chat_plan_reply_accept_revert(
     assert wiki.forbidden_attempts == 0
 
 
-def test_scenario_golden_eval(tmp_path: Path) -> None:
+def test_plan_changes_regression_on_scenarios(tmp_path: Path) -> None:
+    """Regression of the deterministic pipeline (route, verify, plan_changes), not of a model.
+
+    The fake replays each scenario's own ``fake`` answers from the YAML that also holds
+    ``expected``, so accuracy 1 says nothing about model quality, and a fake that never
+    sends tool_calls keeps forbidden_attempts at 0 by construction; see
+    test_agent_failures for a model that does. Model quality is ``wikiagent eval``
+    against a live model.
+    """
     fixtures = Path(__file__).parent / "scenarios"
     scenarios = {s["input"]: s for s in (load_yaml(p.read_text()) for p in fixtures.glob("*.yaml"))}
     current: dict[str, Any] = {}
@@ -356,7 +364,9 @@ def test_eval_continues_after_unavailable_model(tmp_path: Path) -> None:
     out = tmp_path / "report.json"
     result = evaluate_scenarios(config, Path(__file__).parent / "scenarios", client=model, out=out)
     assert result["completed"] == 12 and result["accuracy"] == 0
-    assert all(r["error"] == "E_MODEL_OUTPUT" for r in result["results"])
+    # A model that never answered is reported as down, not as a bad answer; E_MODEL_OUTPUT
+    # here used to pin the semantics that let the healer cache an outage as a checked pair.
+    assert all(r["error"] == "E_MODEL_UNAVAILABLE" for r in result["results"])
     assert model.calls == 36 and out.is_file() and not result["production_ready"]
 
 

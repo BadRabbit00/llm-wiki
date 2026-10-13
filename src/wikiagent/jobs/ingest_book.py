@@ -336,6 +336,10 @@ class IngestBook:
                         )
                         output = generated.model_dump()
                     except WikiError as exc:
+                        # A model that is down has not judged the chapter: checkpointing an
+                        # empty result would skip it for good, so the job fails and resumes here.
+                        if exc.code == "E_MODEL_UNAVAILABLE":
+                            raise
                         errors.append({"chapter": chapter["n"], "code": exc.code})
                         output = ChapterResult().model_dump()
                     self.state.checkpoint(job_id, key, output)
@@ -534,15 +538,27 @@ class IngestBook:
                     self.client.request("DELETE", f"/proposals/{pid}/pages/{merge.drop}")
                 candidates.pop(merge.drop, None)
                 self.state.checkpoint(job_id, "candidates", candidates)
+            # One answer may link to a candidate it merges away, and a restart may come
+            # between the two: follow a completed merge to the survivor, as relations
+            # already in the draft are redirected above. Only IDs this job allocated count.
+            allocated = set(self.state.restore(job_id, "candidate_ids", {}).values())
+            merged = {
+                m.drop: m.keep
+                for m in review.merge
+                if m.drop in allocated and m.drop not in candidates and m.keep in candidates
+            }
             for link in review.links:
-                if link.src not in candidates or link.target not in candidates:
+                src, target = merged.get(link.src, link.src), merged.get(link.target, link.target)
+                if src not in candidates or target not in candidates:
                     raise WikiError(
                         "E_LINK_UNRESOLVED", "Второй проход должен связывать кандидатов этой книги."
                     )
+                if src == target:
+                    continue
                 self.client.request(
                     "PATCH",
-                    f"/proposals/{pid}/pages/{link.src}",
-                    json={"ops": [{"op": "add_relation", "rel": link.rel, "target": link.target}]},
+                    f"/proposals/{pid}/pages/{src}",
+                    json={"ops": [{"op": "add_relation", "rel": link.rel, "target": target}]},
                 )
             key_ideas.extend(idea for idea in review.key_ideas if idea.id in candidates)
         if not key_ideas:
