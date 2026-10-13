@@ -1,14 +1,17 @@
-# Установка на Linux через Nix
+# Установка на Linux: podman и образ релиза
 
-Nix собирает и фиксирует Python, Git, Go и зависимости из `flake.lock` и
-`ui/package-lock.json`, `ui/go.sum` и хеша Go vendor. На Linux с systemd комплект запускает четыре сервиса:
-`wikisvc`, `wikiagent`, `wiki-ui`, `llm-wiki-model` (llama-server). Вход в `nix develop` на сервере не нужен.
+`wikisvc`, `wikiagent` и `wiki-ui` запускаются из одного образа релиза
+`ghcr.io/badrabbit00/llm-wiki` в rootful podman, каждый своим systemd-юнитом.
+Четвёртая служба — `llm-wiki-model` (llama-server) — работает на хосте. Образ
+собирает CI (раздел «Образ контейнера»), на сервере ничего не собирается.
+Через Nix ставится только хост-часть: юниты, шаблоны конфигурации и скрипты.
 Службы работают от отдельных системных пользователей, API слушают loopback.
 
 ```text
-/opt/llm-wiki/current       установленный Nix bundle (постоянный GC root)
-/opt/llm-wiki/previous      предыдущий bundle для отката
+/opt/llm-wiki/current       хост-часть: скрипты и юниты (постоянный GC root)
+/opt/llm-wiki/previous      предыдущая хост-часть для отката
 /etc/llm-wiki/             service.env, agent.env, wikiagent.yaml, llama.env, ui.env, backup.env
+/etc/llm-wiki/image.env    образ релиза, закреплённый по дайджесту
 /var/lib/llm-wiki/
   wiki/                    отдельный репозиторий контента, включая .git
   state/                   state.db, worktrees, library, extract
@@ -18,42 +21,43 @@ Nix собирает и фиксирует Python, Git, Go и зависимос
 /srv/llm-wiki/models/      GGUF (не входит в Git и Nix store)
 ```
 
-## 1. Nix и сборка
+## 1. podman, Nix и хост-часть
 
-Нужны Linux с systemd, Bash, `sudo`, Git, curl, xz, GNU tar/gzip/find,
-util-linux (`runuser`, `flock`, `getent`) и средства создания пользователей
-(`useradd`, `groupadd`, `usermod`). Имена пакетов зависят от дистрибутива.
-Подходят Arch, Debian, Ubuntu и другие системы с этими утилитами. Само приложение
-и его Python/Go/Node-зависимости собирает Nix; NixOS не требуется.
-Ниже — установка systemd-комплекта. Без systemd используйте готовые бинарники
-`nix build .#wikisvc .#ui` под своим supervisor: он должен передавать то же
-окружение и запускать службы от нужных пользователей. Автоматический установщик
-требует systemd и в таком режиме не запускается.
+Нужны Linux с systemd, Bash, `sudo`, podman, curl, xz, GNU tar/gzip/find,
+`getent` и средства создания пользователей (`useradd`, `groupadd`, `usermod`).
+Юниты вызывают `/usr/bin/podman` и `/usr/bin/systemctl` — обычные пути дистрибутива.
+На Arch: `pacman -S podman`. Nix нужен только для хост-части; NixOS не требуется.
+Установку Nix выбирайте по [официальному руководству](https://nix.dev/install-nix),
+для сервера — multi-user daemon. Установщик проекта не меняет firewall.
 
-Установку Nix выбирайте по [официальному руководству](https://nix.dev/install-nix).
-Для обычной серверной системы используется multi-user daemon. Установщик
-проекта не меняет firewall.
+Хост-часть собирается за секунды и не содержит приложения. Клон репозитория и
+SSH-доступ к GitHub не нужны: Nix забирает версию по HTTPS.
 
 ```sh
-# Сначала установите перечисленные системные утилиты пакетным менеджером своей ОС.
-# Если Nix ещё не установлен:
-curl --proto '=https' --tlsv1.2 -sSfL https://nixos.org/nix/install -o /tmp/install-nix.sh
-# Просмотрите скрипт, затем запустите от обычного пользователя с sudo:
-sh /tmp/install-nix.sh --daemon
-# Откройте новую оболочку после установки.
-nix --version
-
-git clone git@github.com:BadRabbit00/llm-wiki.git backend
-cd backend
-nix --extra-experimental-features 'nix-command flakes' build .#deployment --out-link result-deployment
+sudo pacman -S podman
+nix --extra-experimental-features 'nix-command flakes' \
+  build 'github:BadRabbit00/llm-wiki/vX.Y.Z#deployment' --out-link result-deployment
 sudo ./result-deployment/bin/llm-wiki-install
 ```
 
-При отсутствии SSH-ключа с доступом к GitHub используйте разрешённый вам способ
-клонирования. `flake.lock` уже в репозитории; `nix flake update` при установке не нужен.
-Сборка выполняет pytest, Ruff, mypy, ShellCheck, TypeScript и Go-тесты. Первая сборка может занять время.
-Установщик создаёт пользователей, каталоги, конфигурацию и units; существующие
-конфиги и контент сохраняются. Службы запускаются ниже, после настройки.
+Установщик создаёт пользователей, каталоги, конфигурацию и юниты; существующие
+конфиги и контент сохраняются. Затем закрепите образ релиза той же версии.
+Проверьте происхождение (подпись `release.yml` из этого репозитория) и запишите
+дайджест — юниты запускают только образ, закреплённый по дайджесту:
+
+```sh
+image=ghcr.io/badrabbit00/llm-wiki
+sudo podman pull "$image:vX.Y.Z"
+digest=$(sudo podman image inspect --format '{{.Digest}}' "$image:vX.Y.Z")
+nix shell nixpkgs#cosign -c cosign verify-attestation --type https://slsa.dev/provenance/v1 \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity 'https://github.com/BadRabbit00/llm-wiki/.github/workflows/release.yml@refs/tags/vX.Y.Z' \
+  "$image@$digest" > /dev/null
+echo "LLM_WIKI_IMAGE=$image@$digest" | sudo tee /etc/llm-wiki/image.env
+```
+
+Службы не скачивают образ при старте (`--pull never`): после перезагрузки они
+поднимаются без сети. Службы запускаются ниже, после настройки.
 
 ## 2. Новая вики или перенос
 
@@ -73,11 +77,13 @@ sudo llm-wiki-admin wikisvc lint
 **Перенос существующей вики:** не запускайте `init`. Используйте раздел переноса
 ниже, включая `repair-worktrees`, затем продолжайте настройку токенов и модели.
 
-Конфигурация сервисов — `/etc/llm-wiki/service.env`. Стандартные пути подходят
-systemd-ограничениям записи; при изменении путей вне `/var/lib/llm-wiki` также
-обновите `ReadWritePaths`/`RequiresMountsFor` через `systemctl edit`.
-ENV-файлы используют простые `KEY=value` или `KEY="value with spaces"`, без
-`export`, подстановки `$VAR`, обратных кавычек и команд. Их читают systemd и CLI helper.
+`llm-wiki-admin` выполняет команду в одноразовом контейнере образа релиза от
+`llm-wiki`, со всеми каталогами данных и настройками.
+
+Конфигурация сервисов — `/etc/llm-wiki/service.env`. Контейнеры видят только
+`/var/lib/llm-wiki` и `/etc/llm-wiki` по тем же путям, поэтому данные держите там.
+ENV-файлы — простые строки `KEY=value`: podman передаёт значение как есть, без
+снятия кавычек, без `export`, подстановки `$VAR` и команд.
 
 ## 3. Токены и Authentik
 
@@ -146,9 +152,10 @@ timedatectl
 `System clock synchronized: yes`. Это нужно и для окон heal, и для проверки
 OIDC exp/iat/nbf; допуск будущего iat/nbf — не более 60 секунд, истёкший exp отвергается.
 Issuer обязан быть HTTPS. Для частного CA укажите `SSL_CERT_FILE=/etc/llm-wiki/idp-ca.pem`
-в ui.env: PEM bundle системных корней и внутреннего CA, доступный llm-ui и диагностике
-(например root:root, 0644; сертификаты публичные). Расположение системного bundle
-зависит от дистрибутива; Go использует системные доверенные корни. Проверка TLS всегда включена.
+в ui.env: PEM bundle публичных корней и внутреннего CA, доступный llm-ui и диагностике
+(например root:root, 0644; сертификаты публичные). Файл должен лежать в
+`/etc/llm-wiki`: контейнер видит только этот каталог хоста. Без `SSL_CERT_FILE`
+образ доверяет публичным корням из своего CA bundle. Проверка TLS всегда включена.
 Только локальный стенд с loopback IdP допускает `WIKI_UI_OIDC_INSECURE_HTTP=1`.
 
 UI получает discovery/JWKS лениво, обновляет ключи каждые 5 минут и при промахе.
@@ -161,7 +168,7 @@ UI получает discovery/JWKS лениво, обновляет ключи �
 
 Нужны GGUF и версия llama.cpp, которая поддерживает именно этот файл и structured
 JSON. Бинарник llama-server, его GPU-библиотеки и драйвер устанавливаются отдельно
-под оборудование сервера. Nix bundle вики не включает CUDA или модель.
+под оборудование сервера. Ни образ, ни хост-часть не включают CUDA или модель.
 Если llama-server тоже установлен через Nix, держите его в постоянном Nix profile
 или другом GC root; для GPU должны быть доступны библиотеки драйвера **хоста**.
 Сначала проверьте запуск этого бинарника на целевом компьютере.
@@ -388,11 +395,11 @@ sudo systemctl status wikisvc wikiagent wiki-ui
 включая случай ошибки. Внутри находятся секреты из `agent.env` и внутренние материалы.
 `--no-same-owner` оставляет владельцем распакованных файлов root, от которого идёт проверка.
 
-Не используйте `llm-wiki-admin`: он читает рабочий `service.env` и переходит в рабочий
-каталог. Здесь вызывается CLI напрямую. `Settings` читает только окружение
-(`env_file=None`), поэтому для каждой команды явно заданы все три пути.
-Отдельный `INDEX_DIR` находится вне `WIKI_ROOT` и не равен `STATE_DIR`.
-Ни одна команда проверки не указывает на рабочий `/var/lib/llm-wiki`.
+Не используйте `llm-wiki-admin`: он монтирует рабочие `/var/lib/llm-wiki` и
+`/etc/llm-wiki`. Здесь CLI запускается в контейнере установленного образа без сети,
+от `llm-wiki`, и видит только каталог проверки. `Settings` читает только окружение
+(`env_file=None`), поэтому все три пути заданы явно. Отдельный `INDEX_DIR`
+находится вне `WIKI_ROOT` и не равен `STATE_DIR`.
 
 ```sh
 sudo sh -eu <<'RESTORE'
@@ -402,21 +409,20 @@ install -d -m 0700 /tmp/restore-test
 trap 'rm -rf -- /tmp/restore-test' EXIT
 tar --no-same-owner -C /tmp/restore-test -xzf '/var/backups/llm-wiki/data-<дата-UTC>-<суффикс>.tar.gz'
 install -d -m 0700 /tmp/restore-test/index
-
-env WIKI_ROOT=/tmp/restore-test/var/lib/llm-wiki/wiki \
-  STATE_DIR=/tmp/restore-test/var/lib/llm-wiki/state \
-  INDEX_DIR=/tmp/restore-test/index \
-  /opt/llm-wiki/current/bin/wikisvc repair-worktrees
-env WIKI_ROOT=/tmp/restore-test/var/lib/llm-wiki/wiki \
-  STATE_DIR=/tmp/restore-test/var/lib/llm-wiki/state \
-  INDEX_DIR=/tmp/restore-test/index \
-  /opt/llm-wiki/current/bin/wikisvc reindex --full
-env WIKI_ROOT=/tmp/restore-test/var/lib/llm-wiki/wiki \
-  STATE_DIR=/tmp/restore-test/var/lib/llm-wiki/state \
-  INDEX_DIR=/tmp/restore-test/index \
-  /opt/llm-wiki/current/bin/wikisvc lint
+chown -R llm-wiki:llm-wiki /tmp/restore-test
+image=$(sed -n 's/^LLM_WIKI_IMAGE=//p' /etc/llm-wiki/image.env)
+for command in repair-worktrees 'reindex --full' lint; do
+  podman run --rm --pull never --network none --read-only --tmpfs /tmp \
+    --user "$(id -u llm-wiki):$(id -g llm-wiki)" --volume /tmp/restore-test:/restore \
+    --env WIKI_ROOT=/restore/var/lib/llm-wiki/wiki \
+    --env STATE_DIR=/restore/var/lib/llm-wiki/state --env INDEX_DIR=/restore/index \
+    "$image" wikisvc $command
+done
 RESTORE
 ```
+
+Архив содержит и `image.env` своего времени: при настоящем восстановлении вместе с
+данными вернётся и образ, с которым они были записаны.
 
 После успешной проверки включите регулярный запуск:
 
@@ -495,6 +501,10 @@ tar -czf wiki-data.tar.gz wiki backend/.dev/state
 `agent.env` нужен с исходным токеном, соответствующим скопированной state.db.
 Если его нет, выпустите новый агентский токен.
 
+На новой машине сначала установите хост-часть и закрепите образ (раздел 1).
+Если вы восстановили `/etc/llm-wiki` из архива, в нём уже есть `image.env` старой
+машины: выполните для этого дайджеста `podman pull`.
+
 ```sh
 # На новой машине после копирования, до старта служб:
 sudo chown -R llm-wiki:llm-wiki /var/lib/llm-wiki
@@ -513,89 +523,84 @@ GGUF копируется отдельно. Архив содержит внут
 
 ## Обновление и откат
 
-Сначала соберите новую версию, пока старая работает. Затем остановите таймер,
-дождитесь завершения текущего задания копирования, если оно выполняется,
-и остановите сервисы. Сделайте согласованную резервную копию и установите готовый bundle:
+Версия — это образ релиза; хост-часть меняется редко и обновляется отдельно.
+Сначала скачайте и проверьте новый образ, пока старый работает:
 
 ```sh
-git pull --ff-only
-nix --extra-experimental-features 'nix-command flakes' build .#deployment --out-link result-deployment
+image=ghcr.io/badrabbit00/llm-wiki
+sudo podman pull "$image:vX.Y.Z"
+digest=$(sudo podman image inspect --format '{{.Digest}}' "$image:vX.Y.Z")
+nix shell nixpkgs#cosign -c cosign verify-attestation --type https://slsa.dev/provenance/v1 \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity 'https://github.com/BadRabbit00/llm-wiki/.github/workflows/release.yml@refs/tags/vX.Y.Z' \
+  "$image@$digest" > /dev/null
+```
+
+Затем остановите таймер, дождитесь завершения текущего копирования, если оно идёт,
+и остановите службы. `wikiagent` при остановке дописывает открытые ответы чата и
+ставит задачи на паузу на ближайшем чекпоинте (до 11 минут); после запуска они
+продолжаются. Модель останавливать не нужно: она не входит в образ.
+
+```sh
 sudo systemctl stop llm-wiki-backup.timer
-# Если копирование уже идёт, дождитесь его завершения перед остановкой служб.
-sudo systemctl stop wiki-ui wikiagent wikisvc llm-wiki-model
+sudo systemctl stop wiki-ui wikiagent wikisvc
 # Копия для обновления: службы остаются остановленными до конца обслуживания.
 # Не запускайте здесь backup.service: его ExecStopPost вернёт службы в работу.
 sudo install -d -m 0700 /var/backups/llm-wiki
 sudo sh -eu -c 'umask 077; tar -C / -czf "/var/backups/llm-wiki/pre-upgrade-$(date -u +%Y%m%dT%H%M%SZ).tar.gz" \
   var/lib/llm-wiki/wiki var/lib/llm-wiki/state var/lib/llm-wiki/agent etc/llm-wiki'
 # Проверьте эту копию по инструкции восстановления выше.
-sudo ./result-deployment/bin/llm-wiki-install
+sudo cp /etc/llm-wiki/image.env /etc/llm-wiki/image.env.previous
+echo "LLM_WIKI_IMAGE=$image@$digest" | sudo tee /etc/llm-wiki/image.env
 sudo llm-wiki-admin wikisvc schema upgrade
 sudo llm-wiki-admin wikisvc reindex --full
 sudo llm-wiki-admin wikisvc lint
-sudo systemctl start llm-wiki-model wikisvc wikiagent wiki-ui
+sudo systemctl start wikisvc wikiagent wiki-ui
+curl --fail http://127.0.0.1:8787/api/v1/health    # version — новая
 sudo llm-wiki-admin check --model
 # Если таймер был включён до обслуживания:
 sudo systemctl start llm-wiki-backup.timer
 ```
 
-Установщик сохраняет `/etc/llm-wiki`; новые примеры сравнивайте с
-`result-deployment/share/llm-wiki/linux/`. Units переустанавливаются; местные
-изменения делайте в systemd drop-ins. Текущий и предыдущий bundle закреплены
-GC roots, удаление checkout или `result-deployment` не ломает службы.
+Откат: остановите службы, верните `image.env.previous` на место `image.env` и
+запустите службы. Предыдущий образ остаётся в хранилище podman, пока его не удалят
+(`podman image prune`), — не чистите его, пока новая версия не проверена. Если
+релиз изменил схему, до запуска восстановите pre-upgrade копию: смена образа
+сама по себе не откатывает миграции БД.
 
-Для отката также остановите таймер, дождитесь завершения копирования,
-остановите службы и выполните
-`sudo /opt/llm-wiki/previous/bin/llm-wiki-install`: установщик вернёт прежний bundle
-и units. Если версия изменила формат данных/схему, до запуска также восстановите
-совместимую резервную копию данных и конфигурации. Смена бинарника сама по себе
-не откатывает миграции БД.
+Хост-часть (юниты, `llm-wiki-run`, `llm-wiki-admin`) обновляется так же, как
+ставилась: соберите `#deployment` нужной версии, остановите службы и выполните
+`llm-wiki-install`. Установщик сохраняет `/etc/llm-wiki`; новые примеры сравнивайте
+с `result-deployment/share/llm-wiki/linux/`. Юниты переустанавливаются; местные
+изменения делайте в systemd drop-ins. Текущая и предыдущая хост-часть закреплены
+GC roots; откат — `sudo /opt/llm-wiki/previous/bin/llm-wiki-install`.
 
 ## Образ контейнера
 
-Каждый мердж в `main` и каждый тег `v*` публикуют образ
-`ghcr.io/badrabbit00/llm-wiki` (`.github/workflows/release.yml`). Теги: `main` —
-последний мердж, `sha-<7 символов коммита>` — конкретная сборка, `vX.Y.Z` — релиз.
+Каждый мердж в `main` и каждый тег версии публикуют образ
+`ghcr.io/badrabbit00/llm-wiki` (`.github/workflows/release.yml`). Теги образа:
+`vX.Y.Z` — релиз, `vX.Y.Z-beta.N` — бета той же версии, `main` — последний мердж,
+`sha-<7 символов коммита>` — конкретная сборка. Обновления предлагаются только из
+тегов версий; `main` и `sha-` нужны для проверок. Пакет публичный, токен для
+`podman pull` не нужен. Каждая публикация подписана attestation происхождения:
+`cosign verify-attestation` из примеров выше доказывает, что дайджест собран
+`release.yml` этого репозитория из указанного тега.
+
 Образ один на три службы. В нём только closures служб, git и CA-сертификаты,
 shell нет. `llama-server` в образ не входит и остаётся на хосте. Коммит, из которого
 собран образ, записан в метке `org.opencontainers.image.revision`.
 
-После первой публикации пакет в GHCR приватный. Сделайте его публичным
-(Package settings → Change visibility) или войдите на сервере токеном с правом
-`read:packages`.
+Все контейнеры запускает `llm-wiki-run`: юниты (`daemon`), `llm-wiki-admin`
+(`once maintenance`) и проверки. Флаги повторяют прежний hardening systemd-юнитов:
+`--network host` (службы и модель слушают loopback хоста), `--read-only --tmpfs /tmp`,
+`--cap-drop ALL`, `--security-opt no-new-privileges`, `--pull never`, журнал в
+journald под именем юнита и `--user` с uid и gid пользователя службы.
 
-С рабочей машины проверьте, что образ собран этим репозиторием, и узнайте дайджест.
-На сервере тяните и запускайте только по дайджесту: тег `main` сдвигается.
-
-```sh
-skopeo inspect --format '{{.Digest}}' docker://ghcr.io/badrabbit00/llm-wiki:main
-gh attestation verify oci://ghcr.io/badrabbit00/llm-wiki@sha256:<дайджест> --owner BadRabbit00
-```
-
-| Служба | Команда | Пользователь | `--env-file` | Тома |
+| Профиль | Команда | Пользователь | `--env-file` | Тома |
 |---|---|---|---|---|
 | wikisvc | `wikisvc serve` | `llm-wiki` | `service.env` | `/var/lib/llm-wiki`, `/etc/llm-wiki:ro` |
-| wikiagent | `wikiagent serve` | `llm-wiki` | `service.env`, `agent.env` | `/var/lib/llm-wiki`, `/etc/llm-wiki:ro` |
+| wikiagent | `wikiagent serve` | `llm-wiki` | `service.env`, `agent.env` | `/var/lib/llm-wiki:ro`, `/var/lib/llm-wiki/agent`, `/etc/llm-wiki:ro` |
 | wiki-ui | `wiki-ui` | `llm-ui` | `ui.env` | `/etc/llm-wiki:ro` |
+| maintenance | любая (`llm-wiki-admin`) | `llm-wiki` | `service.env`, `agent.env`, `ui.env` | `/var/lib/llm-wiki`, `/etc/llm-wiki:ro` |
 
-Общие флаги повторяют hardening systemd-юнитов: `--network host` (службы и модель
-слушают loopback хоста), `--read-only --tmpfs /tmp`, `--cap-drop ALL`,
-`--security-opt no-new-privileges`, `--user` с uid и gid владельца данных. Флаги
-одинаковы для podman и docker; `scripts/smoke-image.sh` запускает образ именно так.
-
-```sh
-image=ghcr.io/badrabbit00/llm-wiki@sha256:<дайджест>
-podman pull "$image"
-podman run --detach --name wikisvc --network host --read-only --tmpfs /tmp \
-  --cap-drop ALL --security-opt no-new-privileges \
-  --user "$(id -u llm-wiki):$(id -g llm-wiki)" --env-file /etc/llm-wiki/service.env \
-  --volume /var/lib/llm-wiki:/var/lib/llm-wiki --volume /etc/llm-wiki:/etc/llm-wiki:ro \
-  "$image" wikisvc serve
-```
-
-Команды обслуживания идут тем же образом с теми же флагами, но с `--rm` вместо
-`--detach --name`: `"$image" wikisvc schema upgrade`, `wikisvc reindex --full`,
-`wikisvc lint`. Порядок обновления и резервное копирование — как в разделе выше:
-службы останавливаются, данные копируются, затем запускается новый дайджест.
-Откат — запуск предыдущего дайджеста. Если релиз изменил схему, сначала
-восстановите копию данных.
+Состояние контейнеров — `sudo podman ps`; журналы — `journalctl -u <служба>`.

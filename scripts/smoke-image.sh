@@ -42,7 +42,7 @@ wait_for() {
 }
 
 common=(
-    --read-only --tmpfs /tmp --network host --user "$(id -u):$(id -g)"
+    --init --read-only --tmpfs /tmp --network host --user "$(id -u):$(id -g)"
     --cap-drop ALL --security-opt no-new-privileges
     --volume "$data:/var/lib/llm-wiki"
 )

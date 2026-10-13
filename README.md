@@ -27,10 +27,11 @@ work/
 
 ## Запуск
 
-Для постоянного развёртывания на **Linux через Nix**:
-[пошаговая установка](docs/deploy-linux.md). Комплект `nix build .#deployment`
-содержит установщик, четыре systemd-службы, конфигурацию, проверку готовности и
-команду восстановления worktrees после переноса. Ниже — запуск для разработки.
+Для постоянного развёртывания на **Linux с podman**:
+[пошаговая установка](docs/deploy-linux.md). Службы приходят образом релиза
+`ghcr.io/badrabbit00/llm-wiki`, а хост-часть `nix build .#deployment` содержит
+установщик, четыре systemd-юнита, конфигурацию и `llm-wiki-admin` для
+обслуживания. Ниже — запуск для разработки.
 
 ```sh
 git clone git@github.com:BadRabbit00/llm-wiki.git backend
@@ -363,9 +364,15 @@ CI (`.github/workflows/ci.yml`) на каждый push в `develop` и на лю
 `go vet`/`gofmt` и ShellCheck. PR в `main` дополнительно запускает полный
 `nix flake check`, запуск образа контейнера (`scripts/smoke-image.sh`) и браузерные
 сценарии `ui/tests` с Chrome из образа раннера. Сливать в `main` можно только после
-зелёного прогона. Мердж в `main` и тег `v*` публикуют образ
+зелёного прогона. Мердж в `main` и тег версии публикуют образ
 `ghcr.io/badrabbit00/llm-wiki` с attestation происхождения (`release.yml`), см.
 [docs/deploy-linux.md](docs/deploy-linux.md#образ-контейнера).
+
+Выпуск версии: поднимите `version` в `pyproject.toml`, `flake.nix`,
+`src/wikisvc/__init__.py` и `src/wikiagent/__init__.py` (тест сверяет все четыре)
+и смерджите это в `main`. Затем поставьте на коммит из `main` тег `vX.Y.Z` (релиз)
+или `vX.Y.Z-beta.N` (бета) и запушьте его. `scripts/check-release-tag.sh` не
+опубликует тег, если коммит не в `main` или версия в коде другая.
 
 Тесты используют настоящие временные Git-репозитории, TestClient, Hypothesis,
 MCP stdio и scripted HTTP-модель. Включены 40 правил компилятора, 40 правил с
