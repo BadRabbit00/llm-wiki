@@ -483,7 +483,7 @@ JSON-ответ:
 
 - `POST /api/v1/rules/{id}/promote` с `{"level": "must|should", "priority": 1..5, "applies_to": [...], "owner": "...", "enforced_by": [...]}`: полная валидация, `lifecycle: active`, `status: verified`, `verified_by`, `verified_at`. Для `must` требует `owner`. Отказывает при ошибках `E_*`. Возвращает предупреждения о пересечении с действующими правилами.
 - `POST /api/v1/rules/{id}/deprecate` с `{"reason": "..."}`: `lifecycle: deprecated`, `deprecated_reason`. Страница остаётся в вики, чтобы планировщик не предлагал ту же идею снова. Ответ перечисляет зависимые страницы.
-- `GET /api/v1/rules?category=&level=&lifecycle=&applies_to=&origin=&source=&q=&sort=&limit=&cursor=`: список для таблицы (id, тезис, категория, уровень, жизненный цикл, области, происхождение, источник, `enforced_by`, счётчики использования).
+- `GET /api/v1/rules?category=&level=&lifecycle=&applies_to=&origin=&source=&q=&sort=&limit=&cursor=`: список для таблицы (id, тезис, категория, уровень, жизненный цикл, области, происхождение, источник, `enforced_by`, счётчики использования). MCP-инструмент `list_rules(q, lifecycle, applies_to, category)` отдаёт тот же список с этими четырьмя фильтрами и теми же правами чтения.
 - `GET /api/v1/inbox` (роль `reviewer`): одним запросом число предложений на ревью, необработанных источников, кандидатов на разбор (по источникам), открытых находок, незавершённых задач `wikiagent`, предупреждений lint по группам.
 - `POST /api/v1/rules/violations` (роль `writer`): `{"items":[{"rule_id","note","ref"}]}`, увеличивает `violations` (обзор соблюдения, второй этап).
 
@@ -643,7 +643,7 @@ API задач: `POST /jobs/ingest-book`, `POST /jobs/heal`, `GET /jobs`, `GET /
 
 - Эндпоинты: `POST /chat/sessions` (с привязкой `{"bind": {"type": "page|rule|proposal|none", "id": "..."}, "profile": "python-fastapi"}`), `GET /chat/sessions/{id}`, `POST /chat/sessions/{id}/messages` (текст и вложения; ответ потоком `text/event-stream`).
 - **Маршрутизатор намерения** (`chat/router.py`): утверждение о правилах (`intake`, раздел 7), вопрос по вики (`question`), правка конкретного правила (`edit`), команда отката (`revert`), прочее. Неуверенные случаи решаются коротким вопросом.
-- Инструменты чата: `search`, `get_page`, `get_rule`, `get_context`, `get_policies` (с `explain`), `list_rules`, `rules_related`, `graph_impact`, `create_proposal`, `put_page`, `patch_page`, `validate_proposal`, `put_notes`. Принятия, повышения, снятия и отката нет.
+- Инструменты чата: `search`, `get_page`, `get_rule`, `get_context`, `get_policies` (с `explain`), `list_rules`, `rules_related`, `graph_impact`, `create_proposal`, `put_page`, `patch_page`, `validate_proposal`, `put_notes` (только HTTP: заметки плана — внутренняя кухня wikiagent, внешним MCP-клиентам не выдаются). Принятия, повышения, снятия и отката нет.
 - Все изменения из чата это предложения в статусе `draft` с описанием сессии и человека (`person`). Подтверждает человек в интерфейсе (раздел 9.2).
 - Всё, что человек принёс в чат (вставленный текст, файл, решение), сохраняется как источник (раздел 7.6).
 - Чат открыт в контексте: при привязке к странице, правилу или предложению их содержимое и diff подаются в начало диалога.
@@ -696,7 +696,7 @@ API задач: `POST /jobs/ingest-book`, `POST /jobs/heal`, `GET /jobs`, `GET /
 | `GET /api/v1/raw/{path}/outline`, `PUT` | reader / writer | новое |
 | `GET /api/v1/raw/{path}/text?pages=&chapter=&max_chars=` | reader | изменено |
 | `GET /api/v1/search`, `GET /pages` | reader | изменено (поведение поиска, параметр `lifecycle`) |
-| MCP: `get_policies`, `get_rule`, `get_outline`, `read_source_pages`, `rules_related`, `graph_impact` | как в API | новое |
+| MCP: `get_policies`, `get_rule`, `list_rules`, `get_outline`, `read_source_pages`, `rules_related`, `graph_impact` | как в API | новое |
 | wikiagent: `/jobs/*`, `/chat/*` | writer | новое (отдельный сервис) |
 
 Эндпоинты для будущего интерфейса уже есть. Экраны: панель «ждёт решения», чат с карточками плана и кнопками «Применить», «Поправить», «Отмена», очередь ревью с diff и влиянием, карточки кандидатов (принять как `should` / `must`, отклонить, править), находки самолечения с готовыми исправлениями, редактор правила (форма из схемы типа), предпросмотр инструкции по профилю (`compile?explain=true`), страница книги (прогресс и отчёт задачи), граф.

@@ -521,12 +521,14 @@ def test_router_clarification_reaches_person_only_as_short_russian(
 
 def test_shared_mcp_contracts(client: TestClient) -> None:
     from wikisvc.mcp_server import create_server
-    from wikisvc.tool_contracts import definitions
+    from wikisvc.tool_contracts import HTTP_ONLY, definitions
 
     server = create_server(client.app.state.runtime)
     contracts = {
         entry["function"]["name"]: entry["function"]["parameters"] for entry in definitions("chat")
     }
+    # A stale name in HTTP_ONLY would silently stop guarding anything.
+    assert HTTP_ONLY <= contracts.keys()
     tools = {tool.name: tool for tool in server._tool_manager.list_tools()}
     # create_server copies the contract into ``parameters``, so the published schema is
     # compared with the Python functions FastMCP actually calls, not with itself.
@@ -538,11 +540,11 @@ def test_shared_mcp_contracts(client: TestClient) -> None:
         for name, tool in tools.items()
         if name in contracts
     }
+    # Every contract except the declared HTTP-only ones has an MCP tool, and those have none.
     assert signatures == {
         name: {key: key in contract["required"] for key in contract["properties"]}
         for name, contract in contracts.items()
-        # No MCP function serves these two contracts; named, so a new gap fails here.
-        if name not in {"list_rules", "put_notes"}
+        if name not in HTTP_ONLY
     }
     assert {name: tools[name].parameters for name in signatures} == {
         name: contracts[name] for name in signatures

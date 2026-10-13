@@ -126,11 +126,16 @@ class Reviser:
         ):
             raise not_found()
 
-    def own(self, proposal: dict[str, Any]) -> bool:
+    def authored(self, proposal: dict[str, Any]) -> bool:
+        # The service compares identities: a person may share the agent token's display name.
+        writer = self.client.check_writer()
         return bool(
-            proposal["status"] in EDITABLE
-            and proposal["author"] == self.client.check_writer()["name"]
+            (proposal["author_identity"] or proposal["author"])
+            == (writer["person"] or writer["name"])
         )
+
+    def own(self, proposal: dict[str, Any]) -> bool:
+        return bool(proposal["status"] in EDITABLE and self.authored(proposal))
 
     def targets(
         self, session: dict[str, Any], actor: dict[str, Any]
@@ -159,7 +164,7 @@ class Reviser:
         if proposal["status"] not in EDITABLE:
             raise refuse("state")
         # The service lets only the author edit through the agent token, so check it first.
-        if proposal["author"] != self.client.check_writer()["name"]:
+        if not self.authored(proposal):
             raise refuse("author")
         notes: dict[str, Any] = proposal.get("notes") or {}
         if actor["role"] not in ("reviewer", "admin") and (

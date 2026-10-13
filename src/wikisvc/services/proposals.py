@@ -36,6 +36,11 @@ if TYPE_CHECKING:
     from wikisvc.services.runtime import Runtime
 
 
+def _is_author(proposal: Proposal, actor: Principal) -> bool:
+    # A display name is not unique; ownership follows identity, the same way E_SELF_REVIEW does.
+    return (proposal.author_identity or proposal.author) == actor.identity
+
+
 class Proposals:
     def __init__(self, runtime: Runtime) -> None:
         self.rt = runtime
@@ -62,7 +67,7 @@ class Proposals:
                     raise not_found()
         if editing:
             require_role(actor, "writer")
-            if proposal.author != actor.name and actor.role not in ("reviewer", "admin"):
+            if not _is_author(proposal, actor) and actor.role not in ("reviewer", "admin"):
                 raise WikiError(
                     "E_FORBIDDEN", "Изменять предложение может автор или ревьюер.", status=403
                 )
@@ -207,7 +212,7 @@ class Proposals:
     def put_notes(self, pid: str, actor: Principal, notes: dict[str, Any]) -> dict[str, Any]:
         with write_lock(self.config.state_dir, self.config.lock_timeout):
             proposal = self._proposal(pid, actor, editing=True)
-            if proposal.author != actor.name:
+            if not _is_author(proposal, actor):
                 raise WikiError("E_FORBIDDEN", "Заметки может менять только автор.", status=403)
             data = json.dumps(notes, ensure_ascii=False)
             if len(data) > 100000:
@@ -624,7 +629,7 @@ class Proposals:
             raise WikiError("E_SECRET_DETECTED", "В комментарии найден возможный секрет.")
         with write_lock(self.config.state_dir, self.config.lock_timeout):
             proposal = self._proposal(pid, actor)
-            if decision == "abandoned" and proposal.author != actor.name:
+            if decision == "abandoned" and not _is_author(proposal, actor):
                 require_role(actor, "reviewer")
             if proposal.status in ("accepted", "rejected", "abandoned", "reverted") or (
                 decision in ("accepted", "changes_requested")

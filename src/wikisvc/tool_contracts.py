@@ -7,6 +7,7 @@ TOOL_PROFILES: dict[str, tuple[str, ...]] = {
         "get_instructions",
         "get_policies",
         "get_rule",
+        "list_rules",
         "rules_related",
         "graph_impact",
         "search",
@@ -69,6 +70,8 @@ CONTRACTS: dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], tuple[str
     "validate_proposal": ("GET", "/proposals/{pid}/validate", ("pid",), (), ()),
     "put_notes": ("PUT", "/proposals/{pid}/notes", ("pid",), (), ("notes",)),
 }
+# Plan notes are wikiagent's internal bookkeeping; external MCP clients never get them.
+HTTP_ONLY = frozenset({"put_notes"})
 READ_TOOLS = frozenset(name for name, value in CONTRACTS.items() if value[0] == "GET")
 ALLOWLISTS = {
     "chat": frozenset(CONTRACTS),
