@@ -105,6 +105,8 @@ pkgs.testers.runNixOSTest {
     server.succeed("echo vm-secret > /etc/llm-wiki/ui-oidc.secret && echo vm-token > /etc/llm-wiki/ui-session.token")
     server.succeed("systemctl start wikisvc wiki-ui")
     server.wait_until_succeeds("curl -fsS http://127.0.0.1:8789/healthz")
+    # The updater asks wikisvc who is calling: it has to be up before the API checks.
+    server.wait_until_succeeds("curl -fsS http://127.0.0.1:8787/api/v1/health")
 
     server.succeed("mkdir -p /etc/systemd/system/llm-wiki-updater.service.d")
     server.succeed(
@@ -118,9 +120,12 @@ pkgs.testers.runNixOSTest {
     with subtest("the socket is open to root and llm-ui only, and the API to human administrators"):
         server.succeed(f"test \"$(stat -c '%U %G %a' {socket})\" = 'root llm-ui 660'")
         server.fail(f"runuser -u llm-wiki -- curl -sf --unix-socket {socket} http://updater/v1/status")
-        assert api("GET", "/v1/status")["error"]["code"] == "E_UNAUTHORIZED"
-        assert api("GET", "/v1/status", agent)["error"]["code"] == "E_HUMAN_REQUIRED"
-        assert api("GET", "/v1/status", admin)["channel"] == "release"
+        anonymous = api("GET", "/v1/status")
+        assert anonymous["error"]["code"] == "E_UNAUTHORIZED", anonymous
+        robot = api("GET", "/v1/status", agent)
+        assert robot["error"]["code"] == "E_HUMAN_REQUIRED", robot
+        administrator = api("GET", "/v1/status", admin)
+        assert administrator["channel"] == "release", administrator
 
     with subtest("a confirmed release is installed and verified"):
         status = api("POST", "/v1/check", admin)
