@@ -377,6 +377,102 @@ def test_proposal_written_by_a_person_is_refused(
         assert s.proposal(pid)["pages"] == before["pages"]
 
 
+def namesake(s: Stack) -> str:
+    """A person whose display name is the agent token's name; their identity is their own."""
+    token = s.auth.create(
+        "mallory-sso",
+        "writer",
+        "restricted",
+        person="mallory",
+        kind="human",
+        display_name="chat-agent",
+    )
+    actor = s.wiki.whoami(token)
+    assert (actor["name"], actor["person"]) == ("chat-agent", "mallory")
+    return token
+
+
+def test_draft_of_the_agents_namesake_is_refused(
+    client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from test_review_policy import candidate
+
+    content = "Так:\n\nlogger.info('event')\n\nНе так:\n\nprint('event')"
+    script = Script(
+        {
+            "locate_revision": [locate("rule-logging")],
+            "revise_page": [
+                revise("rule-logging", op="replace_section", heading="Примеры", text=content)
+            ],
+        }
+    )
+    with stack(client, config, tmp_path, monkeypatch, script) as s:
+        client.headers["Authorization"] = "Bearer " + namesake(s)
+        pid = candidate(client)
+        before = s.proposal(pid)
+        assert (before["author"], before["author_identity"]) == ("chat-agent", "mallory")
+        # alice is a reviewer, so only the author check stands between her and this draft.
+        sid = s.session({"type": "proposal", "id": pid})
+        assert failure(s.send(sid, ADD_EXAMPLES)) == refusal("author")
+        assert s.tasks() == ["route"]
+        assert s.proposal(pid) == before
+
+
+def test_bound_rule_does_not_continue_a_namesakes_draft(
+    client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from test_proposals import proposal
+
+    from wikiagent.planner.revise import Reviser
+
+    target = "rule-http-requests-sync"
+    script = Script(
+        {
+            "locate_revision": [locate(target, "Обоснование")],
+            "revise_page": [
+                revise(
+                    target,
+                    summary="раздел „Обоснование“ переписан",
+                    op="replace_section",
+                    heading="Обоснование",
+                    text=RATIONALE,
+                )
+            ],
+        }
+    )
+    with stack(client, config, tmp_path, monkeypatch, script) as s:
+        published = s.wiki.request("GET", "/pages/" + target)
+        client.headers["Authorization"] = "Bearer " + namesake(s)
+        foreign = proposal(client, "Своя правка")
+        response = client.patch(
+            f"/api/v1/proposals/{foreign}/pages/{target}",
+            json={
+                "base_version": published["version"],
+                "ops": [{"op": "append_to_section", "heading": "Примеры", "text": "Своё."}],
+            },
+        )
+        assert response.status_code == 200, response.text
+        before = s.proposal(foreign)
+        token = s.person("ivan")
+        # The draft a session's plan points at must be the agent's own to be continued; a plan
+        # cannot name another's draft through chat, so the reviser is handed one directly.
+        session = {
+            "id": "x" * 32,
+            "owner": "ivan",
+            "bind": {"type": "rule", "id": target},
+            "plan": {"proposal": foreign},
+        }
+        plan = Reviser(s.wiki, s.chat.app.state.models).run(REWRITE, session, s.wiki.whoami(token))[
+            "plan"
+        ]
+        assert plan["proposal"] != foreign and plan["owner"] == "ivan"
+        mine = s.proposal(plan["proposal"])
+        assert (mine["author"], mine["author_identity"]) == ("chat-agent", "chat-agent")
+        [page] = mine["pages"]
+        assert page["body_md"] == replaced(published["body_md"], "Обоснование", RATIONALE)
+        assert s.proposal(foreign) == before
+
+
 def test_only_the_draft_owner_or_a_reviewer_may_revise(
     client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
