@@ -433,7 +433,7 @@ class Extractions:
                 if citation.unit == "гл.":
                     chapters = self.outline(actor, path)["chapters"]
                     selected = [c for c in chapters if start <= c["n"] <= end]
-                    if len(selected) != end - start + 1:
+                    if not 1 <= start <= end or len(selected) != end - start + 1:
                         result.append(
                             issue("E_LOCATOR_OUT_OF_RANGE", page.id, "Указанная глава отсутствует.")
                         )
