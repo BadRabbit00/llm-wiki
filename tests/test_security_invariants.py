@@ -28,6 +28,7 @@ from test_mcp_http import call
 from test_proposals import payload, proposal
 from test_review_policy import candidate
 from test_rules_domain import rule
+from test_sessions import ROLES, issue
 
 import wikisvc
 from wikiagent.api import create_app as create_agent_app
@@ -40,6 +41,7 @@ from wikiagent.state import AgentState
 from wikiagent.tools import execute
 from wikisvc.config import Settings
 from wikisvc.domain.errors import WikiError
+from wikisvc.domain.ids import page_path
 from wikisvc.domain.markdown import parse
 from wikisvc.main import create_app
 from wikisvc.services.auth import Auth
@@ -719,7 +721,7 @@ def test_patch_rule_status_and_deprecated_reason_protected(
     assert client.get(f"{API}/proposals/{pid}/diff").json()["pages"] == []
 
 
-# В8. Proposal ownership is compared by actor.name, which is a display name for SSO.
+# В8. Proposal ownership follows identity: actor.name is a display name for SSO and repeats.
 
 
 def edit(client: TestClient, pid: str, operation: str, token: str) -> httpx.Response:
@@ -785,12 +787,6 @@ def test_other_person_cannot_edit_proposal(
     assert unchanged()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="В8: proposals.py:65/210/627 сравнивают proposal.author с actor.name (display_name "
-    "у SSO), а не с identity; тёзка правит, пишет заметки и закрывает чужое предложение. "
-    "Фикс в защищённом proposals.py — отдельная задача.",
-)
 @pytest.mark.parametrize("operation", ["put", "notes", "abandon"])
 def test_namesake_cannot_edit_proposal(
     client: TestClient, config: Settings, operation: str
@@ -799,6 +795,142 @@ def test_namesake_cannot_edit_proposal(
     assert response.status_code == 403, response.text
     assert code(response) == "E_FORBIDDEN"
     assert unchanged()
+
+
+@pytest.fixture
+def sso(config: Settings) -> Iterator[TestClient]:
+    """wikisvc that issues people their tokens through /sessions, as the UI does after OIDC."""
+    config.session_issuer_token_name = "wiki-ui"
+    config.roles_file = config.state_dir.parent / "roles.yaml"
+    config.roles_file.write_text(ROLES)
+    issuer = Auth(StateDB(config.state_dir)).create("wiki-ui", "reader", "public")
+    with TestClient(create_app(config), base_url="http://127.0.0.1:8787") as client:
+        client.headers["Authorization"] = "Bearer " + issuer
+        yield client
+
+
+def drafted(client: TestClient, token: str) -> str:
+    pid = str(
+        client.post(
+            f"{API}/proposals", json={"title": "Own proposal"}, headers=bearer(token)
+        ).json()["pid"]
+    )
+    response = client.put(
+        f"{API}/proposals/{pid}/pages/term-new", json=payload(), headers=bearer(token)
+    )
+    assert response.status_code == 200, response.text
+    return pid
+
+
+def outcome(client: TestClient, pid: str) -> dict[str, Any]:
+    """What an edit can change, read from the service's own state.db without reopening it."""
+    state = client.app.state.runtime.state
+    [row] = state.rows("SELECT status,last_editor FROM proposals WHERE pid=?", (pid,))
+    notes = state.rows("SELECT data FROM proposal_notes WHERE pid=?", (pid,))
+    pages = state.rows("SELECT path FROM proposal_snapshots WHERE pid=? ORDER BY path", (pid,))
+    return {
+        **row,
+        "notes": json.loads(notes[0]["data"]) if notes else None,
+        "pages": [page["path"] for page in pages],
+    }
+
+
+def head(config: Settings, pid: str) -> str | None:
+    work = config.state_dir / "worktrees" / pid
+    return GitRepo(work).head() if work.exists() else None
+
+
+def check_applied(
+    client: TestClient,
+    config: Settings,
+    pid: str,
+    before: tuple[dict[str, Any], str | None],
+    operation: str,
+    editor: str,
+) -> None:
+    """The exact state after `edit` succeeded, against the state before it."""
+    state, start = before
+    expected = {
+        "put": {
+            **state,
+            "last_editor": editor,
+            "pages": sorted(
+                [
+                    *state["pages"],
+                    page_path(client.app.state.runtime.registry, "term", "term-taken"),
+                ]
+            ),
+        },
+        "notes": {**state, "notes": {"summary": "Чужие заметки", "items": []}},
+        "abandon": {**state, "status": "abandoned"},
+    }[operation]
+    assert outcome(client, pid) == expected
+    end = head(config, pid)
+    if operation == "put":
+        assert end is not None and end != start
+    else:
+        # Notes live in state.db only; abandoning removes the worktree.
+        assert end == {"notes": start, "abandon": None}[operation]
+
+
+def test_reviewer_namesake_cannot_write_notes(sso: TestClient, config: Settings) -> None:
+    author = issue(sso, subject="alex@corp", username="Alex Kim", groups=["writers"]).token
+    reviewer = issue(sso, subject="alexa@corp", username="Alex Kim", groups=["reviewers"])
+    assert (reviewer.actor.name, reviewer.actor.role) == ("Alex-Kim", "reviewer")
+    pid = drafted(sso, author)
+    # The reviewer role opens the pages to her, so the notes check alone guards the notes.
+    allowed = edit(sso, pid, "put", reviewer.token)
+    assert allowed.status_code == 200, allowed.text
+    before = outcome(sso, pid), head(config, pid)
+    refused = edit(sso, pid, "notes", reviewer.token)
+    assert refused.status_code == 403, refused.text
+    assert (code(refused), refused.json()["error"]["message"]) == (
+        "E_FORBIDDEN",
+        "Заметки может менять только автор.",
+    )
+    assert (outcome(sso, pid), head(config, pid)) == before
+    assert before[0]["notes"] is None
+
+
+@pytest.mark.parametrize("operation", ["put", "notes", "abandon"])
+def test_author_edits_own_proposal_from_another_session(
+    sso: TestClient, config: Settings, operation: str
+) -> None:
+    first = issue(sso, subject="alex@corp", username="Alex Kim", groups=["writers"]).token
+    # A later login of the same person after the IdP renamed them: new token, new display name.
+    second = issue(sso, subject="alex@corp", username="Alexander Kim", groups=["writers"])
+    assert (second.actor.name, second.actor.person) == ("Alexander-Kim", "alex@corp")
+    pid = drafted(sso, first)
+    before = outcome(sso, pid), head(config, pid)
+    response = edit(sso, pid, operation, second.token)
+    assert response.status_code == 200, response.text
+    check_applied(sso, config, pid, before, operation, "Alexander-Kim")
+
+
+@pytest.mark.parametrize("operation", ["put", "notes", "abandon"])
+def test_proposal_without_author_identity_belongs_to_the_token_name(
+    sso: TestClient, config: Settings, operation: str
+) -> None:
+    owner = auth(sso).create("alexk", "writer", "internal")
+    pid = drafted(sso, owner)
+    # A row as written before author_identity existed. Startup backfills such rows, so the
+    # column is cleared after start, in the state.db the running service reads.
+    with sso.app.state.runtime.state.connect() as db:
+        db.execute("UPDATE proposals SET author_identity=NULL WHERE pid=?", (pid,))
+    namesake = issue(sso, subject="u-2071", username="alexk", groups=["writers"])
+    assert (namesake.actor.name, namesake.actor.person) == ("alexk", "u-2071")
+    before = outcome(sso, pid), head(config, pid)
+    refused = edit(sso, pid, operation, namesake.token)
+    assert refused.status_code == 403, refused.text
+    assert code(refused) == "E_FORBIDDEN"
+    assert (outcome(sso, pid), head(config, pid)) == before
+    allowed = edit(sso, pid, operation, owner)
+    assert allowed.status_code == 200, allowed.text
+    check_applied(sso, config, pid, before, operation, "alexk")
+    rows = sso.app.state.runtime.state.rows(
+        "SELECT author,author_identity FROM proposals WHERE pid=?", (pid,)
+    )
+    assert rows == [{"author": "alexk", "author_identity": None}]
 
 
 # В9. Smaller boundaries.
