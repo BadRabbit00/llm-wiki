@@ -33,10 +33,15 @@
             pname = "wikisvc";
             version = "0.2.0";
             pyproject = true;
-            # The UI is built independently; frontend edits do not rebuild Python.
+            # The UI is built independently; frontend edits do not rebuild Python. Nor do
+            # Nix expressions (image, host bundle, VM test) or CI workflows, which no
+            # Python test reads; flake.nix stays because a test checks its version.
             src = e.pkgs.lib.cleanSourceWith {
               src = ./.;
-              filter = path: _type: builtins.baseNameOf path != "ui";
+              filter = path: _type:
+                let name = builtins.baseNameOf path; in
+                name != "ui" && name != ".github"
+                && (name == "flake.nix" || !e.pkgs.lib.hasSuffix ".nix" name);
             };
             build-system = [ e.py.pkgs.hatchling ];
             dependencies = e.runtime;
