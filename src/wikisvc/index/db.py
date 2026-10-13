@@ -4,10 +4,13 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from wikisvc.domain.errors import WikiError
+from wikisvc.storage.db_version import INDEX_SCHEMA, refuse_newer, stamp, version
 
 
 class IndexDB:
-    def __init__(self, directory: Path) -> None:
+    def __init__(self, directory: Path, discard_newer: bool = False) -> None:
+        """discard_newer drops an index a newer version wrote; it is derived, so a
+        full reindex rebuilds it. Otherwise such an index is refused like any database."""
         directory.mkdir(parents=True, exist_ok=True)
         self.path = directory / "wiki.db"
         with self.connect() as db:
@@ -17,6 +20,17 @@ class IndexDB:
                     "SQLite собран без FTS5. Установите Python с поддержкой SQLite FTS5.",
                     status=500,
                 )
+            newer = version(db) > INDEX_SCHEMA
+        if newer and discard_newer:
+            for name in ("wiki.db", "wiki.db-wal", "wiki.db-shm"):
+                (directory / name).unlink(missing_ok=True)
+        with self.connect() as db:
+            refuse_newer(
+                db,
+                "индекса",
+                INDEX_SCHEMA,
+                "Индекс производный: `wikisvc reindex --full` соберёт его заново этой версией.",
+            )
             db.executescript("""
             CREATE TABLE IF NOT EXISTS pages (
                 id TEXT PRIMARY KEY, type TEXT NOT NULL, title TEXT NOT NULL, summary TEXT NOT NULL,
@@ -48,6 +62,7 @@ class IndexDB:
             """)
             if "storage" not in {r[1] for r in db.execute("PRAGMA table_info(raw_files)")}:
                 db.execute("ALTER TABLE raw_files ADD COLUMN storage TEXT NOT NULL DEFAULT 'git'")
+            stamp(db, INDEX_SCHEMA)
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:

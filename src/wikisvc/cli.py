@@ -183,7 +183,9 @@ def reindex(full: bool = False) -> None:
     from wikisvc.storage.lock import write_lock
 
     config = settings()
-    runtime = Runtime(config)
+    # A full rebuild is how an index written by a newer version is replaced,
+    # for instance after rolling an update back.
+    runtime = Runtime(config, discard_newer_index=full)
     with write_lock(config.state_dir, config.lock_timeout):
         issues = runtime.reindex(full)
     typer.echo(f"Index rebuilt; {len(issues)} issues.")

@@ -23,13 +23,13 @@ from wikisvc.storage.state_db import StateDB
 
 
 class Runtime:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, discard_newer_index: bool = False) -> None:
         self.settings = settings
         with write_lock(settings.state_dir, settings.lock_timeout):
             GitRepo(settings.wiki_root).recover()
         self.registry = load_registry(settings.wiki_root)
         self.state = StateDB(settings.state_dir)
-        self.index = IndexDB(settings.index_dir)
+        self.index = IndexDB(settings.index_dir, discard_newer_index)
         self.auth = Auth(self.state, settings.rate_limit_per_min)
         self.auth.anonymous_name = settings.anonymous_name
         self.auth.anonymous_role = settings.anonymous_role

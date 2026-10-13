@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from wikisvc.storage.db_version import STATE_SCHEMA, refuse_newer, stamp
+
 
 def now() -> str:
     return datetime.now(UTC).isoformat()
@@ -16,6 +18,14 @@ class StateDB:
         directory.chmod(0o700)
         self.path = directory / "state.db"
         with self.connect() as db:
+            # Before any migration: older code must not alter a newer schema.
+            refuse_newer(
+                db,
+                "state.db",
+                STATE_SCHEMA,
+                "Запустите версию не старше той, что записала базу, или восстановите копию "
+                "данных, снятую до обновления.",
+            )
             db.executescript("""
             CREATE TABLE IF NOT EXISTS tokens (
                 token_hash TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE,
@@ -98,6 +108,7 @@ class StateDB:
                 row[1] for row in db.execute("PRAGMA table_info(raw_notes)")
             }:
                 db.execute("ALTER TABLE raw_notes ADD COLUMN original_name TEXT")
+            stamp(db, STATE_SCHEMA)
         self.path.chmod(0o600)
 
     @contextmanager
