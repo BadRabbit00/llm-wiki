@@ -527,9 +527,26 @@ def test_shared_mcp_contracts(client: TestClient) -> None:
     contracts = {
         entry["function"]["name"]: entry["function"]["parameters"] for entry in definitions("chat")
     }
-    for tool in server._tool_manager.list_tools():
-        if tool.name in contracts:
-            assert tool.parameters == contracts[tool.name]
+    tools = {tool.name: tool for tool in server._tool_manager.list_tools()}
+    # create_server copies the contract into ``parameters``, so the published schema is
+    # compared with the Python functions FastMCP actually calls, not with itself.
+    signatures = {
+        name: {
+            key: field.is_required()
+            for key, field in tool.fn_metadata.arg_model.model_fields.items()
+        }
+        for name, tool in tools.items()
+        if name in contracts
+    }
+    assert signatures == {
+        name: {key: key in contract["required"] for key in contract["properties"]}
+        for name, contract in contracts.items()
+        # No MCP function serves these two contracts; named, so a new gap fails here.
+        if name not in {"list_rules", "put_notes"}
+    }
+    assert {name: tools[name].parameters for name in signatures} == {
+        name: contracts[name] for name in signatures
+    }
 
 
 def test_eval_continues_after_unavailable_model(tmp_path: Path) -> None:
