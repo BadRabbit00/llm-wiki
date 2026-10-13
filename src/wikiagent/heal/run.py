@@ -145,6 +145,10 @@ class Healer:
                         findings.append(finding["id"])
             except WikiError as exc:
                 discarded.append({"pair": [a, b], "code": exc.code})
+                # Too large for the model's context: no verdict to cache, and the same pages
+                # would be refused again, so the run is not left incomplete for a retry.
+                if exc.code == "E_MODEL_CONTEXT":
+                    continue
                 if exc.code != "E_MODEL_OUTPUT":
                     incomplete = True
                     continue

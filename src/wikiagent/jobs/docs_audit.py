@@ -275,6 +275,13 @@ class DocsAudit:
                         max_attempts=attempts,
                     )
                 except WikiError as exc:
+                    if exc.code == "E_MODEL_CONTEXT":
+                        # The file does not fit the model: no verdict, so nothing is cached
+                        # and the pair is reported again on every run. Retrying the same
+                        # input cannot help, so the rest of the audit goes on.
+                        progress.discarded.append(exc.code)
+                        self.state.status(job_id, "running", progress.model_dump())
+                        continue
                     if exc.code != "E_MODEL_OUTPUT":
                         raise
                     # Store only a code, never model output or validation details.
