@@ -1,5 +1,6 @@
 import json
 import re
+import shutil
 import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -121,8 +122,14 @@ class GitRepo:
         self.run("worktree", "add", "-b", branch, str(path), base)
 
     def remove_worktree(self, path: Path, branch: str) -> None:
-        if path.exists():
+        # Registration and directory can diverge: a lost directory stays registered and keeps
+        # the branch checked out, while a failed delete unregisters the directory it leaves
+        # behind; either way every retry, startup recovery included, would fail.
+        listed = self.run("worktree", "list", "--porcelain").splitlines()
+        if f"worktree {path.resolve()}" in listed:
             self.run("worktree", "remove", "--force", str(path))
+        if path.exists():
+            shutil.rmtree(path)
         if self.run("branch", "--list", branch):
             self.run("branch", "-D", branch)
 
