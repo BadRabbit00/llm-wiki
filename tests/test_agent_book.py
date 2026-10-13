@@ -74,6 +74,11 @@ def test_book_resume_without_duplicates(
         "Use asynchronous HTTP clients in async handlers.",
         "Keep type hints on public Python functions.",
     ]
+    # Distinct strings, so swapped or misplaced examples show in the page body.
+    examples = {
+        "good_example": 'log.info("order saved", order_id=order.id)',
+        "bad_example": 'print("order saved")',
+    }
 
     def respond(task: str, data: dict[str, Any]) -> dict[str, Any]:
         if task == "book_chapter":
@@ -89,6 +94,7 @@ def test_book_resume_without_duplicates(
                         "rationale": "The provided chapter describes this practice.",
                         "locator": {"unit": "гл.", "start": chapter},
                         "quote": quotes[chapter - 1],
+                        **(examples if chapter == 1 else {}),
                         "relations": [
                             {"rule_id": "rule-http-requests-sync", "type": "conflicts_with"}
                         ]
@@ -154,6 +160,14 @@ def test_book_resume_without_duplicates(
         p["lifecycle"] == "candidate" and p["origin"] == "book" for p in rules
     )
     assert any(p["id"] == collision.id + "-2" for p in rules)
+    bodies = {p["summary"]: p["body_md"] for p in rules}
+    assert (
+        "## Примеры\n\nПримеры предложены моделью, проверьте.\n\n"
+        f"Так:\n\n{examples['good_example']}\n\nНе так:\n\n{examples['bad_example']}"
+    ) in bodies[quotes[0]]
+    # Chapter 2 gives no examples: the section says so, with no empty blocks.
+    assert "Примеров нет" in bodies[quotes[1]]
+    assert "Так:" not in bodies[quotes[1]] and "Не так:" not in bodies[quotes[1]]
     assert (
         client.get("/api/v1/pages/" + collision.id).json()["summary"]
         == collision.frontmatter.summary

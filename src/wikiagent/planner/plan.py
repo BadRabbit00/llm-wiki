@@ -107,6 +107,8 @@ def plan_changes(
                 if claim.level_guess == "must" and not claim.owner
                 else []
             ),
-            "Примеры предложены моделью, проверьте.",
+            "Примеры предложены моделью, проверьте."
+            if claim.good_example.strip() and claim.bad_example.strip()
+            else "Примеры неполные: добавьте недостающие до принятия.",
         ],
     }

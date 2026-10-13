@@ -12,7 +12,7 @@ from pydantic import Field, field_validator
 
 from wikiagent.client import WikiClient
 from wikiagent.models import ModelClient
-from wikiagent.planner.builder import Builder
+from wikiagent.planner.builder import Builder, examples_md
 from wikiagent.planner.claims import Category, StrictModel
 from wikiagent.planner.classify import Classification, verify
 from wikiagent.state import AgentState
@@ -391,7 +391,10 @@ class IngestBook:
                         else ""
                     )
                     quote = candidate.quote.replace('"', "“")
-                    body = f'## Правило\n\n{candidate.thesis}\n\n## Обоснование\n\n{candidate.rationale}\n\n[@{source} {locator.unit} {location} "{quote}"]\n\n## Примеры\n\nПримеры предложены моделью, проверьте.\n\nТак:\n\n{candidate.good_example}\n\nНе так:\n\n{candidate.bad_example}'
+                    body = (
+                        f'## Правило\n\n{candidate.thesis}\n\n## Обоснование\n\n{candidate.rationale}\n\n[@{source} {locator.unit} {location} "{quote}"]\n\n## Примеры\n\n'
+                        + examples_md(candidate.good_example, candidate.bad_example)
+                    )
                     metadata = {
                         "id": page_id,
                         "type": "rule",
