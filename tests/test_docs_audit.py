@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from agent_helpers import agent_config, seed_chat, tokens, wiki_client
-from fake_llm import FakeLLM
+from fake_llm import FakeLLM, Reply
 from fastapi.testclient import TestClient
 
 from wikiagent.api import create_app
@@ -489,3 +489,21 @@ def test_profile_scopes_override(client: TestClient) -> None:
         "lang:python"
     ]
     assert result.json()["budget_tokens"] == 1234
+
+
+def test_unavailable_model_fails_the_audit_without_caching(harness: Harness) -> None:
+    """An outage is not a verdict: nothing is cached as checked, and a resume redoes it."""
+    h = harness
+    h.fake.respond = lambda task, data: Reply(status=503)
+    job = new_job(h)
+    with pytest.raises(WikiError) as error:
+        h.audit.run(job, payload())
+    assert error.value.code == "E_MODEL_UNAVAILABLE"
+    assert h.state.restore(job, "pending") is None and h.state.restore(job, "report") is None
+    # The first policy took every attempt; the outage stopped the job before the second.
+    assert len(h.fake.calls) == h.config.limits.retries
+    h.fake.respond = answer
+    h.audit.run(job, payload())
+    # Both policies are audited on resume, as in a clean run of this payload.
+    assert len(h.fake.calls) == h.config.limits.retries + 2
+    assert len(h.audit.client.all("/findings", kind="docs-audit")) == 2
