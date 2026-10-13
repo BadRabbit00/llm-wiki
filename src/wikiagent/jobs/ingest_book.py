@@ -280,6 +280,12 @@ class IngestBook:
                                 )
                             locator = candidate.locator
                             if locator.unit == "гл.":
+                                if not (
+                                    locator.start
+                                    <= (locator.end or locator.start)
+                                    <= len(outline["chapters"])
+                                ):
+                                    raise WikiError("E_LOCATOR_OUT_OF_RANGE", "Главы отсутствуют.")
                                 excerpt = self.client.request(
                                     "GET",
                                     "/raw/" + path + "/text",
