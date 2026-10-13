@@ -1,3 +1,4 @@
+import json
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -5,6 +6,7 @@ from typing import Any
 import pytest
 from conftest import make_page
 from fastapi.testclient import TestClient
+from starlette.types import Message, Scope
 from test_proposals import payload, proposal, reviewer
 from test_rules_domain import rule
 
@@ -195,12 +197,12 @@ def test_reject_ttl_and_foreign_proposal(client: TestClient, config: Settings) -
     client.headers["Authorization"] = "Bearer " + Auth(StateDB(config.state_dir)).create(
         "other", "writer", "internal"
     )
-    assert (
-        client.put(
-            f"/api/v1/proposals/{pid}/pages/term-other", json=payload("term-other")
-        ).status_code
-        == 403
-    )
+    foreign = client.put(f"/api/v1/proposals/{pid}/pages/term-other", json=payload("term-other"))
+    assert foreign.status_code == 403
+    assert foreign.json()["error"]["code"] == "E_FORBIDDEN"
+    assert [page["id"] for page in client.get(f"/api/v1/proposals/{pid}/diff").json()["pages"]] == [
+        "term-new"
+    ]
     client.headers["Authorization"] = auth
     client.post(f"/api/v1/proposals/{pid}/submit")
     reviewer(client, config)
@@ -248,11 +250,76 @@ def test_rate_limit_and_request_body(config: Settings) -> None:
         client.headers["Authorization"] = "Bearer " + auth.create(
             "size-check", "writer", "restricted"
         )
-        assert (
-            client.post("/api/v1/proposals", content=b"x" * (1024 * 1024 + 65537)).status_code
-            == 413
-        )
+        oversized = client.post("/api/v1/proposals", content=b"x" * (1024 * 1024 + 65537))
+        assert oversized.status_code == 413
+        assert oversized.json()["error"]["code"] == "E_BODY_TOO_LARGE"
         assert client.get("/api/v1/health").status_code == 200
+
+
+def raw_multipart(content: bytes, total: int) -> tuple[bytes, str]:
+    """Build a raw upload of exactly `total` bytes; an ignored form field absorbs the rest."""
+    boundary = "wikisvc-body-limit"
+    head = (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="category"\r\n\r\ndocs\r\n'
+        f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="limit.txt"\r\n'
+        "Content-Type: text/plain\r\n\r\n"
+    ).encode()
+    padding_head = (
+        f'\r\n--{boundary}\r\nContent-Disposition: form-data; name="padding"\r\n\r\n'
+    ).encode()
+    tail = f"\r\n--{boundary}--\r\n".encode()
+    fill = total - len(head) - len(content) - len(padding_head) - len(tail)
+    assert fill > 0
+    body = head + content + padding_head + b"p" * fill + tail
+    assert len(body) == total
+    return body, "multipart/form-data; boundary=" + boundary
+
+
+def test_raw_upload_body_limit_at_and_over_maximum(client: TestClient, config: Settings) -> None:
+    reviewer(client, config)
+    config.max_upload_mb = 1
+    config.max_library_upload_mb = 1
+    # BodyLimit for POST /raw: the larger upload limit plus 64 KiB for multipart framing.
+    maximum = 1024 * 1024 + 65536
+    repo = GitRepo(config.wiki_root)
+    body, content_type = raw_multipart(b"a" * (1024 * 1024), maximum)
+    at_limit = client.post("/api/v1/raw", content=body, headers={"content-type": content_type})
+    assert at_limit.status_code == 200, at_limit.text
+    stored = at_limit.json()
+    assert stored["path"].startswith("raw/docs/") and stored["size"] == 1024 * 1024
+    head = repo.head()
+    body, content_type = raw_multipart(b"b" * (1024 * 1024), maximum + 1)
+    over = client.post("/api/v1/raw", content=body, headers={"content-type": content_type})
+    assert over.status_code == 413, over.text
+    assert over.json()["error"]["code"] == "E_BODY_TOO_LARGE"
+    assert repo.head() == head
+    assert [item["path"] for item in client.get("/api/v1/raw").json()["items"]].count(
+        stored["path"]
+    ) == 1
+
+    async def receive() -> Message:
+        pytest.fail("Raw upload body read before the size check")
+
+    output: list[Message] = []
+
+    async def send(message: Message) -> None:
+        output.append(message)
+
+    scope: Scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/v1/raw",
+        "headers": [
+            (b"authorization", client.headers["Authorization"].encode()),
+            (b"content-type", content_type.encode()),
+            (b"content-length", str(maximum + 1).encode()),
+        ],
+    }
+    assert client.portal is not None
+    client.portal.call(client.app, scope, receive, send)
+    assert output[0]["status"] == 413
+    assert json.loads(output[1]["body"])["error"]["code"] == "E_BODY_TOO_LARGE"
+    assert repo.head() == head
 
 
 def test_index_symlink_and_duplicate_id(

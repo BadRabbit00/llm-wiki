@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -131,10 +132,15 @@ def test_anonymous_requests_do_not_grow_audit(client: TestClient, config: Settin
 
 
 @pytest.mark.parametrize(
-    "authorized,length,status", [(False, 30_000_000, 401), (True, 2_000_000, 413), (True, -1, 400)]
+    "authorized,length,status,code",
+    [
+        (False, 30_000_000, 401, "E_UNAUTHORIZED"),
+        (True, 2_000_000, 413, "E_BODY_TOO_LARGE"),
+        (True, -1, 400, "E_REQUEST_INVALID"),
+    ],
 )
 def test_auth_and_content_length_checked_without_reading(
-    client: TestClient, config: Settings, authorized: bool, length: int, status: int
+    client: TestClient, config: Settings, authorized: bool, length: int, status: int, code: str
 ) -> None:
     rt = client.app.state.runtime
     output: list[Message] = []
@@ -160,6 +166,7 @@ def test_auth_and_content_length_checked_without_reading(
     }
     asyncio.run(BodyLimit(downstream, config)(scope, receive, send))
     assert output[0]["status"] == status
+    assert json.loads(output[1]["body"])["error"]["code"] == code
 
 
 def test_chunked_request_limit(client: TestClient, config: Settings) -> None:
@@ -203,18 +210,17 @@ def test_json_size_limit_allows_large_raw_upload(client: TestClient, config: Set
 def test_deep_json_returns_client_error(client: TestClient, config: Settings) -> None:
     reviewer(client, config)
     nested = b"[" * 2000 + b"0" + b"]" * 2000
-    assert (
-        client.post(
-            "/api/v1/raw", files={"file": ("deep.json", nested)}, data={"category": "docs"}
-        ).status_code
-        == 422
+    raw = client.post(
+        "/api/v1/raw", files={"file": ("deep.json", nested)}, data={"category": "docs"}
     )
-    assert (
-        client.post(
-            "/api/v1/proposals", content=nested, headers={"content-type": "application/json"}
-        ).status_code
-        == 400
+    assert raw.status_code == 422
+    assert raw.json()["error"]["code"] == "E_RAW_SIGNATURE"
+    proposal_body = client.post(
+        "/api/v1/proposals", content=nested, headers={"content-type": "application/json"}
     )
+    assert proposal_body.status_code == 400
+    assert proposal_body.json()["error"]["code"] == "E_REQUEST_INVALID"
+    assert StateDB(config.state_dir).rows("SELECT pid FROM proposals") == []
 
 
 def test_empty_proposal_cannot_submit_or_accept(client: TestClient, config: Settings) -> None:

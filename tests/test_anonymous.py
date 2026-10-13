@@ -8,9 +8,10 @@ from pydantic import ValidationError
 from starlette.types import Message, Scope
 from test_mcp_http import call, error_code
 from test_proposals import payload, proposal, reviewer
-from test_review_policy import candidate
+from test_rules_domain import rule
 
 from wikisvc.config import Settings
+from wikisvc.domain.markdown import parse
 from wikisvc.main import create_app
 from wikisvc.mcp_server import create_server
 from wikisvc.services.auth import Auth
@@ -85,7 +86,28 @@ def test_anonymous_hidden_data_and_decisions(anonymous: TestClient) -> None:
 def test_anonymous_proposal_review_and_candidate_defaults(
     anonymous: TestClient, config: Settings
 ) -> None:
-    pid = candidate(anonymous)
+    pid = proposal(anonymous, "New policy rule")
+    # The anonymous agent tries to ship a binding rule; the service must make it inert.
+    forged = rule(
+        anonymous.app.state.runtime.registry,
+        sources=["src-example-1"],
+        lifecycle="active",
+        level="must",
+        priority=1,
+        owner="role-example-1",
+    )
+    sent = forged.frontmatter.model_dump(mode="json")
+    assert (sent["lifecycle"], sent["level"], sent["priority"], sent["owner"]) == (
+        "active",
+        "must",
+        1,
+        "role-example-1",
+    )
+    stored = anonymous.put(
+        f"/api/v1/proposals/{pid}/pages/{forged.id}",
+        json={"frontmatter": sent, "body_md": forged.body_md},
+    )
+    assert stored.status_code == 200, stored.text
     changed = anonymous.get(f"/api/v1/proposals/{pid}/diff").json()["pages"][0]
     assert changed["id"] == "rule-logging"
     assert anonymous.get(f"/api/v1/proposals/{pid}/validate").json()["errors"] == []
@@ -93,8 +115,20 @@ def test_anonymous_proposal_review_and_candidate_defaults(
     reviewer(anonymous, config, "human-reviewer")
     response = anonymous.post(f"/api/v1/proposals/{pid}/accept")
     assert response.status_code == 200, response.text
-    rule = anonymous.get("/api/v1/rules/rule-logging").json()
-    assert (rule["lifecycle"], rule["level"], rule["priority"]) == ("candidate", "should", 3)
+    accepted = anonymous.get("/api/v1/rules/rule-logging").json()
+    assert (
+        accepted["lifecycle"],
+        accepted["level"],
+        accepted["priority"],
+        accepted.get("owner"),
+    ) == ("candidate", "should", 3, None)
+    on_main, _ = parse(GitRepo(config.wiki_root).run("show", "main:wiki/rules/logging.md"))
+    assert (on_main["lifecycle"], on_main["level"], on_main["priority"]) == (
+        "candidate",
+        "should",
+        3,
+    )
+    assert on_main.get("owner") is None
     assert GitRepo(config.wiki_root).run("log", "-1", "--format=%an") == "human-reviewer"
 
 
@@ -118,8 +152,13 @@ def test_anonymous_can_be_reduced_to_public_reader(config: Settings) -> None:
     config.anonymous_clearance = "public"
     with TestClient(create_app(config)) as client:
         assert client.get("/api/v1/whoami").json()["clearance"] == "public"
-        assert client.get("/api/v1/pages/app-example-1").status_code == 404
-        assert client.post("/api/v1/proposals", json={"title": "Forbidden"}).status_code == 403
+        hidden = client.get("/api/v1/pages/app-example-1")
+        assert hidden.status_code == 404
+        assert hidden.json()["error"]["code"] == "E_NOT_FOUND"
+        denied = client.post("/api/v1/proposals", json={"title": "Forbidden"})
+        assert denied.status_code == 403
+        assert denied.json()["error"]["code"] == "E_FORBIDDEN"
+    assert StateDB(config.state_dir).rows("SELECT pid FROM proposals") == []
 
 
 def test_bad_credential_rejected_before_body(anonymous: TestClient) -> None:
@@ -159,8 +198,13 @@ def test_stdio_anonymous_does_not_fallback_from_bad_token(
 
 def test_anonymous_disabled_still_requires_credentials(config: Settings) -> None:
     with TestClient(create_app(config)) as client:
-        assert client.get("/api/v1/whoami").status_code == 401
-        assert client.post("/api/v1/proposals", json={"title": "No token"}).status_code == 401
+        for response in (
+            client.get("/api/v1/whoami"),
+            client.post("/api/v1/proposals", json={"title": "No token"}),
+        ):
+            assert response.status_code == 401
+            assert response.json()["error"]["code"] == "E_UNAUTHORIZED"
+    assert StateDB(config.state_dir).rows("SELECT pid FROM proposals") == []
 
 
 def test_anonymous_shares_proposal_ownership(anonymous: TestClient) -> None:
