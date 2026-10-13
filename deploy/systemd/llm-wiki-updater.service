@@ -1,0 +1,29 @@
+[Unit]
+Description=Release checks and administrator-confirmed updates of the wiki services
+Requires=llm-wiki-updater.socket
+Wants=network-online.target
+After=llm-wiki-updater.socket network-online.target
+RequiresMountsFor=/nix/store /opt/llm-wiki /var/lib/llm-wiki /etc/llm-wiki
+
+[Service]
+# Root, because an update stops and starts the services, pulls images and restores
+# data. Its only interface is the socket, and every call must come from a human
+# administrator, which the updater asks wikisvc to confirm.
+Type=exec
+ExecStart=/opt/llm-wiki/current/bin/llm-wiki-updater serve
+# tar -z runs gzip from PATH: give the root daemon the distribution's, not whatever
+# the service manager defaults to. cosign keeps the Sigstore trust root under HOME.
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=HOME=/var/lib/llm-wiki-updater
+StateDirectory=llm-wiki-updater
+StateDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=30
+# Stopping mid-update would strand stopped services: let the update finish.
+TimeoutStopSec=60min
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

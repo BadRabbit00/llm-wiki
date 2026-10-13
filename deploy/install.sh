@@ -14,10 +14,10 @@ if [[ ! -x /usr/bin/podman ]]; then
     echo 'Install podman from the distribution first (Arch: pacman -S podman).' >&2
     exit 1
 fi
-for unit in wikisvc wikiagent wiki-ui llm-wiki-backup; do
+for unit in wikisvc wikiagent wiki-ui llm-wiki-backup llm-wiki-updater; do
     state=$(systemctl is-active "$unit.service" 2>/dev/null || true)
     if [[ $state == active || $state == activating || $state == deactivating || $state == reloading ]]; then
-        echo "Stop wiki-ui, wikiagent, wikisvc and the backup job before installing ($unit: $state)." >&2
+        echo "Stop wiki-ui, wikiagent, wikisvc, llm-wiki-updater and the backup job before installing ($unit: $state)." >&2
         exit 1
     fi
 done
@@ -69,9 +69,11 @@ fi
 @nix@/bin/nix-store --realise @bundle@ \
     --add-root /nix/var/nix/gcroots/llm-wiki/current >/dev/null
 ln -sfn @bundle@ /opt/llm-wiki/current
-for unit in wikisvc wikiagent llm-wiki-model wiki-ui llm-wiki-backup; do
+for unit in wikisvc wikiagent llm-wiki-model wiki-ui llm-wiki-backup llm-wiki-updater; do
     install -m 0644 "@bundle@/share/llm-wiki/systemd/$unit.service" "/etc/systemd/system/$unit.service"
 done
+install -m 0644 "@bundle@/share/llm-wiki/systemd/llm-wiki-updater.socket" \
+    /etc/systemd/system/llm-wiki-updater.socket
 install -m 0644 "@bundle@/share/llm-wiki/systemd/llm-wiki-backup.timer" \
     /etc/systemd/system/llm-wiki-backup.timer
 ln -sfn /opt/llm-wiki/current/bin/llm-wiki-admin /usr/local/sbin/llm-wiki-admin

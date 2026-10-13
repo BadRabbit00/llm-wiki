@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -28,7 +30,7 @@ func TestProxyPreservesAuthorizationAndSeparatesServices(t *testing.T) {
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer backend.Close()
-	h, err := handler(testFiles(), backend.URL, backend.URL)
+	h, err := handler(testFiles(), backend.URL, backend.URL, "/nonexistent/updater.sock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +51,7 @@ func TestProxyPreservesAuthorizationAndSeparatesServices(t *testing.T) {
 	}
 }
 func TestSPAAndPrivateEndpoints(t *testing.T) {
-	h, _ := handler(testFiles(), "http://127.0.0.1:1", "http://127.0.0.1:1")
+	h, _ := handler(testFiles(), "http://127.0.0.1:1", "http://127.0.0.1:1", "/nonexistent/updater.sock")
 	for _, p := range []struct {
 		path, method, token string
 		status              int
@@ -72,7 +74,7 @@ type watchedBody struct{ read bool }
 func (b *watchedBody) Read([]byte) (int, error) { b.read = true; return 0, io.EOF }
 func (b *watchedBody) Close() error             { return nil }
 func TestRejectsUnauthenticatedBodyWithoutReading(t *testing.T) {
-	h, _ := handler(testFiles(), "http://127.0.0.1:1", "http://127.0.0.1:1")
+	h, _ := handler(testFiles(), "http://127.0.0.1:1", "http://127.0.0.1:1", "/nonexistent/updater.sock")
 	body := &watchedBody{}
 	r := httptest.NewRequest("POST", "/api/v1/raw", nil)
 	r.Body = body
@@ -93,7 +95,7 @@ func TestSSEIsFlushedBeforeResponseCompletes(t *testing.T) {
 		_, _ = w.Write([]byte("event: message\ndata: {}\n\n"))
 	}))
 	defer backend.Close()
-	h, _ := handler(testFiles(), backend.URL, backend.URL)
+	h, _ := handler(testFiles(), backend.URL, backend.URL, "/nonexistent/updater.sock")
 	server := httptest.NewServer(h)
 	defer server.Close()
 	done := make(chan error, 1)
@@ -125,5 +127,42 @@ func TestInvalidUpstreamIsRejected(t *testing.T) {
 		if _, err := upstream(target, ""); err == nil {
 			t.Fatalf("accepted %s", target)
 		}
+	}
+}
+
+func TestUpdaterIsReachedOnlyThroughItsSocketWithTheCallersToken(t *testing.T) {
+	socket := filepath.Join(t.TempDir(), "api.sock")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := make(chan string, 1)
+	updater := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Method + " " + r.URL.RequestURI() + " " + r.Header.Get("Authorization") + " " + r.Header.Get("Cookie")
+		_, _ = w.Write([]byte(`{"channel":"release"}`))
+	})}
+	go func() { _ = updater.Serve(listener) }()
+	defer updater.Close()
+	h, err := handler(testFiles(), "http://127.0.0.1:1", "http://127.0.0.1:1", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("POST", "/updater-api/v1/check", nil)
+	req.Header.Set("Authorization", "Bearer admin-token")
+	req.Header.Set("Cookie", "wiki_session=admin-token")
+	out := httptest.NewRecorder()
+	h.ServeHTTP(out, req)
+	if out.Code != 200 || <-seen != "POST /v1/check Bearer admin-token " {
+		t.Fatalf("updater proxy: %d %s", out.Code, out.Body)
+	}
+	anonymous := httptest.NewRecorder()
+	h.ServeHTTP(anonymous, httptest.NewRequest("GET", "/updater-api/v1/status", nil))
+	if anonymous.Code != http.StatusUnauthorized {
+		t.Fatalf("an unauthenticated request reached the updater: %d", anonymous.Code)
+	}
+	missing := httptest.NewRecorder()
+	h.ServeHTTP(missing, httptest.NewRequest("GET", "/updater-api/", nil))
+	if missing.Code == 200 && strings.Contains(missing.Body.String(), "wiki UI") {
+		t.Fatal("the interface answered for the updater path")
 	}
 }

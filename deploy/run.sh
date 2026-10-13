@@ -27,7 +27,7 @@ fi
 
 # Parsed, not sourced: llm-wiki-updater rewrites this file.
 image=$(sed -n 's/^LLM_WIKI_IMAGE=//p' /etc/llm-wiki/image.env | tail -n 1)
-if [[ ! $image =~ ^[a-z0-9][a-z0-9./_-]*@sha256:[0-9a-f]{64}$ ]]; then
+if [[ ! $image =~ ^[a-z0-9][a-z0-9.:/_-]*@sha256:[0-9a-f]{64}$ ]]; then
     echo 'Set LLM_WIKI_IMAGE in /etc/llm-wiki/image.env to an image pinned by digest (…@sha256:…).' >&2
     exit 1
 fi
@@ -63,7 +63,11 @@ case $profile in
     wiki-ui)
         user=llm-ui
         command=(wiki-ui)
-        flags+=(--env-file /etc/llm-wiki/ui.env --volume /etc/llm-wiki:/etc/llm-wiki:ro)
+        # The updater socket: wiki-ui proxies /updater-api/ to it for administrators.
+        flags+=(
+            --env-file /etc/llm-wiki/ui.env --volume /etc/llm-wiki:/etc/llm-wiki:ro
+            --volume /run/llm-wiki-updater:/run/llm-wiki-updater
+        )
         ;;
     maintenance)
         # What llm-wiki-admin had as llm-wiki: every data directory and every setting.

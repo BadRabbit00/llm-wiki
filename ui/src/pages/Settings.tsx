@@ -3,6 +3,7 @@ import { LogOut, Monitor, ShieldCheck, UserRound } from "lucide-react";
 import { useAuth } from "../auth";
 import { useAPI } from "../api";
 import { Badge, ErrorBanner, Heading, Modal } from "../components/common";
+import Updates from "../components/Updates";
 
 export default function Settings() {
   const { actor, logout } = useAuth(),
@@ -82,6 +83,7 @@ export default function Settings() {
           </dl>
         </section>
       </div>
+      {actor?.kind === "human" && actor.role === "admin" && <Updates />}
       <section className="session-panel">
         <ShieldCheck size={24} />
         <div>

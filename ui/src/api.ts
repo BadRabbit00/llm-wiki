@@ -34,17 +34,32 @@ export async function responseError(response: Response): Promise<never> {
     body.error?.hint,
   );
 }
-export async function api<T>(
+export function api<T>(
   path: string,
   init: RequestInit = {},
   agent = false,
 ): Promise<T> {
+  return request<T>((agent ? "/agent-api" : "/api/v1") + path, init);
+}
+// llm-wiki-updater, reached through wiki-ui; it answers human administrators only.
+export function updater<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return request<T>("/updater-api" + path, init);
+}
+export function useUpdater<T>(path: string, enabled = true, interval?: number) {
+  return useQuery<T>({
+    queryKey: ["updater", path],
+    queryFn: ({ signal }) => updater<T>(path, { signal }),
+    enabled,
+    refetchInterval: interval,
+  });
+}
+async function request<T>(url: string, init: RequestInit): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData))
     headers.set("Content-Type", "application/json");
   let response: Response;
   try {
-    response = await fetch((agent ? "/agent-api" : "/api/v1") + path, {
+    response = await fetch(url, {
       ...init,
       headers,
       credentials: "same-origin",
