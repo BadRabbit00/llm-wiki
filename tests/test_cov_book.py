@@ -324,6 +324,34 @@ def test_book_waits_for_extraction_it_started_itself(
     assert job.agent.wiki.request("GET", "/proposals/" + job.pid())["status"] == "submitted"
 
 
+def test_book_retries_extraction_once_at_start_and_never_while_polling(
+    client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def respond(task: str, data: Data) -> Data:
+        if task == "book_chapter":
+            return chapter()
+        if task == "classify":
+            return NEW
+        assert task == "book_review", task
+        return EMPTY_REVIEW
+
+    job = text_book(client, config, tmp_path, monkeypatch, respond, extracted=False)
+    wiki = job.agent.wiki
+    original = wiki.request
+    extracts: list[dict[str, str] | None] = []
+
+    def spy(method: str, path: str, **kwargs: Any) -> Any:
+        if method == "POST" and path.endswith("/extract"):
+            extracts.append(kwargs.get("params"))
+        return original(method, path, **kwargs)
+
+    monkeypatch.setattr(wiki, "request", spy)
+    job.run()
+    assert len(extracts) >= 2
+    assert extracts[0] == {"retry": "true"}
+    assert extracts[1:] == [None] * (len(extracts) - 1)
+
+
 def test_book_stops_waiting_for_extraction_at_the_deadline(
     client: TestClient, config: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

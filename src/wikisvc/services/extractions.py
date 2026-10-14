@@ -112,7 +112,7 @@ class Extractions:
         rows = self.rt.state.rows("SELECT * FROM extractions WHERE path=?", (path,))
         return rows[0] if rows else None
 
-    def start(self, actor: Principal, path: str) -> dict[str, Any]:
+    def start(self, actor: Principal, path: str, retry: bool = False) -> dict[str, Any]:
         require_role(actor, "writer")
         record = self.record(actor, path)
         path = record["path"]
@@ -122,6 +122,7 @@ class Extractions:
                 previous
                 and previous["status"] in ("done", "failed")
                 and previous["sha256"] == record["sha256"]
+                and not (retry and previous["status"] == "failed")
             ):
                 return previous
             with self.rt.state.connect() as db:
@@ -245,11 +246,15 @@ class Extractions:
                 "pages.jsonl", "\n".join(json.dumps(p, ensure_ascii=False) for p in pages) + "\n"
             )
             cache.write("outline.json", json.dumps(outline, ensure_ascii=False))
-            with self.rt.state.connect() as db:
-                db.execute(
-                    "UPDATE extractions SET status='done',pages=?,chars=?,finished_at=? WHERE path=?",
-                    (len(pages), chars, now(), path),
-                )
+            # The terminal write and leaving `active` are one step under the lock: a concurrent
+            # start(retry=True) must never see a finished row whose path still blocks schedule().
+            with self.lock:
+                with self.rt.state.connect() as db:
+                    db.execute(
+                        "UPDATE extractions SET status='done',pages=?,chars=?,finished_at=? WHERE path=?",
+                        (len(pages), chars, now(), path),
+                    )
+                self.active.discard(path)
         except Exception as exc:  # persist any background job failure
             code = (
                 exc.code
@@ -264,11 +269,13 @@ class Extractions:
                 logger.exception(
                     "Extraction crashed: path=%s exception=%s", path, type(exc).__name__
                 )
-            with self.rt.state.connect() as db:
-                db.execute(
-                    "UPDATE extractions SET status='failed',error=?,finished_at=? WHERE path=?",
-                    (code, now(), path),
-                )
+            with self.lock:  # see the 'done' write: status and `active` change together
+                with self.rt.state.connect() as db:
+                    db.execute(
+                        "UPDATE extractions SET status='failed',error=?,finished_at=? WHERE path=?",
+                        (code, now(), path),
+                    )
+                self.active.discard(path)
         finally:
             with self.lock:
                 self.active.discard(path)
