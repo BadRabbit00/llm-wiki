@@ -15,6 +15,13 @@ def worker_env() -> dict[str, str]:
     return env
 
 
+def stderr_tail(data: bytes, lines: int = 20, limit: int = 2000) -> str:
+    # The worker writes only the exception class and the missing module name to stderr (never
+    # the message, which may quote the document), so the tail is safe for the journal.
+    text = data.decode("utf-8", errors="replace").strip()
+    return "\n".join(text.splitlines()[-lines:])[-limit:]
+
+
 def extract(file: Path) -> Iterable[str]:
     if file.suffix.lower() == ".pdf":
         from pypdf import PdfReader
@@ -57,11 +64,14 @@ def main() -> int:
                 return 3
             parts.append(part)
         sys.stdout.buffer.write("\n\n".join(parts).encode("utf-8"))
-    except ImportError:
+    except ImportError as exc:
+        sys.stderr.write(f"ImportError: module {exc.name or 'unknown'} is not available\n")
         return 2
     except MemoryError:  # RLIMIT_AS exhausted: a resource limit, not a malformed document
+        sys.stderr.write("MemoryError: address-space limit reached\n")
         return 4
-    except Exception:  # noqa: BLE001 -- isolate all parser failures in the disposable worker
+    except Exception as exc:  # noqa: BLE001 -- isolate all parser failures in the disposable worker
+        sys.stderr.write(f"{type(exc).__module__}.{type(exc).__qualname__} in the parser\n")
         return 3
     return 0
 

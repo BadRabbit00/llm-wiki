@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 import subprocess
@@ -18,12 +19,14 @@ from wikisvc.domain.markdown import citations, normalize_quote, quote_too_short
 from wikisvc.domain.models import LintIssue, Page, Principal
 from wikisvc.domain.validate import issue
 from wikisvc.services.auth import require_role
-from wikisvc.services.extract_worker import worker_env
+from wikisvc.services.extract_worker import stderr_tail, worker_env
 from wikisvc.storage.safefs import SafeFS
 from wikisvc.storage.state_db import now
 
 if TYPE_CHECKING:
     from wikisvc.services.runtime import Runtime
+
+logger = logging.getLogger("wikisvc")
 
 
 def clean_pages(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -187,13 +190,27 @@ class Extractions:
                                 str(start),
                                 "15",
                             ],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.DEVNULL,
+                            capture_output=True,
                             stdin=subprocess.DEVNULL,
                             cwd=temporary,
                             env=worker_env(),
                             timeout=min(remaining, self.rt.settings.extract_timeout_seconds),
                             check=False,
+                        )
+                    if completed.returncode != 0:
+                        # stderr holds the worker's exception class names only: no tokens,
+                        # bodies or document text.
+                        logger.warning(
+                            "Extraction worker failed: path=%s rc=%d stderr=%s",
+                            path,
+                            completed.returncode,
+                            stderr_tail(completed.stderr),
+                        )
+                    if completed.returncode == 2:
+                        raise WikiError(
+                            "E_EXTRACTOR_UNAVAILABLE",
+                            "Установите необязательные pypdf / python-docx.",
+                            status=400,
                         )
                     if completed.returncode == 4:
                         raise WikiError(
@@ -233,7 +250,7 @@ class Extractions:
                     "UPDATE extractions SET status='done',pages=?,chars=?,finished_at=? WHERE path=?",
                     (len(pages), chars, now(), path),
                 )
-        except Exception as exc:  # noqa: BLE001 -- persist any background job failure
+        except Exception as exc:  # persist any background job failure
             code = (
                 exc.code
                 if isinstance(exc, WikiError)
@@ -241,6 +258,12 @@ class Extractions:
                 if isinstance(exc, subprocess.TimeoutExpired)
                 else "E_TEXT_INVALID"
             )
+            if isinstance(exc, WikiError | subprocess.TimeoutExpired):
+                logger.warning("Extraction failed: path=%s code=%s", path, code)
+            else:
+                logger.exception(
+                    "Extraction crashed: path=%s exception=%s", path, type(exc).__name__
+                )
             with self.rt.state.connect() as db:
                 db.execute(
                     "UPDATE extractions SET status='failed',error=?,finished_at=? WHERE path=?",
