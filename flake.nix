@@ -31,7 +31,7 @@
         let e = env system; in {
           default = e.py.pkgs.buildPythonApplication {
             pname = "wikisvc";
-            version = "0.2.0";
+            version = "0.3.0";
             pyproject = true;
             # The UI is built independently; frontend edits do not rebuild Python. Nor do
             # Nix expressions (image, host bundle, VM test) or CI workflows, which no
