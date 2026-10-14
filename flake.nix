@@ -123,6 +123,7 @@
         updater-vm = import ./deploy/vm-update-test.nix {
           pkgs = nixpkgs.legacyPackages.${system};
           inherit (self.packages.${system}) deployment;
+          inherit (self.packages.${system}.default) version;
           image = revision: import ./deploy/image.nix {
             pkgs = nixpkgs.legacyPackages.${system};
             app = self.packages.${system}.default;
