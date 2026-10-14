@@ -4,10 +4,19 @@
 # tag says is rolled back from the archive. Only the signature check is replaced:
 # Sigstore is out of reach in a VM, so a stand-in cosign checks it is asked about
 # the right tag and image; the real check is covered by the updater's Go tests.
-{ pkgs, deployment, image }:
+{ pkgs, deployment, image, version }:
 let
-  # Same application, different labels: three digests whose wikisvc reports 0.2.0.
+  # Same application, different labels: three digests whose wikisvc reports `version`.
+  # The tags follow the code's version, so a release bump does not break this test.
   images = { a = image "vm-a"; b = image "vm-b"; c = image "vm-c"; };
+  release = "v${version}";
+  # The next patch release: a tag the images do not run, which the updater must roll back.
+  parts = pkgs.lib.splitVersion version;
+  next = pkgs.lib.concatStringsSep "." [
+    (builtins.elemAt parts 0)
+    (builtins.elemAt parts 1)
+    (toString (pkgs.lib.toInt (builtins.elemAt parts 2) + 1))
+  ];
   cosign = pkgs.writeShellScript "cosign-stand-in" ''
     echo "$*" >> /var/lib/llm-wiki-updater/cosign.log
     case "$*" in
@@ -82,10 +91,10 @@ pkgs.testers.runNixOSTest {
     )
     server.succeed("llm-wiki-install")
 
-    push("${images.a}", "v0.2.0-beta.1")
-    push("${images.b}", "v0.2.0")
-    server.succeed(f"podman pull {registry}:v0.2.0-beta.1")
-    server.succeed(f"echo 'LLM_WIKI_IMAGE={registry}@{digest_of('v0.2.0-beta.1')}' > /etc/llm-wiki/image.env")
+    push("${images.a}", "${release}-beta.1")
+    push("${images.b}", "${release}")
+    server.succeed(f"podman pull {registry}:${release}-beta.1")
+    server.succeed(f"echo 'LLM_WIKI_IMAGE={registry}@{digest_of('${release}-beta.1')}' > /etc/llm-wiki/image.env")
 
     server.succeed("llm-wiki-admin wikisvc init /var/lib/llm-wiki/wiki")
     server.succeed("llm-wiki-admin wikisvc reindex --full")
@@ -129,8 +138,8 @@ pkgs.testers.runNixOSTest {
 
     with subtest("a confirmed release is installed and verified"):
         status = api("POST", "/v1/check", admin)
-        assert status["available"]["tag"] == "v0.2.0", status
-        assert status["available"]["digest"] == digest_of("v0.2.0"), status
+        assert status["available"]["tag"] == "${release}", status
+        assert status["available"]["digest"] == digest_of("${release}"), status
         api("POST", "/v1/apply", admin, {"digest": status["available"]["digest"]})
         server.wait_until_succeeds(
             f"curl -s -H 'Authorization: Bearer {admin}' --unix-socket {socket} http://updater/v1/status"
@@ -142,17 +151,17 @@ pkgs.testers.runNixOSTest {
         assert [s["name"] for s in operation["steps"]] == [
             "pull", "verify", "jobs-before", "stop", "archive", "switch", "migrate", "start", "health", "jobs-after", "prune",
         ], operation["steps"]
-        assert pinned() == digest_of("v0.2.0")
+        assert pinned() == digest_of("${release}")
         server.succeed(f"test \"$(stat -c %a {operation['archive']})\" = 600")
         server.wait_until_succeeds("curl -fsS http://127.0.0.1:8787/api/v1/health")
         server.wait_until_succeeds("curl -fsS http://127.0.0.1:8789/healthz")
         assert server.succeed("llm-wiki-admin wikisvc token list") == tokens_before
-        assert api("GET", "/v1/status", admin)["current"]["tag"] == "v0.2.0"
+        assert api("GET", "/v1/status", admin)["current"]["tag"] == "${release}"
 
     with subtest("a release that does not run what its tag says is rolled back from the archive"):
-        push("${images.c}", "v0.2.1")
+        push("${images.c}", "v${next}")
         status = api("POST", "/v1/check", admin)
-        assert status["available"]["tag"] == "v0.2.1", status
+        assert status["available"]["tag"] == "v${next}", status
         api("POST", "/v1/apply", admin, {"digest": status["available"]["digest"]})
         server.wait_until_succeeds(
             f"curl -s -H 'Authorization: Bearer {admin}' --unix-socket {socket} http://updater/v1/status"
@@ -161,8 +170,8 @@ pkgs.testers.runNixOSTest {
         )
         operation = api("GET", "/v1/status", admin)["operation"]
         assert operation["state"] == "rolled_back", operation
-        assert "0.2.1" in operation["error"], operation["error"]
-        assert pinned() == digest_of("v0.2.0")
+        assert "${next}" in operation["error"], operation["error"]
+        assert pinned() == digest_of("${release}")
         server.succeed("ls -d /var/lib/llm-wiki/wiki.failed-* /etc/llm-wiki.failed-*")
         server.wait_until_succeeds("curl -fsS http://127.0.0.1:8787/api/v1/health")
         server.wait_until_succeeds("curl -fsS http://127.0.0.1:8789/healthz")
@@ -170,7 +179,7 @@ pkgs.testers.runNixOSTest {
 
     with subtest("each signature check named the exact tag and image"):
         asked = server.succeed("cat /var/lib/llm-wiki-updater/cosign.log")
-        for tag in ("v0.2.0", "v0.2.1"):
+        for tag in ("${release}", "v${next}"):
             assert f"release.yml@refs/tags/{tag}" in asked, asked
   '';
 }
