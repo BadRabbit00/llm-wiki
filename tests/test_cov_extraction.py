@@ -645,3 +645,52 @@ def test_raw_text_reading_edges(
     assert error(response) == (409, "E_EXTRACT_PENDING")
     fake_parser(monkeypatch, tmp_path / "parser", "pypdf", "raise ImportError('no pypdf')\n")
     assert error(client.get("/api/v1/raw/" + pdf + "/text")) == (400, "E_EXTRACTOR_UNAVAILABLE")
+
+
+def test_job_reports_missing_parser_and_logs_worker_failure(
+    client: TestClient,
+    config: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    reviewer(client, config)
+    fake_parser(monkeypatch, tmp_path / "parser", "pypdf", "raise ImportError('no pypdf')\n")
+    with caplog.at_level("WARNING", logger="wikisvc"):
+        result = job(client, "noparser.pdf", b"%PDF-1.7\nmissing")
+    assert (result["status"], result["error"]) == ("failed", "E_EXTRACTOR_UNAVAILABLE")
+    worker_logs = [r.getMessage() for r in caplog.records if "worker failed" in r.getMessage()]
+    assert len(worker_logs) == 1
+    assert result["path"] in worker_logs[0]
+    assert "rc=2" in worker_logs[0]
+    assert "ImportError" in worker_logs[0]
+    # The sync text path logs the same way and keeps its own error mapping.
+    caplog.clear()
+    pdf = upload(client, "sync.pdf", b"%PDF-1.7\nsync")
+    with caplog.at_level("WARNING", logger="wikisvc"):
+        response = client.get("/api/v1/raw/" + pdf + "/text")
+    assert error(response) == (400, "E_EXTRACTOR_UNAVAILABLE")
+    assert any("rc=2" in r.getMessage() for r in caplog.records)
+
+
+def test_job_logs_unexpected_exception_with_traceback(
+    client: TestClient,
+    config: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    reviewer(client, config)
+
+    def explode(*args: object, **kwargs: object) -> dict[str, Any]:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(client.app.state.runtime.extractions, "build_outline", explode)
+    with caplog.at_level("WARNING", logger="wikisvc"):
+        result = job(client, "boom.md", b"# Title\n\nSome text.\n")
+    assert (result["status"], result["error"]) == ("failed", "E_TEXT_INVALID")
+    crashes = [r for r in caplog.records if "crashed" in r.getMessage()]
+    assert len(crashes) == 1
+    assert result["path"] in crashes[0].getMessage()
+    assert "RuntimeError" in crashes[0].getMessage()
+    assert crashes[0].exc_info is not None
+    assert crashes[0].exc_info[0] is RuntimeError

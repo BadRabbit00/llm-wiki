@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import logging
 import re
 import subprocess
 import sys
@@ -17,7 +18,7 @@ from wikisvc.domain.errors import WikiError, not_found
 from wikisvc.domain.markdown import load_yaml
 from wikisvc.domain.models import Principal
 from wikisvc.services.auth import require_role
-from wikisvc.services.extract_worker import worker_env
+from wikisvc.services.extract_worker import stderr_tail, worker_env
 from wikisvc.services.pages import paginate
 from wikisvc.storage.gitrepo import GitRepo
 from wikisvc.storage.lock import write_lock
@@ -25,6 +26,8 @@ from wikisvc.storage.safefs import SafeFS
 
 if TYPE_CHECKING:
     from wikisvc.services.runtime import Runtime
+
+logger = logging.getLogger("wikisvc")
 
 
 def safe_name(filename: str) -> str:
@@ -338,13 +341,20 @@ class Raw:
                     cwd=directory,
                     env=worker_env(),
                     stdin=subprocess.DEVNULL,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
+                    capture_output=True,
                     timeout=self.config.extract_timeout_seconds,
                     check=False,
                 )
         except subprocess.TimeoutExpired as exc:
             raise WikiError("E_TEXT_LIMIT", "Превышено время извлечения текста.") from exc
+        if result.returncode != 0:
+            # stderr holds the worker's exception class names only: no tokens, bodies or text.
+            logger.warning(
+                "Extraction worker failed: path=%s rc=%d stderr=%s",
+                file,
+                result.returncode,
+                stderr_tail(result.stderr),
+            )
         if result.returncode == 2:
             raise WikiError(
                 "E_EXTRACTOR_UNAVAILABLE",
