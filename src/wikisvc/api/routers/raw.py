@@ -59,8 +59,8 @@ class Outline(BaseModel):
 
 
 @router.post("/raw/{path:path}/extract", status_code=202)
-def extract(path: str, services: Services, actor: Writer) -> dict[str, Any]:
-    return services.extractions.start(actor, path)
+def extract(path: str, services: Services, actor: Writer, retry: bool = False) -> dict[str, Any]:
+    return services.extractions.start(actor, path, retry)
 
 
 @router.get("/raw/{path:path}/outline")

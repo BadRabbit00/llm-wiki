@@ -177,7 +177,9 @@ class IngestBook:
 
     def run(self, job_id: str, payload: dict[str, Any]) -> None:
         path = payload["raw_path"]
-        status = self.client.request("POST", "/raw/" + path + "/extract")
+        # Starting or resuming a job is one explicit retry of a failed extraction. Polling below
+        # must never re-run it, or a persistent failure would spin until the deadline.
+        status = self.client.request("POST", "/raw/" + path + "/extract", params={"retry": "true"})
         deadline = self.clock() + self.models.config.models["planner"].timeout_seconds + 600
         while status["status"] != "done":
             self.boundary(job_id)

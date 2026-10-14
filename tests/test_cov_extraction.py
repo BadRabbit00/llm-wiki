@@ -8,6 +8,8 @@ import os
 import subprocess
 import sys
 import textwrap
+import threading
+import time
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,6 +27,7 @@ from wikisvc.config import Settings
 from wikisvc.domain.errors import WikiError
 from wikisvc.domain.models import Principal
 from wikisvc.main import create_app
+from wikisvc.services import extractions as extraction_module
 from wikisvc.services.extract_worker import worker_env
 from wikisvc.services.extractions import clean_pages
 from wikisvc.storage.gitrepo import GitRepo
@@ -645,3 +648,138 @@ def test_raw_text_reading_edges(
     assert error(response) == (409, "E_EXTRACT_PENDING")
     fake_parser(monkeypatch, tmp_path / "parser", "pypdf", "raise ImportError('no pypdf')\n")
     assert error(client.get("/api/v1/raw/" + pdf + "/text")) == (400, "E_EXTRACTOR_UNAVAILABLE")
+
+
+def test_job_reports_missing_parser_and_logs_worker_failure(
+    client: TestClient,
+    config: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    reviewer(client, config)
+    fake_parser(monkeypatch, tmp_path / "parser", "pypdf", "raise ImportError('no pypdf')\n")
+    with caplog.at_level("WARNING", logger="wikisvc"):
+        result = job(client, "noparser.pdf", b"%PDF-1.7\nmissing")
+    assert (result["status"], result["error"]) == ("failed", "E_EXTRACTOR_UNAVAILABLE")
+    worker_logs = [r.getMessage() for r in caplog.records if "worker failed" in r.getMessage()]
+    assert len(worker_logs) == 1
+    assert result["path"] in worker_logs[0]
+    assert "rc=2" in worker_logs[0]
+    assert "ImportError" in worker_logs[0]
+    # The sync text path logs the same way and keeps its own error mapping.
+    caplog.clear()
+    pdf = upload(client, "sync.pdf", b"%PDF-1.7\nsync")
+    with caplog.at_level("WARNING", logger="wikisvc"):
+        response = client.get("/api/v1/raw/" + pdf + "/text")
+    assert error(response) == (400, "E_EXTRACTOR_UNAVAILABLE")
+    assert any("rc=2" in r.getMessage() for r in caplog.records)
+
+
+def test_job_logs_unexpected_exception_with_traceback(
+    client: TestClient,
+    config: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    reviewer(client, config)
+
+    def explode(*args: object, **kwargs: object) -> dict[str, Any]:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(client.app.state.runtime.extractions, "build_outline", explode)
+    with caplog.at_level("WARNING", logger="wikisvc"):
+        result = job(client, "boom.md", b"# Title\n\nSome text.\n")
+    assert (result["status"], result["error"]) == ("failed", "E_TEXT_INVALID")
+    crashes = [r for r in caplog.records if "crashed" in r.getMessage()]
+    assert len(crashes) == 1
+    assert result["path"] in crashes[0].getMessage()
+    assert "RuntimeError" in crashes[0].getMessage()
+    assert crashes[0].exc_info is not None
+    assert crashes[0].exc_info[0] is RuntimeError
+
+
+def test_failed_extraction_is_rerun_only_on_explicit_retry(
+    client: TestClient, config: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reviewer(client, config)
+    extractions = client.app.state.runtime.extractions
+    writer = Principal(name="retrier", role="writer", clearance="restricted")
+
+    def explode(*args: object, **kwargs: object) -> dict[str, Any]:
+        raise RuntimeError("environment is broken")
+
+    monkeypatch.setattr(extractions, "build_outline", explode)
+    failed = job(client, "retry.md", b"# Title\n\nSome text.\n")
+    path = failed["path"]
+    assert (failed["status"], failed["error"]) == ("failed", "E_TEXT_INVALID")
+    monkeypatch.delattr(extractions, "build_outline")  # the cause is gone
+    # Without retry the failed record is returned as it was and nothing is scheduled.
+    stale = extractions.start(writer, path)
+    assert (stale["status"], stale["error"]) == ("failed", "E_TEXT_INVALID")
+    assert extractions.status(path)["status"] == "failed"
+    # With retry the record is reset and the extraction runs again, now successfully.
+    restarted = extractions.start(writer, path, retry=True)
+    assert (restarted["status"], restarted["error"]) == ("pending", None)
+    done = finished(client, path)
+    assert (done["status"], done["error"]) == ("done", None)
+    # A done record is returned as is, even with retry.
+    again = extractions.start(writer, path, retry=True)
+    assert (again["status"], again["pages"]) == ("done", done["pages"])
+
+
+def test_extract_endpoint_honours_the_retry_parameter(
+    client: TestClient, config: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reviewer(client, config)
+    extractions = client.app.state.runtime.extractions
+
+    def explode(*args: object, **kwargs: object) -> dict[str, Any]:
+        raise RuntimeError("environment is broken")
+
+    monkeypatch.setattr(extractions, "build_outline", explode)
+    path = job(client, "param.md", b"# Title\n\nSome text.\n")["path"]
+    monkeypatch.delattr(extractions, "build_outline")
+    plain = client.post("/api/v1/raw/" + path + "/extract")
+    assert (plain.status_code, plain.json()["status"]) == (202, "failed")
+    retried = client.post("/api/v1/raw/" + path + "/extract", params={"retry": "true"})
+    assert (retried.status_code, retried.json()["status"]) == (202, "pending")
+    assert finished(client, path)["status"] == "done"
+
+
+def test_retry_during_failure_persistence_is_not_lost(
+    client: TestClient, config: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A retry that lands while the failure is being written must still run: the row turning
+    # `failed` and the path leaving `active` happen under one lock.
+    reviewer(client, config)
+    extractions = client.app.state.runtime.extractions
+    writer = Principal(name="racer", role="writer", clearance="restricted")
+    persisting = threading.Event()
+    release = threading.Event()
+    armed = threading.Event()
+    real_now = extraction_module.now
+
+    def explode(*args: object, **kwargs: object) -> dict[str, Any]:
+        armed.set()
+        raise RuntimeError("environment is broken")
+
+    def slow_now() -> str:
+        if armed.is_set() and not persisting.is_set():
+            persisting.set()
+            assert release.wait(30)
+        return real_now()
+
+    monkeypatch.setattr(extractions, "build_outline", explode)
+    monkeypatch.setattr(extraction_module, "now", slow_now)
+    path = library(client, "race.md", b"# Title\n\nSome text.\n")["path"]
+    assert client.post("/api/v1/raw/" + path + "/extract").status_code == 202
+    assert persisting.wait(30)
+    monkeypatch.delattr(extractions, "build_outline")  # the cause is gone
+    retry = threading.Thread(target=lambda: extractions.start(writer, path, retry=True))
+    retry.start()
+    time.sleep(0.2)  # let the retry reach the lock the failing worker holds
+    release.set()
+    retry.join(30)
+    assert not retry.is_alive()
+    assert finished(client, path)["status"] == "done"
