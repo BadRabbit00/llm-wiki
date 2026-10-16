@@ -1,0 +1,8 @@
+id: static-site
+title: "Лендинг на чистых HTML/CSS/JS"
+profile: static-site
+scopes: ["app:static-site", "app:site", "env:nix", "deploy:nix-package", "deploy:dockertools", "deploy:compose"]
+components:
+  - {name: site, kind: svc}
+policy_blocks:
+  - {file: AGENTS.md, profile: static-site}

@@ -1,0 +1,4 @@
+id: telegram-bot
+title: "Telegram-бот на aiogram"
+scopes: ["lang:python", "app:telegram-bot", "app:worker", "data:postgres", "data:redis", "env:nix", "deploy:nix-package", "deploy:dockertools", "deploy:compose"]
+budget_tokens: 2000

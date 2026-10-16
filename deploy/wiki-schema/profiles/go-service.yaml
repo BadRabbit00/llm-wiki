@@ -1,0 +1,4 @@
+id: go-service
+title: "Отдельный Go-сервис на Gin: шлюз, высокая нагрузка, долгие соединения"
+scopes: ["lang:go", "framework:gin", "app:service", "data:postgres", "data:redis", "env:nix", "deploy:nix-package", "deploy:dockertools", "deploy:compose"]
+budget_tokens: 2000
