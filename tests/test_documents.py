@@ -202,6 +202,36 @@ def test_worker_runs_without_locale_archive_and_with_c_locale(
     assert "WIKISVC_TEST_MARKER=inherited" in environ
 
 
+def test_workers_find_wikisvc_without_pythonpath(
+    client: TestClient, config: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The Nix-wrapped wikisvc of the release image puts its packages on sys.path from inside
+    # the script, so its environment has no PYTHONPATH. The tests' own PYTHONPATH hid that the
+    # worker, a bare `python -m`, then could not import wikisvc: every extraction failed.
+    docx = pytest.importorskip("docx")
+    monkeypatch.delenv("PYTHONPATH", raising=False)
+    reviewer(client, config)
+    path = upload(client, "02-tech-stack.md", b"# Stack\n\nPython and Nix.\n")
+    assert client.post("/api/v1/raw/" + path + "/extract").status_code == 202
+    deadline = time.monotonic() + 30
+    while (status := client.app.state.runtime.extractions.status(path))["status"] not in (
+        "done",
+        "failed",
+    ):
+        assert time.monotonic() < deadline, "Extraction did not finish"
+        time.sleep(0.02)
+    assert (status["status"], status["error"]) == ("done", None)
+    document = docx.Document()
+    document.add_paragraph("Стек компании")
+    output = io.BytesIO()
+    document.save(output)
+    response = client.get(
+        "/api/v1/raw/" + upload(client, "stack.docx", output.getvalue()) + "/text"
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["text"] == "Стек компании"
+
+
 def test_worker_memory_exhaustion_fails_extraction_job_as_limit(
     client: TestClient, config: Settings, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
