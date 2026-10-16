@@ -12,6 +12,11 @@ def worker_env() -> dict[str, str]:
     # eating the RLIMIT_AS budget before the parser even runs. The parser needs no locale.
     env = {key: value for key, value in os.environ.items() if not key.startswith("LOCALE_ARCHIVE")}
     env["LC_ALL"] = "C.UTF-8"
+    # The worker is a bare `sys.executable -m`. A Nix-wrapped wikisvc gets its packages from
+    # site.addsitedir inside the script, not from PYTHONPATH, so the child must be handed the
+    # parent's sys.path to import wikisvc and the parsers. An inherited PYTHONPATH stays first.
+    inherited = env.get("PYTHONPATH", "").split(os.pathsep)
+    env["PYTHONPATH"] = os.pathsep.join(dict.fromkeys(p for p in [*inherited, *sys.path] if p))
     return env
 
 
