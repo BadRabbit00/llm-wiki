@@ -21,6 +21,7 @@ pkgs.testers.runNixOSTest {
   };
   testScript = ''
     import json
+    import time
     from datetime import timedelta
 
     repository = "ghcr.io/badrabbit00/llm-wiki"
@@ -78,6 +79,33 @@ pkgs.testers.runNixOSTest {
         assert container["Config"]["User"].startswith(uid + ":"), container["Config"]["User"]
         assert container["HostConfig"]["ReadonlyRootfs"], "root filesystem is writable"
         assert container["HostConfig"]["CapDrop"], "capabilities were not dropped"
+
+    with subtest("an uploaded document is extracted by the parser worker in the container"):
+        # The worker is a separate `python -m` started by the wrapped wikisvc: only the real
+        # image shows whether that child finds the package, which the tests' PYTHONPATH hides.
+        token = server.succeed(
+            "llm-wiki-admin wikisvc token create --name vm-writer --role writer"
+            " --clearance restricted"
+        ).strip().splitlines()[-1]
+        api = "http://127.0.0.1:8787/api/v1"
+        auth = f"-H 'Authorization: Bearer {token}'"
+        server.succeed("printf '# Stack\\n\\nPython, Nix and podman.\\n' > /tmp/stack.md")
+        path = json.loads(
+            server.succeed(f"curl -fsS {auth} -F file=@/tmp/stack.md -F category=docs {api}/raw")
+        )["path"]
+        server.succeed(f"curl -fsS -X POST {auth} {api}/raw/{path}/extract")
+        for _ in range(60):
+            answer = json.loads(server.succeed(f"curl -sS {auth} {api}/raw/{path}/outline"))
+            if "error" not in answer:
+                break
+            assert answer["error"]["code"] == "E_EXTRACT_PENDING", answer
+            if answer["error"]["details"][0]["status"] not in ("pending", "running"):
+                break
+            time.sleep(1)
+        assert "error" not in answer, (
+            answer,
+            server.succeed("journalctl -u wikisvc | grep -i extract || true"),
+        )
 
     with subtest("wiki-ui runs as llm-ui and reaches wikisvc"):
         server.succeed(
