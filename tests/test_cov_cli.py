@@ -203,7 +203,7 @@ def test_token_revoke_refuses_a_name_with_no_active_token(env: Settings) -> None
 def test_version_prints_the_package_version() -> None:
     result = invoke("version")
     assert (result.exit_code, result.stdout) == (0, __version__ + "\n")
-    assert __version__ == "0.3.1"
+    assert __version__ == "0.3.2"
 
 
 def test_init_creates_a_committed_wiki_and_refuses_a_non_empty_directory(tmp_path: Path) -> None:
