@@ -34,5 +34,5 @@ extra_fields:
     item_pattern: '(?:tool|ci):[A-Za-z0-9_.-]+|none'
   deprecated_reason:
     max_length: 200
-allowed_relations: [refines, conflicts_with, supersedes, depends_on, related, part_of]
+allowed_relations: [refines, conflicts_with, supersedes, depends_on, related, part_of, grounded_in]
 template: "## Правило\n\n\n## Обоснование\n\n\n## Примеры\n"

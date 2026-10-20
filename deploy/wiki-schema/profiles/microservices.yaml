@@ -1,0 +1,4 @@
+id: microservices
+title: "Микросервисы: FastAPI/Go + auth + React SPA"
+scopes: ["lang:python", "lang:go", "lang:typescript", "framework:fastapi", "framework:gin", "framework:react", "app:service", "app:auth", "app:worker", "app:web", "data:postgres", "data:redis", "data:s3", "arch:microservices", "env:nix", "deploy:nix-package", "deploy:dockertools", "deploy:compose"]
+budget_tokens: 2000

@@ -16,6 +16,7 @@ class Relation(StrictModel):
     reason: str = Field(min_length=1, max_length=4000)
 
 
+# doc: DTO-wikiagent.Classification
 class Classification(StrictModel):
     relations: list[Relation] = Field(min_length=1, max_length=20)
 
@@ -27,6 +28,7 @@ def evidence_in(quote: str, page: dict[str, Any]) -> bool:
     )
 
 
+# doc: CLS-wikiagent.verify
 def verify(result: Classification, pages: dict[str, dict[str, Any]]) -> None:
     for relation in result.relations:
         if relation.relation == "new":

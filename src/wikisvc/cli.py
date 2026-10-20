@@ -1,5 +1,6 @@
 """Command line entry point."""
 
+# doc: MOD-wikisvc-cli.app
 from pathlib import Path
 from typing import Annotated, cast
 
@@ -17,6 +18,8 @@ policy_commands = typer.Typer(no_args_is_help=True)
 app.add_typer(policy_commands, name="policies")
 scope_commands = typer.Typer(no_args_is_help=True)
 app.add_typer(scope_commands, name="scopes")
+domain_commands = typer.Typer(no_args_is_help=True)
+app.add_typer(domain_commands, name="domains")
 
 
 def cli_policies(profile: str) -> dict[str, object]:
@@ -34,6 +37,7 @@ def cli_policies(profile: str) -> dict[str, object]:
     )
 
 
+# doc: CLI-wikisvc-cli.policies.export
 @policy_commands.command("export")
 def policies_export(
     profile: Annotated[str, typer.Option()], out: Annotated[Path, typer.Option()]
@@ -45,6 +49,7 @@ def policies_export(
     typer.echo(f"Exported version {result['version']} to {out}")
 
 
+# doc: CLI-wikisvc-cli.policies.check
 @policy_commands.command("check")
 def policies_check(
     profile: Annotated[str, typer.Option()], file: Annotated[Path, typer.Option()]
@@ -58,13 +63,14 @@ def policies_check(
     typer.echo("Policy block is current")
 
 
+# doc: CLI-wikisvc-cli.scopes.add
 @scope_commands.command("add")
 def scopes_add(value: str) -> None:
     import re
 
     from wikisvc.domain.errors import WikiError
-    from wikisvc.services.migrations import yaml_text
     from wikisvc.services.runtime import Runtime
+    from wikisvc.services.schema import with_scope
     from wikisvc.storage.gitrepo import GitRepo
     from wikisvc.storage.lock import write_lock
     from wikisvc.storage.safefs import SafeFS
@@ -75,17 +81,40 @@ def scopes_add(value: str) -> None:
     with write_lock(rt.settings.state_dir, rt.settings.lock_timeout):
         repo = GitRepo(rt.settings.wiki_root)
         repo.ensure_main()
-        if value not in rt.registry.scopes:
+        fs = SafeFS(repo.root)
+        raw = fs.read("schema/scopes.yaml") if fs.path("schema/scopes.yaml").exists() else "[]"
+        updated = with_scope(raw, value)
+        if updated is not None:
             with repo.transaction(["schema/scopes.yaml"]):
-                SafeFS(repo.root).write(
-                    "schema/scopes.yaml", yaml_text([*rt.registry.scopes, value])
-                )
+                fs.write("schema/scopes.yaml", updated)
                 repo.commit(f"Add scope {value}", "cli", ["schema/scopes.yaml"])
             rt.reindex()
             rt.state.audit("cli", "scope.add", value)
     typer.echo(value)
 
 
+# doc: CLI-wikisvc-cli.domains.add
+@domain_commands.command("add")
+def domains_add(
+    path: str,
+    description: Annotated[str, typer.Option("--description", help="Описание домена.")] = "",
+) -> None:
+    """Add a domain to the knowledge tree (admin; extends schema/domains.yaml and kb/)."""
+    from wikisvc.domain.errors import WikiError
+    from wikisvc.domain.models import Principal
+    from wikisvc.services.runtime import Runtime
+
+    try:
+        result = Runtime(settings()).schema.add_domain(
+            path, description, Principal(name="cli", role="admin", clearance="restricted")
+        )
+    except WikiError as exc:
+        typer.echo(f"{exc.code}: {exc.message}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(result["domain"])
+
+
+# doc: CLI-wikisvc-cli.schema.upgrade
 @schema_commands.command("upgrade")
 def schema_upgrade(refresh_instructions: bool = False) -> None:
     """Install policy schema additions; content changes require migrate-rules proposals."""
@@ -107,6 +136,7 @@ def schema_upgrade(refresh_instructions: bool = False) -> None:
     )
 
 
+# doc: CLI-wikisvc-cli.migrate-rules
 @app.command("migrate-rules")
 def migrate_rule_pages(dry_run: bool = False) -> None:
     """Preview legacy conversion or create a draft proposal with WIKI_TOKEN."""
@@ -134,6 +164,7 @@ def settings() -> Settings:
     return config
 
 
+# doc: CLI-wikisvc-cli.version
 @app.command()
 def version() -> None:
     """Print the service version."""
@@ -142,6 +173,7 @@ def version() -> None:
     typer.echo(__version__)
 
 
+# doc: CLI-wikisvc-cli.init
 @app.command()
 def init(path: Path) -> None:
     """Create a separate content repository."""
@@ -151,6 +183,7 @@ def init(path: Path) -> None:
     typer.echo(f"Initialized wiki: {path.resolve()}")
 
 
+# doc: CLI-wikisvc-cli.serve
 @app.command()
 def serve(reload: bool = False) -> None:
     """Serve the API with one worker."""
@@ -168,6 +201,7 @@ def serve(reload: bool = False) -> None:
     )
 
 
+# doc: CLI-wikisvc-cli.repair-worktrees
 @app.command()
 def repair_worktrees() -> None:
     """Repair moved wiki/state worktrees with both services stopped, before reindex."""
@@ -176,6 +210,7 @@ def repair_worktrees() -> None:
     typer.echo(f"Repaired {repair(settings())} worktrees.")
 
 
+# doc: CLI-wikisvc-cli.reindex
 @app.command()
 def reindex(full: bool = False) -> None:
     """Rebuild the derived index from content."""
@@ -191,6 +226,7 @@ def reindex(full: bool = False) -> None:
     typer.echo(f"Index rebuilt; {len(issues)} issues.")
 
 
+# doc: CLI-wikisvc-cli.token.create
 @tokens.command("create")
 def token_create(
     name: str = typer.Option(...),
@@ -226,6 +262,7 @@ def token_create(
     )
 
 
+# doc: CLI-wikisvc-cli.token.revoke
 @tokens.command("revoke")
 def token_revoke(name: str) -> None:
     """Revoke a named token."""
@@ -243,6 +280,7 @@ def token_revoke(name: str) -> None:
     typer.echo("Revoked")
 
 
+# doc: CLI-wikisvc-cli.token.list
 @tokens.command("list")
 def token_list() -> None:
     """List names, access and revocation dates without credentials or hashes."""
@@ -256,6 +294,7 @@ def token_list() -> None:
     typer.echo(json.dumps(rows, ensure_ascii=False, indent=2))
 
 
+# doc: CLI-wikisvc-cli.lint
 @app.command()
 def lint() -> None:
     """Print all lint findings; exit with 1 if errors exist."""
@@ -275,6 +314,7 @@ def lint() -> None:
         raise typer.Exit(1)
 
 
+# doc: CLI-wikisvc-cli.mcp
 @app.command()
 def mcp(profile: str = typer.Option("full", "--profile")) -> None:
     """Run MCP over stdio, authenticated with WIKI_TOKEN."""

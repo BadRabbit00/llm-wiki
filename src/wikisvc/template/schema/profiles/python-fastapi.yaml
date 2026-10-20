@@ -2,3 +2,7 @@ id: python-fastapi
 title: Python-сервис на FastAPI
 scopes: ["lang:python", "framework:fastapi", "app:service"]
 budget_tokens: 2000
+reference_model: claude-sonnet
+brief:
+  include_novelty: [differs, unique]
+  max_facts: 40

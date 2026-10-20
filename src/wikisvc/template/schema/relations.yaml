@@ -62,6 +62,7 @@ participates_in:
 part_of:
   inverse: has_part
   symmetric: false
+  weight: 0.5
   from: []
   to: []
   same_type: true
@@ -118,16 +119,20 @@ caused_by:
 related:
   inverse: related
   symmetric: true
+  weight: 0.2
   from: []
   to: []
   same_type: false
 refines:
   inverse: refined_by
   symmetric: false
+  weight: 0.7
   from:
   - rule
+  - fact
   to:
   - rule
+  - fact
   same_type: true
 conflicts_with:
   inverse: conflicts_with
@@ -137,3 +142,121 @@ conflicts_with:
   to:
   - rule
   same_type: true
+about:
+  inverse: has_fact
+  symmetric: false
+  weight: 1.0
+  from:
+  - fact
+  - question
+  to:
+  - topic
+  - tech
+  same_type: false
+applies_with:
+  inverse: applies_with
+  symmetric: true
+  weight: 0.8
+  from:
+  - fact
+  - topic
+  to:
+  - fact
+  - topic
+  same_type: false
+supports:
+  inverse: supported_by
+  symmetric: false
+  weight: 0.7
+  from:
+  - fact
+  to:
+  - fact
+  same_type: true
+contradicts:
+  inverse: contradicts
+  symmetric: true
+  weight: 0.9
+  from:
+  - fact
+  to:
+  - fact
+  same_type: true
+precedes:
+  inverse: follows
+  symmetric: false
+  weight: 0.6
+  from:
+  - fact
+  to:
+  - fact
+  same_type: true
+builds_on:
+  inverse: prerequisite_of
+  symmetric: false
+  weight: 0.5
+  from:
+  - topic
+  to:
+  - topic
+  same_type: true
+instance_of:
+  inverse: has_instance
+  symmetric: false
+  weight: 0.8
+  from:
+  - tech
+  to:
+  - topic
+  same_type: false
+alternative_to:
+  inverse: alternative_to
+  symmetric: true
+  weight: 0.6
+  from:
+  - tech
+  to:
+  - tech
+  same_type: true
+replaces:
+  inverse: replaced_by
+  symmetric: false
+  weight: 0.7
+  from:
+  - tech
+  - fact
+  to:
+  - tech
+  - fact
+  same_type: true
+grounded_in:
+  inverse: grounds
+  symmetric: false
+  weight: 0.9
+  from:
+  - rule
+  - adr
+  - pattern
+  - playbook
+  to:
+  - fact
+  - topic
+  same_type: false
+answered_by:
+  inverse: answers
+  symmetric: false
+  weight: 1.0
+  from:
+  - question
+  to:
+  - fact
+  same_type: false
+covers:
+  inverse: covered_by
+  symmetric: false
+  weight: 0.3
+  from:
+  - source
+  to:
+  - topic
+  same_type: false

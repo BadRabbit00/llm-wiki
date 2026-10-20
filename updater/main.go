@@ -1,3 +1,5 @@
+// doc: MOD-updater.main
+
 // llm-wiki-updater checks for signed release images and installs one when a human
 // administrator confirms it in the interface: it stops the services gracefully,
 // archives their data, switches the pinned digest, migrates, verifies the result
@@ -18,6 +20,7 @@ import (
 	"time"
 )
 
+// doc: CLI-updater.serve
 func main() {
 	if len(os.Args) < 2 || os.Args[1] != "serve" {
 		fmt.Fprintln(os.Stderr, "Usage: llm-wiki-updater serve [flags]")
@@ -70,6 +73,7 @@ func serve(cfg Config, log *slog.Logger) error {
 	return nil
 }
 
+// doc: JOB-updater.check
 func checkPeriodically(ctx context.Context, updater *Updater, every time.Duration, log *slog.Logger) {
 	timer := time.NewTimer(time.Minute)
 	defer timer.Stop()
@@ -91,6 +95,7 @@ func checkPeriodically(ctx context.Context, updater *Updater, every time.Duratio
 // systemdListener takes the socket llm-wiki-updater.socket created with the group
 // and mode that let only wiki-ui connect; the daemon never opens a port itself.
 func systemdListener() (net.Listener, error) {
+	// doc: CFG-updater.LISTEN_PID, CFG-updater.LISTEN_FDS
 	if os.Getenv("LISTEN_PID") != strconv.Itoa(os.Getpid()) || os.Getenv("LISTEN_FDS") != "1" {
 		return nil, errors.New("start llm-wiki-updater through llm-wiki-updater.socket")
 	}

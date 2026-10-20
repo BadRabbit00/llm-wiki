@@ -1,0 +1,14 @@
+type: question
+prefix: q
+path_template: kb/{domain}/questions/q-{slug}.md
+sources_required: false
+title_ru: Открытый вопрос
+required_sections: []
+extra_fields:
+  priority:
+    type: int
+    min: 1
+    max: 5
+    default: 3
+allowed_relations: [about, answered_by, related]
+template: ""

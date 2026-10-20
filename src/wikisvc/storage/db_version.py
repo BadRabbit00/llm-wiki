@@ -20,6 +20,7 @@ def version(db: sqlite3.Connection) -> int:
     return int(db.execute("PRAGMA user_version").fetchone()[0])
 
 
+# doc: CLS-wikisvc-core.refuse_newer
 def refuse_newer(db: sqlite3.Connection, name: str, known: int, hint: str) -> None:
     found = version(db)
     if found > known:

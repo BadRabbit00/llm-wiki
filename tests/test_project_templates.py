@@ -244,7 +244,10 @@ def test_lint_cli_reports_each_quarantined_template(
 )
 def test_invalid_core_schema_still_prevents_startup(config: Settings, path: str) -> None:
     next(config.wiki_root.glob(path)).write_text("broken: [")
-    with pytest.raises(WikiError, match="Некорректный YAML"), TestClient(create_app(config)):
+    with (
+        pytest.raises(WikiError, match="не читается|Некорректный YAML"),
+        TestClient(create_app(config)),
+    ):
         pytest.fail("Service started with invalid core schema")
 
 

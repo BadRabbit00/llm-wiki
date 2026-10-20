@@ -15,4 +15,5 @@ allowed_relations:
 - implements
 - supersedes
 - related
+- grounded_in
 template: "## Проблема\n\n\n## Решение\n\n\n## Пример\n\n\n## Когда не применять\n"

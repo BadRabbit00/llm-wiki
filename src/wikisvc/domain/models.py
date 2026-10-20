@@ -1,12 +1,47 @@
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+)
 
 type Role = Literal["reader", "writer", "reviewer", "admin"]
 type Sensitivity = Literal["public", "internal", "restricted"]
+type EdgeOrigin = Literal["manual", "extracted", "inferred"]
+
+SENSITIVITY_RANK: dict[str, int] = {"public": 0, "internal": 1, "restricted": 2}
 
 
+# doc: DTO-wikisvc-core.RelationRef
+class RelationRef(BaseModel):
+    """A relation target with its own weight: `w` replaces the base weight of the relation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    w: float | None = Field(default=None, gt=0, le=1)
+    note: str | None = None
+    origin: EdgeOrigin = "manual"
+
+    @field_validator("note")
+    @classmethod
+    def one_line(cls, value: str | None) -> str | None:
+        if value is not None and ("\n" in value or "\r" in value):
+            raise ValueError("note must be one line")
+        return value
+
+    @model_serializer(mode="wrap")
+    def without_empty(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        return {key: value for key, value in data.items() if value is not None}
+
+
+# doc: FMT-wikisvc-core.page
 class Frontmatter(BaseModel):
     model_config = ConfigDict(extra="allow")
     id: str
@@ -18,7 +53,9 @@ class Frontmatter(BaseModel):
     tags: list[str] = Field(default_factory=list)
     aliases: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
-    relations: dict[str, list[str]] = Field(default_factory=dict)
+    relations: dict[str, list[str | RelationRef]] = Field(default_factory=dict)
+    domain: str | None = None
+    scopes: list[str] = Field(default_factory=list)
     created: str
     updated: str
     verified_by: str | None = None
@@ -45,7 +82,18 @@ class Frontmatter(BaseModel):
             raise ValueError("summary must be one line")
         return value
 
+    @model_serializer(mode="wrap")
+    def without_unused_v3(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        """Pages that never used `domain`/`scopes` keep their exact text when re-rendered."""
+        data: dict[str, object] = handler(self)
+        if data.get("domain") is None:
+            data.pop("domain", None)
+        if not data.get("scopes"):
+            data.pop("scopes", None)
+        return data
 
+
+# doc: CLS-wikisvc-core.Page
 class Page(BaseModel):
     frontmatter: Frontmatter
     body_md: str
@@ -57,14 +105,20 @@ class Page(BaseModel):
         return self.frontmatter.id
 
 
+# doc: CLS-wikisvc-core.Edge
 class Edge(BaseModel):
     model_config = ConfigDict(frozen=True)
     src: str
     dst: str
     rel: str
     kind: Literal["frontmatter", "wikilink", "citation", "inverse"]
+    # `weight` is the override from RelationRef.w; None means "base weight of the relation".
+    weight: float | None = None
+    note: str | None = None
+    origin: EdgeOrigin = "manual"
 
 
+# doc: CLS-wikisvc-core.LintIssue
 class LintIssue(BaseModel):
     code: str
     severity: Literal["error", "warning", "info"]
@@ -73,6 +127,7 @@ class LintIssue(BaseModel):
     hint: str = "Проверьте страницу и /schema."
 
 
+# doc: CLS-wikisvc-core.Principal
 class Principal(BaseModel):
     name: str
     role: Role
@@ -85,6 +140,7 @@ class Principal(BaseModel):
         return self.person or self.name
 
 
+# doc: CLS-wikisvc-core.Proposal
 class Proposal(BaseModel):
     pid: str
     title: str

@@ -1,5 +1,6 @@
 """Authenticate MCP HTTP requests before the shared request body limit runs."""
 
+# doc: MOD-wikisvc-mcp.http
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers
 from starlette.responses import JSONResponse
@@ -11,6 +12,7 @@ from wikisvc.services.runtime import Runtime
 from wikisvc.services.sessions import token_name
 
 
+# doc: CLS-wikisvc-mcp.MCPHTTPAuth
 class MCPHTTPAuth:
     def __init__(self, app: ASGIApp, path: str) -> None:
         self.app = app

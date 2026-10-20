@@ -24,7 +24,28 @@ def check_page_id(registry: Registry, value: str) -> str:
     return value
 
 
-def page_path(registry: Registry, type_name: str, page_id: str, parent: str | None = None) -> str:
+DOMAIN_PATH = re.compile(r"[a-z0-9-]+(?:/[a-z0-9-]+)*")
+
+
+def check_domain(registry: Registry, value: str | None) -> str:
+    """The domain must be exactly a path listed in `schema/domains.yaml`."""
+    if value is None or not DOMAIN_PATH.fullmatch(value) or value not in registry.domains:
+        raise WikiError(
+            "E_DOMAIN_UNKNOWN",
+            "Домен не из schema/domains.yaml.",
+            "Возьмите домен из списка доменов; новый добавляет администратор.",
+        )
+    return value
+
+
+# doc: CLS-wikisvc-core.page_path
+def page_path(
+    registry: Registry,
+    type_name: str,
+    page_id: str,
+    parent: str | None = None,
+    domain: str | None = None,
+) -> str:
     check_id(page_id)
     definition = registry.page_type(type_name)
     if not page_id.startswith(definition.prefix + "-"):
@@ -40,7 +61,19 @@ def page_path(registry: Registry, type_name: str, page_id: str, parent: str | No
         parent_slug = parent[4:]
     if type_name == "adr" and not re.fullmatch(r"\d{4}-.+", slug):
         raise WikiError("E_ID_INVALID", "ADR требует ID adr-NNNN-название (латиница).")
-    path = "wiki/" + definition.path_template.format(slug=slug, parent_slug=parent_slug)
-    if ".." in PurePosixPath(path).parts or PurePosixPath(path).is_absolute() or "\\" in path:
+    domain_path = ""
+    if "{domain}" in definition.path_template:
+        if domain is None:
+            raise WikiError("E_REQUIRED_FIELD", f"{type_name} требует поле domain.")
+        domain_path = check_domain(registry, domain)
+    path = "wiki/" + definition.path_template.format(
+        slug=slug, parent_slug=parent_slug, domain=domain_path
+    )
+    if (
+        ".." in PurePosixPath(path).parts
+        or PurePosixPath(path).is_absolute()
+        or "\\" in path
+        or "\0" in path
+    ):
         raise WikiError("E_PATH_MISMATCH", "Небезопасный шаблон пути.")
     return path

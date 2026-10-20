@@ -1,0 +1,8 @@
+id: react-spa
+title: "React SPA (Vite + TypeScript) за логином"
+profile: react-spa
+scopes: ["lang:typescript", "framework:react", "app:web", "env:nix", "deploy:nix-package", "deploy:dockertools", "deploy:compose"]
+components:
+  - {name: web, kind: svc}
+policy_blocks:
+  - {file: AGENTS.md, profile: react-spa}

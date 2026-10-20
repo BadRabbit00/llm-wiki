@@ -7,6 +7,7 @@ from wikisvc.domain.errors import WikiError
 from wikisvc.storage.db_version import INDEX_SCHEMA, refuse_newer, stamp, version
 
 
+# doc: CLS-wikisvc-core.IndexDB
 class IndexDB:
     def __init__(self, directory: Path, discard_newer: bool = False) -> None:
         """discard_newer drops an index a newer version wrote; it is derived, so a
@@ -31,6 +32,9 @@ class IndexDB:
                 INDEX_SCHEMA,
                 "Индекс производный: `wikisvc reindex --full` соберёт его заново этой версией.",
             )
+            # doc: TBL-wikisvc-core.index.pages, TBL-wikisvc-core.index.edges, TBL-wikisvc-core.index.chunks
+            # doc: TBL-wikisvc-core.index.chunks_fts, TBL-wikisvc-core.index.raw_files, TBL-wikisvc-core.index.delivery_stats
+            # doc: TBL-wikisvc-core.index.issues, TBL-wikisvc-core.index.meta
             db.executescript("""
             CREATE TABLE IF NOT EXISTS pages (
                 id TEXT PRIMARY KEY, type TEXT NOT NULL, title TEXT NOT NULL, summary TEXT NOT NULL,

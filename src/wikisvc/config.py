@@ -7,6 +7,20 @@ from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# doc: CLS-wikisvc.Settings
+# doc: CFG-wikisvc.WIKI_ROOT, CFG-wikisvc.STATE_DIR, CFG-wikisvc.INDEX_DIR, CFG-wikisvc.BIND_HOST
+# doc: CFG-wikisvc.CORS_ORIGINS, CFG-wikisvc.ANONYMOUS_ACCESS, CFG-wikisvc.ANONYMOUS_NAME
+# doc: CFG-wikisvc.ANONYMOUS_ROLE, CFG-wikisvc.ANONYMOUS_CLEARANCE
+# doc: CFG-wikisvc.SESSION_ISSUER_TOKEN_NAME, CFG-wikisvc.SESSION_TTL_HOURS, CFG-wikisvc.ROLES_FILE
+# doc: CFG-wikisvc.MCP_HTTP_ENABLED, CFG-wikisvc.MCP_HTTP_PATH, CFG-wikisvc.MCP_PROFILE
+# doc: CFG-wikisvc.WIKIAGENT_STATE_DIR, CFG-wikisvc.BIND_PORT, CFG-wikisvc.MAX_LIBRARY_UPLOAD_MB
+# doc: CFG-wikisvc.EXTRACT_JOB_MAX_CHARS, CFG-wikisvc.EXTRACT_JOB_TIMEOUT
+# doc: CFG-wikisvc.OUTLINE_FALLBACK_PAGES, CFG-wikisvc.MAX_UPLOAD_MB, CFG-wikisvc.PROPOSAL_TTL_DAYS
+# doc: CFG-wikisvc.CONTEXT_BUDGET_DEFAULT, CFG-wikisvc.CHARS_PER_TOKEN
+# doc: CFG-wikisvc.POLICY_CATEGORY_ORDER, CFG-wikisvc.STATUS_BOOST, CFG-wikisvc.RELATION_PRIORITY
+# doc: CFG-wikisvc.ALLOWED_RAW_EXT, CFG-wikisvc.RATE_LIMIT_PER_MIN, CFG-wikisvc.LOG_LEVEL
+# doc: CFG-wikisvc.EXTRACT_TIMEOUT_SECONDS, CFG-wikisvc.EXTRACT_MEMORY_MB
+# doc: CFG-wikisvc.EXTRACT_MAX_CHARS, CFG-wikisvc.SECRET_ENTROPY_THRESHOLD, CFG-wikisvc.LOCK_TIMEOUT
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=None, extra="ignore")
 

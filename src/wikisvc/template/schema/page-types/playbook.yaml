@@ -13,4 +13,5 @@ allowed_relations:
 - depends_on
 - governed_by
 - related
+- grounded_in
 template: "## Когда применять\n\n\n## Предусловия\n\n\n## Шаги\n\n\n## Проверка результата\n"

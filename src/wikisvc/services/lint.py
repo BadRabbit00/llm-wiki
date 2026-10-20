@@ -20,6 +20,7 @@ def timestamp(value: str) -> datetime:
     return date.replace(tzinfo=UTC) if date.tzinfo is None else date
 
 
+# doc: CLS-wikisvc-core.Lint
 class Lint:
     def __init__(self, runtime: Runtime) -> None:
         self.rt = runtime

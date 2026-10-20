@@ -13,6 +13,7 @@ def clearance_values(principal: Principal) -> list[str]:
     return levels[: levels.index(principal.clearance) + 1]
 
 
+# doc: CLS-wikisvc-core.GraphStore
 class GraphStore(Protocol):
     def neighbors(
         self,

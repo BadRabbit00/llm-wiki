@@ -9,11 +9,13 @@ required_sections:
 extra_fields:
   kind:
     required: true
-    enum: [book, article, directive, chat, interview, doc, code]
+    enum: [book, article, directive, chat, interview, doc, code, paper, datasheet, spec, course, video, rfc]
   author: {}
   year: {}
   edition: {}
-  url: {}
+  url:
+    pattern: 'https?://[^\s@/]+(?:/\S*)?'
+    max_length: 2048
   raw_path:
     required: true
     pattern: '(?:raw|library)/[^\\]+'
@@ -23,6 +25,9 @@ extra_fields:
     pattern: '[a-f0-9]{64}'
   ingested_at:
     required: true
+  covers:
+    type: list
+    item_pattern: 'top-[a-z0-9-]+'
 allowed_relations:
 - part_of
 - depends_on

@@ -138,7 +138,7 @@ def test_roundtrip(body: str) -> None:
 
 
 def test_all_paths(registry: Registry) -> None:
-    assert len(registry.page_types) == 13
+    assert len(registry.page_types) == 17
     for kind, definition in registry.page_types.items():
         page_id = definition.prefix + "-example"
         extra = {}
@@ -146,6 +146,8 @@ def test_all_paths(registry: Registry) -> None:
             page_id, extra = "appdoc-example-notes", {"parent": "app-example"}
         if kind == "adr":
             page_id = "adr-0001-example"
+        if "{domain}" in definition.path_template:
+            extra = {"domain": "db"}
         actual = page_path(registry, kind, page_id, **extra)
         assert actual.startswith("wiki/") and actual.endswith(".md")
     assert (
@@ -258,7 +260,7 @@ def test_safe_filesystem_and_init(tmp_path: Path) -> None:
     initialize(root)
     fs = SafeFS(root)
     assert fs.read("CLAUDE.md") == fs.read("AGENTS.md")
-    assert len(fs.files("schema/page-types/*.yaml")) == 13
+    assert len(fs.files("schema/page-types/*.yaml")) == 17
     for path in ["../outside", "/etc/passwd", "a/../../bad", "a\\bad", "bad\0"]:
         with pytest.raises(WikiError):
             fs.path(path)

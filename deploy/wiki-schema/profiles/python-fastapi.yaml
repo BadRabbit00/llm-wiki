@@ -1,0 +1,4 @@
+id: python-fastapi
+title: "Бэкенд на FastAPI: API + сервис auth, модульный монолит"
+scopes: ["lang:python", "framework:fastapi", "app:service", "app:auth", "app:worker", "data:postgres", "data:redis", "data:s3", "arch:modular-monolith", "env:nix", "deploy:nix-package", "deploy:dockertools", "deploy:compose"]
+budget_tokens: 2000

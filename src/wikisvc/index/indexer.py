@@ -80,6 +80,7 @@ def chunks(body: str, limit: int = 1500) -> list[tuple[str, str]]:
     return result or [("", "")]
 
 
+# doc: CLS-wikisvc-core.Indexer
 class Indexer:
     def __init__(
         self, root: Path, db: IndexDB, registry: Registry, state_dir: Path | None = None

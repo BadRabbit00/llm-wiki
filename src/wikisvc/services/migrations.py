@@ -11,12 +11,17 @@ from wikisvc.domain.markdown import load_yaml, render, sections
 from wikisvc.domain.models import Principal
 from wikisvc.index.indexer import read_pages
 from wikisvc.services.auth import can_read, require_role
+from wikisvc.services.schema import DOMAINS_FILE, kb_missing, yaml_text
 from wikisvc.storage.gitrepo import GitRepo
 from wikisvc.storage.lock import write_lock
 from wikisvc.storage.safefs import SafeFS
+from wikisvc.storage.schema import load_domains
 
 if TYPE_CHECKING:
     from wikisvc.services.runtime import Runtime
+
+GROUNDED_TYPES = ("rule", "adr", "pattern", "playbook")
+EXTENDED_RELATIONS = ("refines",)
 
 LEGACY = {
     "convention": "code-style",
@@ -26,16 +31,38 @@ LEGACY = {
 }
 
 
-def yaml_text(value: Any) -> str:
-    import io
+def grounded_relations(fs: SafeFS) -> dict[str, str]:
+    """Page types of existing wikis that may now cite knowledge via `grounded_in`."""
+    writes: dict[str, str] = {}
+    for kind in GROUNDED_TYPES:
+        path = f"schema/page-types/{kind}.yaml"
+        if not fs.path(path).exists():
+            continue
+        definition = load_yaml(fs.read(path))
+        allowed = definition.setdefault("allowed_relations", [])
+        if "grounded_in" not in allowed:
+            allowed.append("grounded_in")
+            writes[path] = yaml_text(definition)
+    return writes
 
-    from ruamel.yaml import YAML
 
-    stream = io.StringIO()
-    YAML().dump(value, stream)
-    return stream.getvalue()
+def upgraded_scopes(fs: SafeFS, template: SafeFS) -> str | None:
+    """Convert `scopes.yaml` to `axes` + `values`, keeping every existing value."""
+    path = "schema/scopes.yaml"
+    if not fs.path(path).exists():
+        return None
+    current = load_yaml(fs.read(path)) or []
+    result: dict[str, Any] = dict(current) if isinstance(current, dict) else {"values": current}
+    axes = result["axes"] = result.get("axes") or {}
+    values = result["values"] = result.get("values") or []
+    for name, definition in load_yaml(template.read(path))["axes"].items():
+        axes.setdefault(name, definition)
+    for value in values:
+        axes.setdefault(value.split(":", 1)[0], {})
+    return None if result == current else yaml_text(result)
 
 
+# doc: CLS-wikisvc-core.upgrade_schema
 def upgrade_schema(
     rt: Runtime, actor: Principal, refresh_instructions: bool = False
 ) -> dict[str, Any]:
@@ -60,24 +87,35 @@ def upgrade_schema(
         for name, definition in defaults.items():
             if name not in rels:
                 rels[name] = definition
-            else:
-                for side in ("from", "to"):
-                    rels[name][side] = list(
-                        dict.fromkeys(
-                            "rule" if kind in LEGACY else kind for kind in rels[name].get(side, [])
-                        )
+                continue
+            for side in ("from", "to"):
+                rels[name][side] = list(
+                    dict.fromkeys(
+                        "rule" if kind in LEGACY else kind for kind in rels[name].get(side, [])
                     )
+                )
+                if name in EXTENDED_RELATIONS:
+                    rels[name][side] = list(dict.fromkeys([*rels[name][side], *definition[side]]))
+            if "weight" in definition:
+                rels[name].setdefault("weight", definition["weight"])
         writes["schema/relations.yaml"] = yaml_text(rels)
         source = load_yaml(fs.read("schema/page-types/source.yaml"))
         source["extra_fields"].update(
             load_yaml(template.read("schema/page-types/source.yaml"))["extra_fields"]
         )
         writes["schema/page-types/source.yaml"] = yaml_text(source)
+        writes.update(grounded_relations(fs))
+        scopes = upgraded_scopes(fs, template)
+        if scopes is not None:
+            writes["schema/scopes.yaml"] = scopes
         writes = {
             p: content
             for p, content in writes.items()
             if not fs.path(p).exists() or fs.read(p) != content
         }
+        domains = load_domains(fs if fs.path(DOMAINS_FILE).exists() else template)
+        for domain in domains:
+            writes.update(kb_missing(fs, domain))
         paths = [*writes, *deletes]
         if not paths:
             return {"commit": repo.head(), "updated": [], "removed": []}

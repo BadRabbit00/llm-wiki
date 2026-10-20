@@ -32,6 +32,7 @@ def brief(page: Page) -> dict[str, Any]:
     }
 
 
+# doc: CLS-wikisvc-core.Rules
 class Rules:
     def __init__(self, runtime: "Runtime") -> None:
         self.rt = runtime
@@ -131,9 +132,11 @@ class Rules:
                         continue
                     for target in targets:
                         try:
-                            for node in self.rt.graph.impact(target, actor, rels=IMPACT_RELS)[
-                                "nodes"
-                            ]:
+                            for node in self.rt.graph.impact(
+                                target if isinstance(target, str) else target.id,
+                                actor,
+                                rels=IMPACT_RELS,
+                            )["nodes"]:
                                 pages[node["id"]] = node
                         except WikiError as exc:
                             if exc.status != 404:

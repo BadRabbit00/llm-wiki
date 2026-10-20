@@ -23,6 +23,7 @@ class Fix(StrictModel):
     text: str | None = None
 
 
+# doc: DTO-wikiagent.Verdict
 class Verdict(StrictModel):
     relation: Literal["none", "duplicate", "refines", "conflicts", "scope_mismatch"]
     confidence: float = Field(ge=0, le=1)

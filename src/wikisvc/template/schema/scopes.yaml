@@ -1,3 +1,13 @@
+axes:
+  domain: {hierarchical: true}
+  lang: {}
+  tech: {from: tech-pages}
+  layer: {enum: [kernel, runtime, app, infra]}
+  scale: {enum: [single-node, cluster, 1m-rps]}
+  stage: {enum: [design, implement, review, operate]}
+  framework: {}
+  app: {}
+values:
 - lang:python
 - lang:dotnet
 - lang:typescript

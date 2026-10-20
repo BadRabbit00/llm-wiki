@@ -23,6 +23,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// doc: MOD-wiki-ui.oidc
 const sessionCookie = "wiki_session"
 const flowCookie = "wiki_oidc_flow"
 
@@ -31,6 +32,7 @@ type oidcConfig struct {
 	InsecureHTTP, CookieSecure                                  bool
 }
 
+// doc: CFG-wiki-ui.WIKI_UI_OIDC_ISSUER, CFG-wiki-ui.WIKI_UI_OIDC_CLIENT_ID, CFG-wiki-ui.WIKI_UI_OIDC_SECRET_FILE, CFG-wiki-ui.WIKI_UI_OIDC_REDIRECT_URL, CFG-wiki-ui.WIKI_UI_SESSION_TOKEN_FILE, CFG-wiki-ui.WIKI_UI_OIDC_INSECURE_HTTP, CFG-wiki-ui.WIKI_UI_COOKIE_SECURE
 func oidcEnvironment() oidcConfig {
 	return oidcConfig{
 		Issuer: os.Getenv("WIKI_UI_OIDC_ISSUER"), ClientID: os.Getenv("WIKI_UI_OIDC_CLIENT_ID"),
@@ -70,6 +72,7 @@ func oidcHTTPClient() *http.Client {
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 }
 
+// doc: KV-wiki-ui.oidc-flows, KV-wiki-ui.oidc-provider
 type oidcFlow struct {
 	nonce, verifier string
 	expires         time.Time
@@ -90,6 +93,7 @@ type oidcAuth struct {
 }
 type oidcContextKey struct{}
 
+// doc: CLS-wiki-ui.newOIDC
 func newOIDC(config oidcConfig, wikiURL string) (*oidcAuth, error) {
 	issuer, err := url.Parse(config.Issuer)
 	if err != nil || issuer.Host == "" || issuer.User != nil || issuer.RawQuery != "" || issuer.Fragment != "" ||
@@ -200,6 +204,7 @@ func (a *oidcAuth) refreshKeys(ctx context.Context, info *providerInfo) error {
 }
 
 // VerifySignature implements oidc.KeySet. Claim and algorithm checks remain in IDTokenVerifier.
+// doc: CLS-wiki-ui.VerifySignature
 func (a *oidcAuth) VerifySignature(ctx context.Context, token string) ([]byte, error) {
 	a.mu.Lock()
 	keys := a.keys
@@ -222,6 +227,7 @@ func (a *oidcAuth) VerifySignature(ctx context.Context, token string) ([]byte, e
 	return keys.VerifySignature(ctx, token)
 }
 
+// doc: JOB-wiki-ui.oidc-refresh
 func (a *oidcAuth) refreshLoop(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
@@ -265,6 +271,7 @@ func (a *oidcAuth) expiredCookie() *http.Cookie {
 	return cookie
 }
 
+// doc: API-wiki-ui.auth.login
 func (a *oidcAuth) login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -296,6 +303,7 @@ func (a *oidcAuth) login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, info.oauth.AuthCodeURL(state, oidc.Nonce(flow.nonce), oauth2.S256ChallengeOption(flow.verifier)), http.StatusFound)
 }
 
+// doc: API-wiki-ui.auth.callback
 func (a *oidcAuth) callback(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -382,6 +390,7 @@ func (a *oidcAuth) callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+// doc: API-wiki-ui.auth.logout
 func (a *oidcAuth) logout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -425,6 +434,7 @@ func (a *oidcAuth) logout(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("Вы вышли из вики. Для нового входа откройте /auth/login."))
 }
 
+// doc: CLS-wiki-ui.protect
 func (a *oidcAuth) protect(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")

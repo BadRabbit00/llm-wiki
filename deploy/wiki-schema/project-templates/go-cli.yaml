@@ -1,0 +1,8 @@
+id: go-cli
+title: "Утилита или агент на Go одним бинарником"
+profile: go-cli
+scopes: ["lang:go", "app:cli", "env:nix", "deploy:nix-package"]
+components:
+  - {name: cli, kind: svc}
+policy_blocks:
+  - {file: AGENTS.md, profile: go-cli}

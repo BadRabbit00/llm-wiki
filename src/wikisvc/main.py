@@ -1,3 +1,4 @@
+# doc: MOD-wikisvc.main
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -37,6 +38,7 @@ from wikisvc.storage.lock import write_lock
 logger = logging.getLogger("wikisvc")
 
 
+# doc: CLS-wikisvc.BodyLimit
 class BodyLimit:
     def __init__(self, app: ASGIApp, config: Settings) -> None:
         self.app, self.config = app, config
@@ -133,6 +135,7 @@ class BodyLimit:
         await self.app(scope, replay, send)
 
 
+# doc: CLS-wikisvc.create_app
 def create_app(settings: Settings | None = None) -> FastAPI:
     config = settings or Settings()  # type: ignore[call-arg]
     logger.setLevel(config.log_level)
@@ -241,6 +244,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status_code=exc.status_code,
         )
 
+    # doc: API-wikisvc.health
     @app.get("/api/v1/health")
     def health(request: Request) -> dict[str, str]:
         with request.app.state.runtime.index.connect() as db:

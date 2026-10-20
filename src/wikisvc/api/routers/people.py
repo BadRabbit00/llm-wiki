@@ -15,11 +15,13 @@ class Person(BaseModel):
     updated_at: str
 
 
+# doc: DTO-wikisvc.People
 class People(BaseModel):
     items: list[Person]
     next_cursor: str | None
 
 
+# doc: API-wikisvc.people.list
 @router.get("")
 def people(services: Services, actor: Reader, limit: int = 50, cursor: str | None = None) -> People:
     if not can_read(actor, "internal"):

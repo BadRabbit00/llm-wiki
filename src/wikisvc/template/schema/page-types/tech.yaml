@@ -1,0 +1,23 @@
+type: tech
+prefix: tech
+path_template: kb/{domain}/tech/tech-{slug}.md
+sources_required: false
+title_ru: Технология
+required_sections: []
+extra_fields:
+  category:
+    required: true
+    enum: [database, runtime, library, protocol, tool, service, chip, board, model]
+  adoption:
+    required: true
+    enum: [evaluating, adopted, avoid, legacy, unknown]
+  verdict:
+    required: true
+    pattern: '[^\r\n]{1,300}'
+  current_version:
+    max_length: 64
+  homepage:
+    pattern: 'https?://[^\s@/]+(?:/\S*)?'
+    max_length: 2048
+allowed_relations: [instance_of, alternative_to, replaces, related]
+template: ""

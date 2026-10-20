@@ -1,0 +1,113 @@
+# Labelled fact pairs for the deduplication judge (FMT-wikisvc-core.kb-eval, ADR-0022).
+# `a` and `b` are fact IDs of tests/fixtures/kb; the text to compare is the `claim` of each
+# page (the `summary` is the decontextualised form of the same claim). Optional `note` marks
+# why an `independent` pair is a hard negative: `version-superseded` (same statement for
+# disjoint `valid_for` kernel ranges, joined by `replaces` new -> old) or `related` (joined
+# by a `related` edge). Scheme per label:
+#   duplicate   - `a` restates `b` (a page attached to a tech page only); no edge between them.
+#   refines     - `a` carries `relations.refines: [b]`: a narrower case of `b`.
+#   contradicts - `a` is a misconception with `confidence: contested` and
+#                 `relations.contradicts: [b]`, same applicability as the canonical `b`.
+#   independent - no refines/contradicts edge; hand-picked hard negatives (same hub or shared
+#                 keyword), the noted pairs above, and pairs from different hubs drawn with a
+#                 fixed seed.
+- {a: f-os-io-uring-rings-in-shared-memory, b: f-os-io-uring-shared-rings, label: duplicate}
+- {a: f-os-io-uring-setup-syscall-allocates-queues, b: f-os-io-uring-setup-returns-fd, label: duplicate}
+- {a: f-os-io-uring-polled-completion-mode, b: f-os-io-uring-iopoll-busy-wait, label: duplicate}
+- {a: f-os-io-uring-sqpoll-polling-thread, b: f-os-io-uring-sqpoll-kernel-thread, label: duplicate}
+- {a: f-os-io-uring-enter-single-syscall-both, b: f-os-io-uring-enter-submit-and-wait, label: duplicate}
+- {a: f-os-io-uring-no-completion-ordering, b: f-os-io-uring-completions-unordered, label: duplicate}
+- {a: f-os-io-uring-linked-sqe-sequential, b: f-os-io-uring-io-link-chain, label: duplicate}
+- {a: f-os-io-uring-registration-pins-resources, b: f-os-io-uring-register-reduces-overhead, label: duplicate}
+- {a: f-os-io-uring-fixed-buffers-pinned-memlock, b: f-os-io-uring-register-buffers-memlock, label: duplicate}
+- {a: f-os-io-uring-kernel-selected-buffers, b: f-os-io-uring-provide-buffers-pool, label: duplicate}
+- {a: f-os-io-uring-accept-multishot-repeating, b: f-os-io-uring-multishot-accept, label: duplicate}
+- {a: f-os-io-uring-timeout-expiry-or-count, b: f-os-io-uring-timeout-op, label: duplicate}
+- {a: f-rust-tokio-runtime-four-parts, b: f-rust-tokio-runtime-components, label: duplicate}
+- {a: f-rust-tokio-spawned-task-runs-unawaited, b: f-rust-tokio-spawn-runs-immediately, label: duplicate}
+- {a: f-rust-tokio-select-drops-unfinished, b: f-rust-tokio-select-cancels-losers, label: duplicate}
+- {a: f-rust-tokio-blocking-closure-dedicated-thread, b: f-rust-tokio-spawn-blocking, label: duplicate}
+- {a: f-os-io-uring-single-mmap-feature, b: f-os-io-uring-mmap-offsets, label: refines}
+- {a: f-os-io-uring-iopoll-requires-o-direct, b: f-os-io-uring-iopoll-busy-wait, label: refines}
+- {a: f-os-io-uring-sqpoll-idle-wakeup, b: f-os-io-uring-sqpoll-kernel-thread, label: refines}
+- {a: f-os-io-uring-sqpoll-nonfixed-files, b: f-os-io-uring-sqpoll-kernel-thread, label: refines}
+- {a: f-os-io-uring-clamp-flag, b: f-os-io-uring-max-entries-32768, label: refines}
+- {a: f-os-io-uring-enter-getevents, b: f-os-io-uring-enter-submit-and-wait, label: refines}
+- {a: f-os-io-uring-link-breaks-on-error, b: f-os-io-uring-io-link-chain, label: refines}
+- {a: f-os-io-uring-hardlink, b: f-os-io-uring-io-link-chain, label: refines}
+- {a: f-os-io-uring-linked-file-assignment, b: f-os-io-uring-io-link-chain, label: refines}
+- {a: f-os-io-uring-register-buffers-memlock, b: f-os-io-uring-register-reduces-overhead, label: refines}
+- {a: f-os-io-uring-buffer-select-enobufs, b: f-os-io-uring-buffer-select-flag, label: refines}
+- {a: f-os-io-uring-buffer-consumed-once, b: f-os-io-uring-provide-buffers-pool, label: refines}
+- {a: f-os-io-uring-buf-ring, b: f-os-io-uring-provide-buffers-pool, label: refines}
+- {a: f-os-io-uring-timeout-realtime-clock, b: f-os-io-uring-timeout-op, label: refines}
+- {a: f-os-io-uring-cancel-all-fd-any, b: f-os-io-uring-async-cancel-results, label: refines}
+- {a: f-rust-inner-doc-comment-bang, b: f-rust-doc-comment-triple-slash, label: refines}
+- {a: f-rust-tokio-worker-threads-default-cores, b: f-rust-tokio-multi-thread-work-stealing, label: refines}
+- {a: f-rust-tokio-join-handle-detach, b: f-rust-tokio-spawn-runs-immediately, label: refines}
+- {a: f-rust-tokio-max-blocking-threads-512, b: f-rust-tokio-spawn-blocking, label: refines}
+- {a: f-rust-tokio-fs-uses-blocking-pool, b: f-rust-tokio-spawn-blocking, label: refines}
+- {a: f-os-io-uring-enter-always-blocks, b: f-os-io-uring-enter-getevents, label: contradicts}
+- {a: f-os-io-uring-completions-in-submission-order, b: f-os-io-uring-completions-unordered, label: contradicts}
+- {a: f-os-io-uring-sqpoll-never-sleeps, b: f-os-io-uring-sqpoll-idle-wakeup, label: contradicts}
+- {a: f-os-io-uring-iopoll-any-file, b: f-os-io-uring-iopoll-requires-o-direct, label: contradicts}
+- {a: f-os-io-uring-link-continues-after-error, b: f-os-io-uring-link-breaks-on-error, label: contradicts}
+- {a: f-os-io-uring-registered-buffers-pageable, b: f-os-io-uring-register-buffers-memlock, label: contradicts}
+- {a: f-os-io-uring-buffer-select-waits-for-buffer, b: f-os-io-uring-buffer-select-enobufs, label: contradicts}
+- {a: f-os-io-uring-buffer-returns-to-pool, b: f-os-io-uring-buffer-consumed-once, label: contradicts}
+- {a: f-os-io-uring-cancel-always-zero, b: f-os-io-uring-async-cancel-results, label: contradicts}
+- {a: f-os-io-uring-timeout-only-on-expiry, b: f-os-io-uring-timeout-op, label: contradicts}
+- {a: f-os-io-uring-user-data-rewritten, b: f-os-io-uring-user-data-roundtrip, label: contradicts}
+- {a: f-os-io-uring-cqe-res-positive-errno, b: f-os-io-uring-cqe-res-negative-errno, label: contradicts}
+- {a: f-rust-tokio-spawn-lazy-until-awaited, b: f-rust-tokio-spawn-runs-immediately, label: contradicts}
+- {a: f-rust-tokio-join-handle-drop-aborts, b: f-rust-tokio-join-handle-detach, label: contradicts}
+- {a: f-rust-tokio-fs-kernel-async, b: f-rust-tokio-fs-uses-blocking-pool, label: contradicts}
+- {a: f-rust-tokio-select-keeps-losers-polling, b: f-rust-tokio-select-cancels-losers, label: contradicts}
+- {a: f-os-io-uring-max-entries-4096, b: f-os-io-uring-max-entries-32768, label: independent, note: version-superseded}
+- {a: f-os-io-uring-sqpoll-requires-fixed-files, b: f-os-io-uring-sqpoll-nonfixed-files, label: independent, note: version-superseded}
+- {a: f-os-io-uring-cq-overflow-drops, b: f-os-io-uring-nodrop-overflow, label: independent, note: version-superseded}
+- {a: f-os-io-uring-three-mmaps, b: f-os-io-uring-single-mmap-feature, label: independent, note: version-superseded}
+- {a: f-os-io-uring-enter-sigset-only, b: f-os-io-uring-enter-ext-arg-timeout, label: independent, note: version-superseded}
+- {a: f-os-io-uring-identity-kernel-threads, b: f-os-io-uring-native-workers, label: independent, note: version-superseded}
+- {a: f-os-io-uring-poll-16bit-flags, b: f-os-io-uring-poll-32bit-flags, label: independent, note: version-superseded}
+- {a: f-os-io-uring-timeout-monotonic-only, b: f-os-io-uring-timeout-realtime-clock, label: independent, note: version-superseded}
+- {a: f-os-io-uring-readv-only-before-5-6, b: f-os-io-uring-prep-read-since-5-6, label: independent, note: version-superseded}
+- {a: f-os-io-uring-link-file-assigned-upfront, b: f-os-io-uring-linked-file-assignment, label: independent, note: version-superseded}
+- {a: f-os-io-uring-link-timeout, b: f-os-io-uring-timeout-op, label: independent, note: related}
+- {a: f-os-io-uring-rsrc-tags-inplace-update, b: f-os-io-uring-register-buffers-memlock, label: independent, note: related}
+- {a: f-os-io-uring-registered-buffer-1gib-limit, b: f-os-io-uring-register-buffers-memlock, label: independent, note: related}
+- {a: f-os-io-uring-files-update-sparse, b: f-os-io-uring-fixed-file-flag, label: independent, note: related}
+- {a: f-rust-bool-predicate-is-has-prefix, b: f-rust-fn-naming-snake-case, label: independent, note: related}
+- {a: f-os-io-uring-sqe-64-bytes, b: f-os-io-uring-max-entries-32768, label: independent}
+- {a: f-os-io-uring-user-data-roundtrip, b: f-os-io-uring-cqe-res-negative-errno, label: independent}
+- {a: f-os-io-uring-iopoll-busy-wait, b: f-os-io-uring-sqpoll-kernel-thread, label: independent}
+- {a: f-os-io-uring-sqpoll-idle-wakeup, b: f-os-io-uring-defer-taskrun, label: independent}
+- {a: f-os-io-uring-enter-getevents, b: f-os-io-uring-enter-ext-arg-timeout, label: independent}
+- {a: f-os-io-uring-io-link-chain, b: f-os-io-uring-io-drain, label: independent}
+- {a: f-os-io-uring-link-timeout, b: f-os-io-uring-enter-ext-arg-timeout, label: independent}
+- {a: f-os-io-uring-register-buffers-memlock, b: f-os-io-uring-fixed-file-flag, label: independent}
+- {a: f-os-io-uring-buffer-select-flag, b: f-os-io-uring-buf-ring, label: independent}
+- {a: f-os-io-uring-multishot-accept, b: f-os-io-uring-multishot-recv, label: independent}
+- {a: f-os-io-uring-async-cancel-results, b: f-os-io-uring-link-breaks-on-error, label: independent}
+- {a: f-os-io-uring-completions-unordered, b: f-os-io-uring-nodrop-overflow, label: independent}
+- {a: f-os-io-uring-single-issuer, b: f-os-io-uring-register-ring-fd, label: independent}
+- {a: f-os-io-uring-r-disabled, b: f-os-io-uring-disabled-sysctl, label: independent}
+- {a: f-os-liburing-wait-cqe, b: f-os-io-uring-enter-getevents, label: independent}
+- {a: f-rust-tokio-spawn-runs-immediately, b: f-rust-tokio-spawn-blocking, label: independent}
+- {a: f-rust-tokio-join-handle-detach, b: f-rust-tokio-shutdown-drops-tasks, label: independent}
+- {a: f-rust-tokio-select-cancels-losers, b: f-rust-tokio-multi-thread-work-stealing, label: independent}
+- {a: f-rust-tokio-fs-uses-blocking-pool, b: f-rust-tokio-io-driver-epoll-readiness, label: independent}
+- {a: f-rust-tokio-max-blocking-threads-512, b: f-rust-tokio-worker-threads-default-cores, label: independent}
+- {a: f-os-io-uring-max-entries-4096, b: f-os-io-uring-registered-buffer-1gib-limit, label: independent}
+- {a: f-os-io-uring-poll-32bit-flags, b: f-os-io-uring-cqe-f-more, label: independent}
+- {a: f-os-io-uring-native-workers, b: f-os-io-uring-iowq-max-workers, label: independent}
+- {a: f-os-io-uring-single-mmap-feature, b: f-os-io-uring-rsrc-tags-inplace-update, label: independent}
+- {a: f-os-io-uring-register-buffers-waits-idle, b: f-os-io-uring-rsrc-tags-inplace-update, label: independent}
+- {a: f-rust-fn-naming-snake-case, b: f-rust-type-naming-upper-camel-case, label: independent}
+- {a: f-rust-doc-comment-triple-slash, b: f-rust-conversion-prefixes-as-to-into, label: independent}
+- {a: f-os-io-uring-timeout-op, b: f-rust-tokio-select-random-branch-order, label: independent}
+- {a: f-os-io-uring-prep-read-since-5-6, b: f-os-io-uring-iopoll-requires-o-direct, label: independent}
+- {a: f-os-liburing-cqe-seen, b: f-os-io-uring-clamp-flag, label: independent}
+- {a: f-rust-tokio-select-random-branch-order, b: f-os-liburing-prep-and-set-data, label: independent}
+- {a: f-os-io-uring-cqe-res-negative-errno, b: f-os-io-uring-enter-sq-wakeup, label: independent}
+- {a: f-os-liburing-submit, b: f-os-io-uring-iopoll-busy-wait, label: independent}

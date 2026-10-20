@@ -1,3 +1,4 @@
+# doc: MOD-wikiagent.tools
 """Explicit tool contracts. Neither data nor a model response can choose an HTTP route."""
 
 from typing import Any
@@ -9,6 +10,7 @@ from wikisvc.tool_contracts import ALLOWLISTS, CONTRACTS, REQUIRED, definitions
 __all__ = ["definitions", "execute"]
 
 
+# doc: CLS-wikiagent.execute
 def execute(client: WikiClient, mode: str, name: str, arguments: dict[str, Any]) -> Any:
     if name not in ALLOWLISTS[mode]:
         client.forbidden_attempts += 1

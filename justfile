@@ -14,3 +14,9 @@ init-dev:
 
 reindex:
     python -m wikisvc.cli reindex --full
+
+perf:
+    pytest -m perf -q -s
+
+eval:
+    pytest -m eval -q

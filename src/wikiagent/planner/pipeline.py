@@ -10,6 +10,7 @@ from wikiagent.planner.plan import plan_changes
 from wikiagent.planner.related import collect
 
 
+# doc: CLS-wikiagent.Planner
 class Planner:
     def __init__(self, client: WikiClient, models: ModelClient) -> None:
         self.client, self.models = client, models

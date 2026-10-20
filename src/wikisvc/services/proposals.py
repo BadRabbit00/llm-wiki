@@ -41,12 +41,14 @@ def _is_author(proposal: Proposal, actor: Principal) -> bool:
     return (proposal.author_identity or proposal.author) == actor.identity
 
 
+# doc: CLS-wikisvc-core.Proposals
 class Proposals:
     def __init__(self, runtime: Runtime) -> None:
         self.rt = runtime
         self.config = runtime.settings
         self.repo = GitRepo(self.config.wiki_root)
 
+    # doc: BKT-wikisvc-core.worktrees
     def worktree(self, pid: str) -> Path:
         if not re.fullmatch(r"[0-9a-f]{32}", pid):
             raise not_found()
@@ -311,6 +313,7 @@ class Proposals:
         if not file.is_file() or not row or row[0] != extra.get("raw_sha256"):
             raise WikiError("E_SOURCE_HASH", "Источник отсутствует или raw_sha256 не совпадает.")
 
+    # doc: CLS-wikisvc-core.Proposals._put
     def _put(
         self,
         proposal: Proposal,
@@ -375,6 +378,7 @@ class Proposals:
             page.frontmatter.type,
             page_id,
             (page.frontmatter.model_extra or {}).get("parent"),
+            page.frontmatter.domain,
         )
         require_valid(validate_page(page, self.rt.registry, self.config.secret_entropy_threshold))
         overlay = {item.id: item for item in self._overlay(proposal)}
@@ -609,6 +613,7 @@ class Proposals:
             else {"errors": [], "warnings": []},
         }
 
+    # doc: CLS-wikisvc-core.Proposals.decide
     def decide(
         self,
         pid: str,
@@ -790,6 +795,7 @@ class Proposals:
                     self.repo.remove_worktree(self.worktree(pid), proposal.branch)
         return self.get(pid, actor)
 
+    # doc: CLS-wikisvc-core.Proposals.revert
     def revert(self, pid: str, actor: Principal) -> dict[str, Any]:
         require_human(actor)
         with write_lock(self.config.state_dir, self.config.lock_timeout):

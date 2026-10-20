@@ -1,0 +1,4 @@
+id: fastapi-fullstack
+title: "FastAPI + auth + React SPA, модульный монолит"
+scopes: ["lang:python", "lang:typescript", "framework:fastapi", "framework:react", "app:service", "app:auth", "app:worker", "app:web", "data:postgres", "data:redis", "data:s3", "arch:modular-monolith", "env:nix", "deploy:nix-package", "deploy:dockertools", "deploy:compose"]
+budget_tokens: 2000

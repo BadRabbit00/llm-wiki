@@ -1,0 +1,4 @@
+id: go-cli
+title: "Утилита или агент на Go одним бинарником"
+scopes: ["lang:go", "app:cli", "env:nix", "deploy:nix-package"]
+budget_tokens: 2000

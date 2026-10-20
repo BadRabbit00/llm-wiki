@@ -1,0 +1,296 @@
+# Eval set of the knowledge layer (FMT-wikisvc-core.kb-eval, ADR-0025).
+# Corpus: tests/fixtures/kb (io_uring, liburing, tokio, Rust naming). Each item: q, lang (en|ru),
+# hops (single|multi), gold (fact IDs a correct answer must rest on; multi-hop has >= 2).
+# Gold IDs are canonical facts (listed in a hub), never the variant facts of kb-pairs.yaml.
+- q: "What are the two ring buffers io_uring shares with the kernel?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-shared-rings]
+- q: "What does io_uring_setup return?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-setup-returns-fd]
+- q: "What is the maximum number of SQ entries I can ask for?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-max-entries-32768]
+- q: "How big is a submission queue entry?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-sqe-64-bytes]
+- q: "How do I match a completion back to the request that produced it?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-user-data-roundtrip]
+- q: "Where does io_uring report an error for a failed request?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-cqe-res-negative-errno]
+- q: "Why does IOPOLL fail on a file opened without O_DIRECT?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-iopoll-requires-o-direct]
+- q: "What happens to the SQPOLL thread when the application stops submitting?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-sqpoll-idle-wakeup]
+- q: "Does SQPOLL still require registered files?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-sqpoll-nonfixed-files]
+- q: "What does IORING_SETUP_DEFER_TASKRUN require?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-defer-taskrun]
+- q: "Can io_uring_enter submit and wait in the same call?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-enter-submit-and-wait]
+- q: "What does the kernel do when the completion queue is full?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-nodrop-overflow]
+- q: "How do I avoid a CQE for requests that succeed?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-cqe-skip-success]
+- q: "What does a NULL from io_uring_get_sqe mean?"
+  lang: en
+  hops: single
+  gold: [f-os-liburing-get-sqe]
+- q: "What happens to the rest of a link chain when one request fails?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-link-breaks-on-error]
+- q: "How is IOSQE_IO_HARDLINK different from IOSQE_IO_LINK?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-hardlink]
+- q: "Is there a size limit for a registered buffer?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-registered-buffer-1gib-limit]
+- q: "Can a registered file table have empty slots?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-files-update-sparse]
+- q: "Why would a recv with IOSQE_BUFFER_SELECT fail with ENOBUFS?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-buffer-select-enobufs]
+- q: "What does IORING_CQE_F_MORE mean on a completion?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-cqe-f-more]
+- q: "What result codes can an async cancel request return?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-async-cancel-results]
+- q: "How do I disable io_uring system-wide?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-disabled-sysctl]
+- q: "How many worker threads does tokio start by default?"
+  lang: en
+  hops: single
+  gold: [f-rust-tokio-worker-threads-default-cores]
+- q: "Does dropping a JoinHandle cancel the task?"
+  lang: en
+  hops: single
+  gold: [f-rust-tokio-join-handle-detach]
+- q: "Is tokio::fs really asynchronous?"
+  lang: en
+  hops: single
+  gold: [f-rust-tokio-fs-uses-blocking-pool]
+- q: "How do I make sure an fsync runs after my write on the same ring?"
+  lang: en
+  hops: multi
+  gold: [f-os-io-uring-completions-unordered, f-os-io-uring-io-link-chain]
+- q: "What does the basic liburing submit loop look like from setup to reaping?"
+  lang: en
+  hops: multi
+  gold: [f-os-liburing-queue-init, f-os-liburing-submit, f-os-liburing-wait-cqe]
+- q: "How do I wake a sleeping SQPOLL thread and what flag tells me it sleeps?"
+  lang: en
+  hops: single
+  gold: [f-os-io-uring-sqpoll-idle-wakeup]
+- q: "Why can't I set DEFER_TASKRUN without SINGLE_ISSUER?"
+  lang: en
+  hops: multi
+  gold: [f-os-io-uring-defer-taskrun, f-os-io-uring-single-issuer]
+- q: "How do I restrict which opcodes a sandboxed process can use on a ring?"
+  lang: en
+  hops: multi
+  gold: [f-os-io-uring-r-disabled, f-os-io-uring-restrictions-allowlist]
+- q: "What do I need to set up before issuing a multishot recv?"
+  lang: en
+  hops: multi
+  gold: [f-os-io-uring-multishot-recv, f-os-io-uring-buffer-select-flag, f-os-io-uring-provide-buffers-pool]
+- q: "How do I put a deadline on a single recv request?"
+  lang: en
+  hops: multi
+  gold: [f-os-io-uring-link-timeout, f-os-io-uring-io-link-chain]
+- q: "Why does tokio use blocking threads for files and what is the alternative?"
+  lang: en
+  hops: multi
+  gold: [f-rust-tokio-fs-uses-blocking-pool, f-rust-tokio-uring-separate-runtime]
+- q: "что возвращает io_uring_setup"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-setup-returns-fd]
+- q: "сколько байт занимает SQE"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-sqe-64-bytes]
+- q: "как сопоставить CQE с исходным запросом"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-user-data-roundtrip]
+- q: "что делает флаг IORING_SETUP_IOPOLL"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-iopoll-busy-wait]
+- q: "что такое SQPOLL и зачем нужен поток ядра"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-sqpoll-kernel-thread]
+- q: "зачем нужен IORING_SETUP_CLAMP"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-clamp-flag]
+- q: "что означает IORING_ENTER_GETEVENTS"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-enter-getevents]
+- q: "зачем вызывать io_uring_cqe_seen после обработки завершения"
+  lang: ru
+  hops: single
+  gold: [f-os-liburing-cqe-seen]
+- q: "с какой версии ядра доступен io_uring_prep_read"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-prep-read-since-5-6]
+- q: "что делает IOSQE_IO_DRAIN"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-io-drain]
+- q: "почему зарегистрированные буферы упираются в memlock"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-register-buffers-memlock]
+- q: "как работает IOSQE_FIXED_FILE"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-fixed-file-flag]
+- q: "зачем регистрировать дескриптор самого кольца"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-register-ring-fd]
+- q: "как ограничить число воркеров io-wq"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-iowq-max-workers]
+- q: "можно ли использовать буфер из provided buffers повторно без перерегистрации"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-buffer-consumed-once]
+- q: "чем кольцо буферов лучше IORING_OP_PROVIDE_BUFFERS"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-buf-ring]
+- q: "с какой версии ядра есть multishot accept"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-multishot-accept]
+- q: "можно ли задать таймаут io_uring по CLOCK_REALTIME"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-timeout-realtime-clock]
+- q: "как отменить все запросы на одном сокете"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-cancel-all-fd-any]
+- q: "как передать таймаут ожидания в io_uring_enter"
+  lang: ru
+  hops: single
+  gold: [f-os-io-uring-enter-ext-arg-timeout]
+- q: "из чего состоит рантайм tokio"
+  lang: ru
+  hops: single
+  gold: [f-rust-tokio-runtime-components]
+- q: "как планировщик tokio распределяет задачи между потоками"
+  lang: ru
+  hops: single
+  gold: [f-rust-tokio-multi-thread-work-stealing]
+- q: "что происходит с задачами при завершении рантайма tokio"
+  lang: ru
+  hops: single
+  gold: [f-rust-tokio-shutdown-drops-tasks]
+- q: "что делает tokio::select! с проигравшими ветками"
+  lang: ru
+  hops: single
+  gold: [f-rust-tokio-select-cancels-losers]
+- q: "сколько потоков в пуле spawn_blocking по умолчанию"
+  lang: ru
+  hops: single
+  gold: [f-rust-tokio-max-blocking-threads-512]
+- q: "чем //! отличается от ///"
+  lang: ru
+  hops: single
+  gold: [f-rust-inner-doc-comment-bang]
+- q: "как называть константы в Rust"
+  lang: ru
+  hops: single
+  gold: [f-rust-const-naming-screaming-snake-case]
+- q: "What case do Rust types and traits use?"
+  lang: en
+  hops: single
+  gold: [f-rust-type-naming-upper-camel-case]
+- q: "When do I name a conversion method as_, to_ or into_?"
+  lang: en
+  hops: single
+  gold: [f-rust-conversion-prefixes-as-to-into]
+- q: "почему fsync может завершиться раньше write и как это исправить"
+  lang: ru
+  hops: multi
+  gold: [f-os-io-uring-completions-unordered, f-os-io-uring-io-link-chain]
+- q: "как подготовить SQE и отправить его через liburing"
+  lang: ru
+  hops: multi
+  gold: [f-os-liburing-get-sqe, f-os-liburing-prep-and-set-data, f-os-liburing-submit]
+- q: "почему на старом ядре SQPOLL требовал fixed files и когда это изменилось"
+  lang: ru
+  hops: multi
+  gold: [f-os-io-uring-sqpoll-nonfixed-files, f-os-io-uring-fixed-file-flag]
+- q: "как ограничить размер очереди и что будет при превышении лимита"
+  lang: ru
+  hops: multi
+  gold: [f-os-io-uring-max-entries-32768, f-os-io-uring-clamp-flag]
+- q: "что нужно для multishot recv и как понять, что он перестал работать"
+  lang: ru
+  hops: multi
+  gold: [f-os-io-uring-multishot-recv, f-os-io-uring-cqe-f-more]
+- q: "как понять, какой буфер выбрало ядро, и что делать, если буферы кончились"
+  lang: ru
+  hops: multi
+  gold: [f-os-io-uring-buffer-select-flag, f-os-io-uring-buffer-select-enobufs]
+- q: "почему отмена дискового запроса возвращает EALREADY и как отменить сразу всё"
+  lang: ru
+  hops: multi
+  gold: [f-os-io-uring-async-cancel-results, f-os-io-uring-cancel-all-fd-any]
+- q: "почему tokio не использует io_uring и чем tokio-uring отличается"
+  lang: ru
+  hops: multi
+  gold: [f-rust-tokio-io-driver-epoll-readiness, f-rust-tokio-uring-separate-runtime]
+- q: "как вынести блокирующий код из задачи tokio и каков лимит потоков"
+  lang: ru
+  hops: multi
+  gold: [f-rust-tokio-spawn-blocking, f-rust-tokio-max-blocking-threads-512]
+- q: "как называть функции в Rust и как их документировать"
+  lang: ru
+  hops: multi
+  gold: [f-rust-fn-naming-snake-case, f-rust-doc-comment-triple-slash]
+- q: "Which sections belong in the doc comment of a public function that can fail?"
+  lang: en
+  hops: multi
+  gold: [f-rust-doc-comment-triple-slash, f-rust-rustdoc-sections-examples-panics-errors]

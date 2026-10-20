@@ -1,7 +1,10 @@
 {
   description = "wikisvc: git-backed wiki API and MCP";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  outputs = { self, nixpkgs }:
+  # CLI вики для агентов: хуки в .claude/settings.json зовут `wk hook …`.
+  inputs.wk.url = "github:BadRabbit00/wk/7c9250cd1c25be70cdbf0b6c2926b535918fd54d";
+  inputs.wk.inputs.nixpkgs.follows = "nixpkgs";
+  outputs = { self, nixpkgs, wk }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       eachSystem = nixpkgs.lib.genAttrs systems;
@@ -140,6 +143,7 @@
               (e.pkgs.writeShellScriptBin "wikisvc" ''exec python -m wikisvc.cli "$@"'')
               (e.pkgs.writeShellScriptBin "wikiagent" ''exec python -m wikiagent.cli "$@"'')
               e.pkgs.git e.pkgs.sqlite e.pkgs.ruff e.pkgs.just e.pkgs.go e.pkgs.nodejs
+              wk.packages.${system}.wk
             ];
             shellHook = ''
               export PYTHONPATH="$PWD/src''${PYTHONPATH:+:$PYTHONPATH}"

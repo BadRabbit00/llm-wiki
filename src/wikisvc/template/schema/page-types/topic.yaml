@@ -1,0 +1,16 @@
+type: topic
+prefix: top
+path_template: kb/{domain}/topics/top-{slug}.md
+sources_required: false
+title_ru: Хаб темы
+required_sections:
+- Digest
+- Facts
+extra_fields:
+  priority:
+    type: int
+    min: 1
+    max: 5
+    default: 3
+allowed_relations: [part_of, builds_on, applies_with, related]
+template: "## Digest\n\n\n## Facts\n\n\n## Open questions\n"

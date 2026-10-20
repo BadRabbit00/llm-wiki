@@ -1,7 +1,9 @@
 """Shared HTTP/MCP/model tool declarations; no model client dependency."""
 
+# doc: MOD-wikisvc-mcp.contracts
 from typing import Any
 
+# doc: CLS-wikisvc-mcp.TOOL_PROFILES
 TOOL_PROFILES: dict[str, tuple[str, ...]] = {
     "coding": (
         "get_instructions",
@@ -22,6 +24,7 @@ TOOL_PROFILES: dict[str, tuple[str, ...]] = {
     "full": (),  # An empty tuple exposes every registered MCP tool.
 }
 
+# doc: CLS-wikisvc-mcp.CONTRACTS
 # name: method, route, path arguments, query arguments, JSON body arguments
 CONTRACTS: dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], tuple[str, ...]]] = {
     "search": (
@@ -73,12 +76,14 @@ CONTRACTS: dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], tuple[str
 # Plan notes are wikiagent's internal bookkeeping; external MCP clients never get them.
 HTTP_ONLY = frozenset({"put_notes"})
 READ_TOOLS = frozenset(name for name, value in CONTRACTS.items() if value[0] == "GET")
+# doc: CLS-wikisvc-mcp.ALLOWLISTS
 ALLOWLISTS = {
     "chat": frozenset(CONTRACTS),
     "question": READ_TOOLS,
     "book": frozenset(CONTRACTS) - {"put_notes"},
     "heal": frozenset(CONTRACTS) - {"put_page"},
 }
+# doc: CLS-wikisvc-mcp.REQUIRED
 REQUIRED = {
     "search": {"q"},
     "rules_related": {"q"},
@@ -89,6 +94,7 @@ REQUIRED = {
 }
 
 
+# doc: CLS-wikisvc-mcp.definitions
 def definitions(mode: str) -> list[dict[str, Any]]:
     result = []
     for name in sorted(ALLOWLISTS[mode]):

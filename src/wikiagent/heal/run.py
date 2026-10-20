@@ -55,6 +55,7 @@ class Healer:
             )[0]["n"]
         )
 
+    # doc: JOB-wikiagent.heal
     def run(self, job_id: str, payload: dict[str, Any]) -> None:
         config = self.models.config.heal
         self.existing = {f["id"] for f in self.client.all("/findings")}

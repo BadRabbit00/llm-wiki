@@ -30,8 +30,8 @@ from wikisvc.domain.markdown import load_yaml, parse, render
 from wikisvc.main import create_app
 from wikisvc.mcp_server import create_server
 from wikisvc.services.auth import Auth
-from wikisvc.services.migrations import yaml_text
 from wikisvc.services.runtime import Runtime
+from wikisvc.services.schema import yaml_text
 from wikisvc.storage.gitrepo import GitRepo
 from wikisvc.storage.safefs import SafeFS
 from wikisvc.storage.state_db import StateDB
