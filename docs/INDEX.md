@@ -111,10 +111,12 @@ ENT-topic, технологии ENT-tech и открытые вопросы ENT-
 - Реализовано: всё со статусом `implemented`, маркеры `doc:` стоят в коде.
 - В работе (`planned`, с 2026-10-20): v3 «слой знаний». Новые факты — `planned`; совместимое изменение существующего
   факта помечено строкой `changed: 2026-10-20 v3 (planned): …` в карточке или суффиксом `(v3 planned: …)` в строке таблицы,
-  статус такого факта остаётся `implemented`, пока код не изменён; реализация идёт по этапам, ветки `feat/kb-phase<N>`. Этапы по ТЗ §13: 1 — схема и форматы
+  статус такого факта остаётся `implemented`, пока код не изменён; реализация идёт по этапам, ветки `feat/kb-phase<N>`; этап 1 реализован 2026-10-20 (`feat/kb-phase1`: схема, домены, валидация, нормализация, корпус `tests/fixtures/kb/`). Этапы по ТЗ §13: 1 — схема и форматы
   (FMT-wikisvc-core.fact, FMT-wikisvc-core.domains, FMT-wikisvc-core.kb-eval, ADR-0017, ADR-0021, ADR-0023, ADR-0025);
   2 — доставка (TBL-wikisvc-core.index.embeddings, CLS-wikisvc-core.Ask, API-wikisvc.knowledge.ask, API-wikisvc-mcp.ask,
-  ADR-0018…ADR-0020); 3 — ingest фактов (JOB-wikiagent.ingest-book, JOB-wikiagent.novelty-scan, ADR-0022, ADR-0024,
+  ADR-0018…ADR-0020, включая `propose_fact`/`propose_link` (API-wikisvc-mcp.propose_fact, API-wikisvc-mcp.propose_link),
+  сброс `confidence: sourced` в CLS-wikisvc-core.Proposals и RelationRef в CLS-wikisvc-core.apply_patch; классы ревью, `reasons`,
+  `depends_on`, `accept {exclude, resolutions}` — этап 3 (решение координатора 2026-10-20)); 3 — ingest фактов (JOB-wikiagent.ingest-book, JOB-wikiagent.novelty-scan, ADR-0022, ADR-0024,
   ADR-0026, ADR-0027); 4 — UI (MOD-wiki-ui.knowledge-views).
 - Вопросы v3 закрыты владельцем 2026-10-20 (раздел «Слой знаний v3» в `open-questions.md`, все `resolved`, ответы
   внесены в карточки). Ключевые решения: auto-блок фактов принимает человек одним действием (INV-human-decides без

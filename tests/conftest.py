@@ -48,7 +48,11 @@ def client(config: Settings) -> Iterator[TestClient]:
 
 
 def make_page(
-    registry: Registry, page_id: str = "term-invoice", kind: str = "term", **changes: Any
+    registry: Registry,
+    page_id: str = "term-invoice",
+    kind: str = "term",
+    domain: str | None = None,
+    **changes: Any,
 ) -> Page:
     definition = registry.page_type(kind)
     metadata: dict[str, Any] = {
@@ -61,11 +65,14 @@ def make_page(
         "created": "2026-01-01",
         "updated": "2026-01-01",
     }
+    if domain is not None:
+        metadata["domain"] = domain
     metadata.update(changes)
     body = "\n\n".join(
         f"## {heading}\n\nВыгрузка счёта. Invoice processing and exports."
         for heading in definition.required_sections
     )
     return parse_page(
-        render(metadata, body), page_path(registry, kind, page_id, changes.get("parent"))
+        render(metadata, body),
+        page_path(registry, kind, page_id, changes.get("parent"), domain),
     )

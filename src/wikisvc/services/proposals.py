@@ -378,6 +378,7 @@ class Proposals:
             page.frontmatter.type,
             page_id,
             (page.frontmatter.model_extra or {}).get("parent"),
+            page.frontmatter.domain,
         )
         require_valid(validate_page(page, self.rt.registry, self.config.secret_entropy_threshold))
         overlay = {item.id: item for item in self._overlay(proposal)}

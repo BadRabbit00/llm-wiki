@@ -2,7 +2,9 @@ import subprocess
 from pathlib import Path
 
 from wikisvc.domain.errors import WikiError
+from wikisvc.services.schema import kb_keepfiles
 from wikisvc.storage.safefs import SafeFS
+from wikisvc.storage.schema import load_domains
 
 
 # doc: CLS-wikisvc-core.initialize
@@ -16,6 +18,9 @@ def initialize(root: Path) -> None:
     source, target = SafeFS(template), SafeFS(root)
     for path in source.files("**/*"):
         target.write(path, source.path(path).read_bytes())
+    for domain in load_domains(source):
+        for keep in kb_keepfiles(domain):
+            target.write(keep, b"")
     target.path("CLAUDE.md").symlink_to("AGENTS.md")
     subprocess.run(["git", "init", "-b", "main", str(root)], check=True, capture_output=True)
     subprocess.run(["git", "add", "--all"], cwd=root, check=True, capture_output=True)

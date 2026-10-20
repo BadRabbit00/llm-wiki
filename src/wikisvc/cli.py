@@ -18,6 +18,8 @@ policy_commands = typer.Typer(no_args_is_help=True)
 app.add_typer(policy_commands, name="policies")
 scope_commands = typer.Typer(no_args_is_help=True)
 app.add_typer(scope_commands, name="scopes")
+domain_commands = typer.Typer(no_args_is_help=True)
+app.add_typer(domain_commands, name="domains")
 
 
 def cli_policies(profile: str) -> dict[str, object]:
@@ -67,8 +69,8 @@ def scopes_add(value: str) -> None:
     import re
 
     from wikisvc.domain.errors import WikiError
-    from wikisvc.services.migrations import yaml_text
     from wikisvc.services.runtime import Runtime
+    from wikisvc.services.schema import with_scope
     from wikisvc.storage.gitrepo import GitRepo
     from wikisvc.storage.lock import write_lock
     from wikisvc.storage.safefs import SafeFS
@@ -79,15 +81,37 @@ def scopes_add(value: str) -> None:
     with write_lock(rt.settings.state_dir, rt.settings.lock_timeout):
         repo = GitRepo(rt.settings.wiki_root)
         repo.ensure_main()
-        if value not in rt.registry.scopes:
+        fs = SafeFS(repo.root)
+        raw = fs.read("schema/scopes.yaml") if fs.path("schema/scopes.yaml").exists() else "[]"
+        updated = with_scope(raw, value)
+        if updated is not None:
             with repo.transaction(["schema/scopes.yaml"]):
-                SafeFS(repo.root).write(
-                    "schema/scopes.yaml", yaml_text([*rt.registry.scopes, value])
-                )
+                fs.write("schema/scopes.yaml", updated)
                 repo.commit(f"Add scope {value}", "cli", ["schema/scopes.yaml"])
             rt.reindex()
             rt.state.audit("cli", "scope.add", value)
     typer.echo(value)
+
+
+# doc: CLI-wikisvc-cli.domains.add
+@domain_commands.command("add")
+def domains_add(
+    path: str,
+    description: Annotated[str, typer.Option("--description", help="Описание домена.")] = "",
+) -> None:
+    """Add a domain to the knowledge tree (admin; extends schema/domains.yaml and kb/)."""
+    from wikisvc.domain.errors import WikiError
+    from wikisvc.domain.models import Principal
+    from wikisvc.services.runtime import Runtime
+
+    try:
+        result = Runtime(settings()).schema.add_domain(
+            path, description, Principal(name="cli", role="admin", clearance="restricted")
+        )
+    except WikiError as exc:
+        typer.echo(f"{exc.code}: {exc.message}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(result["domain"])
 
 
 # doc: CLI-wikisvc-cli.schema.upgrade

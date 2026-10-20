@@ -66,8 +66,8 @@ JOB, расписания нет. Извлечение текста книг з�
 
 Читаются тем же CLS-wikisvc.Settings (rule-arch-config-module, rule-deploy-config-from-env); каждая — в
 `deploy/linux/.env.example` и `deploy/linux/service.env` в том же изменении, что и код (rule-secrets-env-example-reference).
-Проверки при старте с отказом и именем поля: при `EMBEDDINGS_ENABLED` заданы `EMBEDDINGS_URL`, `EMBEDDINGS_MODEL`,
-`EMBEDDINGS_DIM`; при `ASK_RERANK_ENABLED` — `RERANKER_URL`, `RERANKER_MODEL`; `ASK_BUDGET_DEFAULT` и `BRIEF_BUDGET_MAX`
+Проверки при старте с отказом и именем поля: при `EMBEDDINGS_ENABLED` `EMBEDDINGS_URL`, `EMBEDDINGS_MODEL`,
+`EMBEDDINGS_DIM` должны быть непустыми (умолчания заданы; провал self-test или недоступный сервер — не отказ старта, а degraded-режим, API-wikisvc.health `degraded: true`, (решение координатора 2026-10-20)); при `ASK_RERANK_ENABLED` — `RERANKER_URL`, `RERANKER_MODEL`; `ASK_BUDGET_DEFAULT` и `BRIEF_BUDGET_MAX`
 не больше `TOOL_RESPONSE_CAP`; хост `EMBEDDINGS_URL` и `RERANKER_URL` — только литерал loopback (`127.0.0.0/8`, `::1`),
 без DNS-имён и userinfo; клиент не берёт прокси из окружения (`trust_env=False`) и не следует редиректам
 (SEC-embeddings-boundary, CLS-wikisvc-core.Embeddings). Секретов нет: серверы эмбеддингов и reranker локальные, без ключа (SEC-embeddings-boundary, решение Q-kb-embeddings-api-key).
@@ -76,15 +76,16 @@ JOB, расписания нет. Извлечение текста книг з�
 | id | owner | вид | тип | по умолчанию | обязательна | секрет | на что влияет | status |
 |---|---|---|---|---|---|---|---|---|
 | CFG-wikisvc.EMBEDDINGS_ENABLED | SVC-wikisvc | env | bool | `true` (решение Q-kb-core-outbound-embeddings) | нет | нет | векторы семян, `similar`-рёбра и dense-prior; `false` — только BM25 и явные рёбра (ADR-0018) | planned |
-| CFG-wikisvc.EMBEDDINGS_URL | SVC-wikisvc | env | string (URL OpenAI-совместимого `/v1/embeddings`) | `http://127.0.0.1:18090` (RES-embeddings-server) | при `EMBEDDINGS_ENABLED`: пустое значение — отказ старта | нет | RES-embeddings-server; только loopback-литерал, внешние провайдеры запрещены (SEC-embeddings-boundary) | planned |
-| CFG-wikisvc.EMBEDDINGS_MODEL | SVC-wikisvc | env | string | нет | при `EMBEDDINGS_ENABLED` | нет | имя модели в запросе и в TBL-wikisvc-core.index.embeddings (по ТЗ — MDL-bge-m3); смена — полный пересчёт векторов | planned |
+| CFG-wikisvc.EMBEDDINGS_URL | SVC-wikisvc | env | string (URL OpenAI-совместимого `/v1/embeddings`) | `http://127.0.0.1:18090` (RES-embeddings-server) | при включении должен быть непустым | нет | RES-embeddings-server; только loopback-литерал, внешние провайдеры запрещены (SEC-embeddings-boundary) | planned |
+| CFG-wikisvc.EMBEDDINGS_MODEL | SVC-wikisvc | env | string | `bge-m3` (решение координатора 2026-10-20) | при включении должна быть непустой | нет | имя модели в запросе и в TBL-wikisvc-core.index.embeddings (по ТЗ — MDL-bge-m3); смена — полный пересчёт векторов | planned |
 | CFG-wikisvc.EMBEDDINGS_POOLING | SVC-wikisvc | env | enum(cls\|mean\|last) | `cls` (ТЗ §5) | нет | нет | ожидаемый pooling сервера; неверный pooling ловит self-test (CLS-wikisvc-core.Embeddings) | planned |
-| CFG-wikisvc.EMBEDDINGS_DIM | SVC-wikisvc | env | int32 ≥ 1 | нет | при `EMBEDDINGS_ENABLED` | нет | размерность векторов; self-test сверяет длину ответа | planned |
+| CFG-wikisvc.EMBEDDINGS_DIM | SVC-wikisvc | env | int32 ≥ 1 | `1024` (решение координатора 2026-10-20) | при включении должна быть непустой | нет | размерность векторов; self-test сверяет длину ответа | planned |
 | CFG-wikisvc.EMBEDDINGS_TIMEOUT_SECONDS | SVC-wikisvc | env | float64 > 0 | `5` (решение Q-kb-wikisvc-defaults, rule-arch-outgoing-call-resilience) | нет | нет | таймаут одного вызова `EMBEDDINGS_URL` и `RERANKER_URL` | planned |
 | CFG-wikisvc.EMBEDDINGS_RETRIES | SVC-wikisvc | env | int32 0..3 | `1` (решение Q-kb-wikisvc-defaults) | нет | нет | повторы при таймауте и `5xx`, затем урезанный режим | planned |
 | CFG-wikisvc.RERANKER_URL | SVC-wikisvc | env | string (URL) | `http://127.0.0.1:18091` (RES-reranker-server) | при `ASK_RERANK_ENABLED`: пустое значение — отказ старта | нет | cross-encoder шага L0 → L1 в API-wikisvc.knowledge.ask; только loopback-литерал; reranker в ядре (решение Q-kb-reranker-placement) | planned |
 | CFG-wikisvc.RERANKER_MODEL | SVC-wikisvc | env | string? | нет | при `ASK_RERANK_ENABLED` | нет | имя модели reranker (MDL-bge-reranker-v2-m3 или MDL-qwen3-reranker-0.6b) | planned |
 | CFG-wikisvc.ASK_RERANK_ENABLED | SVC-wikisvc | env | bool | `true` (решение Q-kb-reranker-placement, с этапа 2) | нет | нет | reranker в ask; умолчание параметра `rerank` | planned |
+| CFG-wikisvc.ASK_RERANK_TOP | SVC-wikisvc | env | int32 1..20 | `5` (решение координатора 2026-10-20) | нет | нет | сколько кандидатов `expanded` после reranker раскрывается до L1 (CLS-wikisvc-core.Reranker) | planned |
 | CFG-wikisvc.ASK_SEEDS | SVC-wikisvc | env | int32 ≥ 1 | `8` (ТЗ §7.2) | нет | нет | число семян ask после RRF | planned |
 | CFG-wikisvc.ASK_EXPANSION_RATIO | SVC-wikisvc | env | float64 ≥ 1 | `1.5` (ТЗ §7.2) | нет | нет | отрыв top-1 от top-2, при котором PPR пропускается | planned |
 | CFG-wikisvc.ASK_EXPANSION_MIN_HUBS | SVC-wikisvc | env | int32 ≥ 2 | `3` (ТЗ §7.2) | нет | нет | семена из стольких хабов и больше — расширение по графу | planned |

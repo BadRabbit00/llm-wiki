@@ -25,6 +25,9 @@ packages = ["src/wikisvc", "src/wikiagent"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# ref/ holds the knowledge-layer spec and the pre-template docs: prose with
+# illustrative snippets, not code; ruff would otherwise reformat them.
+extend-exclude = ["ref"]
 
 [tool.mypy]
 strict = true
@@ -35,6 +38,11 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "eval: quality evaluation of search/answers, not run by default (just eval)",
+    "perf: performance checks, not run by default, not a CI gate (just perf)",
+]
+addopts = "-m 'not eval and not perf'"
 
 [tool.coverage.run]
 source = ["wikisvc", "wikiagent"]

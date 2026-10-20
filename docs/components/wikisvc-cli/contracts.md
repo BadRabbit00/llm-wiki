@@ -44,7 +44,7 @@ status: implemented | owner: SVC-wikisvc-cli
 - auth: CFG-wikisvc-mcp.WIKI_TOKEN на каждом вызове инструмента; без него — анонимно при CFG-wikisvc.ANONYMOUS_ACCESS
 - exit codes: неизвестный профиль — `1` (`ValueError`)
 - changed: 2026-10-20 v3 (planned): `--profile` enum(coding|full|knowledge), по умолчанию `full` (CLS-wikisvc-mcp.TOOL_PROFILES); переиндексация
-  при старте включает инкрементальные эмбеддинги; провайдер недоступен — сервер всё равно стартует (Q-kb-embeddings-degraded)
+  при старте stdio-MCP инкрементальная БЕЗ эмбеддингов (векторы только читаются, используются по `content_hash`); векторы пишут только JOB-wikisvc-core.embed-index в SVC-wikisvc и CLI-wikisvc-cli.reindex с `--embeddings` (решение координатора 2026-10-20); провайдер недоступен — сервер всё равно стартует (Q-kb-embeddings-degraded)
 
 ## Репозиторий и схема
 
@@ -97,10 +97,10 @@ status: implemented | owner: SVC-wikisvc-cli
 - output: значение области; errors: ERR-scope_unknown (неверный формат) → `1`
 
 ### CLI-wikisvc-cli.domains.add — Добавить домен в дерево `kb/`
-status: planned | owner: SVC-wikisvc-cli
+status: implemented | owner: SVC-wikisvc-cli
 
-- usage: `wikisvc domains add PATH`; args: `PATH` string — путь домена вида `lang/zig` (ENT-domain), формат —
-  FMT-wikisvc-core.domains; родитель должен существовать
+- usage: `wikisvc domains add PATH [--description TEXT]`; args: `PATH` string — путь домена вида `lang/zig` (ENT-domain), формат —
+  FMT-wikisvc-core.domains; родитель должен существовать; `--description` — описание в `domains.yaml`, без него описанием становится сам путь
 - does: от принципала `cli` (ROLE-admin) под блокировкой записи одним коммитом в main BKT-wikisvc-core.wiki-repo
   добавляет домен в `schema/domains.yaml` и каталоги `kb/<PATH>/{topics,facts,tech,questions}/` (Q-kb-cli-kb-tree),
   переиндексирует, пишет аудит `domain.add`; повтор — без изменений (идемпотентна, как CLI-wikisvc-cli.scopes.add)

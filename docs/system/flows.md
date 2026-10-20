@@ -280,7 +280,7 @@ status: planned
 6. Экспорт (по флагу, допуск internal): блок `FMT-wikisvc-core.knowledge-block` в файл проекта (`INV-policy-block-only`).
 
 - failures: неизвестный профиль → `ERR-profile_unknown`; области → `ERR-scope_unknown`; бюджет меньше минимума → `ERR-budget_too_small`. Эмбеддинги brief не нужны: работает и без `EXT-embeddings-server`.
-- consistency: только чтение (постановка в очередь novelty — не правка контента); кэш сбрасывается сменой поколения индекса.
+- consistency: вики только читает; в state.db пишет статистику выдачи и очередь novelty (TBL-wikisvc-core.state.novelty_queue; постановка в очередь — не правка контента) (решение координатора 2026-10-20); кэш сбрасывается сменой поколения индекса.
 
 ### FLOW-ask — Запрос знаний по ходу задачи
 status: planned
@@ -345,7 +345,7 @@ status: planned
 6. Порядок принятия: базовое предложение (`source`, хабы) раньше зависимых, иначе `ERR-proposal_dependency`; выборочная проверка split/merge — ~50 фактов на главу (`NFR-ingest-quality`).
 
 - failures: ошибки валидации → `ERR-validation`; зависимое раньше базового → `ERR-proposal_dependency`; конфликт слияния → `ERR-merge_conflict` (дописывание `## Facts` разными предложениями сливается по строкам).
-- consistency: класс не хранится, а вычисляется детерминированно при показе и принятии; повышение в `verified`, `replaces`, нормативные утверждения — только человек (`INV-human-decides`).
+- consistency: класс вычисляется детерминированно при `submit` и пересчитывается при принятии; снимок (`review_class`, `needs_double_confirm`, `depends_on`, `reasons` json) хранится в TBL-wikisvc-core.state.proposals для списков и фильтров (решение координатора 2026-10-20); повышение в `verified`, `replaces`, нормативные утверждения — только человек (`INV-human-decides`).
 
 ### FLOW-novelty-scan — Novelty фактов для модели клиента
 status: planned

@@ -1,0 +1,36 @@
+type: fact
+prefix: f
+path_template: kb/{domain}/facts/f-{slug}.md
+title_ru: Факт
+required_sections:
+- Claim
+extra_fields:
+  claim:
+    required: true
+    pattern: '[^\r\n]{20,200}'
+  kind:
+    required: true
+    enum: [definition, mechanism, constraint, tradeoff, number, convention, api, pitfall, comparison, step, snippet]
+  confidence:
+    enum: [sourced, inferred, contested, open]
+    default: inferred
+  novelty:
+    type: dict
+    item_enum: [common, differs, unique]
+    default: {}
+  valid_for:
+    pattern: '[A-Za-z0-9_.:<>=!, -]{1,64}'
+  valid_from:
+    type: date
+  valid_to:
+    type: date
+  value:
+    max_length: 128
+  unit:
+    max_length: 64
+  conditions:
+    max_length: 200
+  measured_at:
+    type: date
+allowed_relations: [about, applies_with, supports, contradicts, refines, precedes, replaces, related]
+template: "## Claim\n\n\n## Why\n\n\n## Example\n\n\n## Caveats\n"

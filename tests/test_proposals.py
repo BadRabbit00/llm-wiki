@@ -214,3 +214,29 @@ def test_overlay_workflow_and_visibility(client: TestClient, config: Settings) -
     assert private not in str(client.get("/api/v1/proposals").json())
     assert client.post(f"/api/v1/proposals/{pid}/abandon").json()["status"] == "abandoned"
     assert not Path(config.state_dir / "worktrees" / pid).exists()
+
+
+def kb_fact(domain: str) -> dict[str, Any]:
+    return {
+        "frontmatter": {
+            "id": "f-wal",
+            "type": "fact",
+            "title": "Write-ahead log",
+            "summary": "A write-ahead log makes commits durable before data pages.",
+            "domain": domain,
+            "claim": "Write-ahead log makes commits durable.",
+            "kind": "definition",
+        },
+        "body_md": "## Claim\n\nWrite-ahead log makes commits durable.",
+    }
+
+
+def test_proposal_kb_page_uses_domain_path(client: TestClient) -> None:
+    pid = proposal(client)
+    response = client.put(f"/api/v1/proposals/{pid}/pages/f-wal", json=kb_fact("db"))
+    assert response.status_code == 200, response.text
+    validation = client.get(f"/api/v1/proposals/{pid}/validate").json()
+    assert not [e for e in validation["errors"] if e["code"] == "E_PATH_MISMATCH"]
+    unknown = client.put(f"/api/v1/proposals/{pid}/pages/f-wal", json=kb_fact("nope"))
+    assert unknown.status_code == 422
+    assert unknown.json()["error"]["code"] == "E_DOMAIN_UNKNOWN"

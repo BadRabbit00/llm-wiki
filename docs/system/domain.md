@@ -122,7 +122,7 @@ status: implemented
 - stored in: `TBL-wikisvc-core.state.audit`; читает admin с `restricted` (`API-wikisvc.admin.audit`); owned by: `LIB-wikisvc-core`.
 
 ### ENT-fact — Атомарный факт
-status: planned
+status: implemented
 
 - meaning: страница типа `fact` (`FMT-wikisvc-core.fact`) — ровно одно проверяемое утверждение, единица доставки и дедупликации (ADR-0017): пара `claim` (L0) / `summary` (L1) — `INV-claim-minimal`; `kind` (definition, mechanism, constraint, tradeoff, number, convention, api, pitfall, comparison, step, snippet); `confidence` (`inferred` по умолчанию, `sourced`, `contested` — вычисляет индекс, `open` — явно «нужна проверка», Q-kb-core-defaults); `novelty` по семействам моделей (`TERM-novelty`) — производное в `TBL-wikisvc-core.state.novelty`, во frontmatter — только ручное переопределение (Q-kb-novelty-write-path); `valid_for`, `valid_from`/`valid_to` (`TERM-bi-temporal`); для `number` — `value`, `unit`, `conditions`, `measured_at`.
 - identity: `id` вида `f-<…>`; путь `kb/<domain>/facts/<id>.md` (`INV-one-domain-per-page`).
@@ -133,7 +133,7 @@ status: planned
 - relations: N—N ENT-topic/ENT-tech (`about`); N—N ENT-fact (`applies_with`, `supports`, `contradicts`, `refines`, `precedes`, `replaces`); ENT-question → ENT-fact (`answered_by`); ENT-rule → ENT-fact (`grounded_in`); N—N ENT-library-item (`sources`, цитаты).
 
 ### ENT-topic — Хаб темы
-status: planned
+status: implemented
 
 - meaning: страница типа `topic` (`FMT-wikisvc-core.topic`): `summary`, раздел `Digest` ≤ 800 символов (`TERM-digest`), упорядоченный список `Facts` — канонический порядок (`INV-canonical-order`), `Open questions`. Хабы — по понятиям, не по главам книги (ТЗ §8.4).
 - identity: `id` вида `top-<…>`; путь `kb/<domain>/topics/<id>.md`.
@@ -142,21 +142,21 @@ status: planned
 - relations: 1—N ENT-fact (`has_fact`); N—N ENT-topic (`part_of`, `builds_on`, `applies_with`); ENT-tech → ENT-topic (`instance_of`).
 
 ### ENT-tech — Технология
-status: planned
+status: implemented
 
 - meaning: страница типа `tech` (`FMT-wikisvc-core.tech`) — технология, инструмент, компонент, чип: `category` (database, runtime, library, protocol, tool, service, chip, board, model), статус принятия `STATE-tech` (поле `adoption`), `verdict` (суждение команды, не описание из README), `current_version` (`W_STALE_VERSION`), `homepage`. Факты о технологии — отдельные `ENT-fact` с `about: [tech-…]`; даташит — `source` с `kind: datasheet`.
 - identity: `id` вида `tech-<…>`; путь `kb/<domain>/tech/<id>.md`; автоматически даёт область `tech:<…>` (`ENT-scope`).
 - relations: N—N ENT-topic (`instance_of`); N—N ENT-tech (`alternative_to`, `replaces`).
 
 ### ENT-question — Открытый вопрос
-status: planned
+status: implemented
 
 - meaning: страница типа `question` (`FMT-wikisvc-core.question`) — явное «не знаем», чтобы агент не выдумывал, а `FLOW-heal` знал, что ресерчить: `summary`, `priority`, `answered_by`; статусы — `STATE-question`.
 - identity: `id` вида `q-<…>`; путь `kb/<domain>/questions/<id>.md`; список — `API-wikisvc.knowledge.questions`.
 - relations: N—N ENT-topic/ENT-tech (`about`); N—N ENT-fact (`answered_by`).
 
 ### ENT-domain — Домен знаний
-status: planned
+status: implemented
 
 - meaning: узел дерева доменов `schema/domains.yaml` (`FMT-wikisvc-core.domains`, `TERM-domain`); стартовые: systems, net, db, concurrency, lang/{rust, python, cpp, c, nix}, os, infra, security, ml, hardware, business, math (ТЗ §0, §2). Задаёт физический путь страницы и область `domain:<domain>`.
 - identity: путь в дереве (`db`, `lang/rust`).
@@ -261,7 +261,7 @@ status: planned
 - поля в файле нет: индекс вычисляет `answered` при непустом `answered_by`, иначе `open` (ТЗ §3.4, Q-kb-tech-question-status, Q-kb-derived-status); `answered` → `open` — правка предложением опустошила `answered_by`. Без движения 90 дней — `W_QUESTION_STALE`.
 
 ### STATE-tech — Статус принятия технологии
-status: planned
+status: implemented
 
 - поле `adoption` (не `status` страницы, Q-kb-tech-question-status): `evaluating` | `adopted` | `avoid` | `legacy` | `unknown` (ТЗ §3.3); переходы не ограничены; меняется предложением, смена — изменение смысла и идёт в ревью человеку (`INV-human-decides`).
 
@@ -362,7 +362,7 @@ status: planned
 - enforced at: план — `CLS-wikisvc-core.validate_set`, `CLS-wikisvc-core.Indexer`, `CLS-wikisvc-core.Lint` (`W_HUB_CITES_OUTDATED`, `W_REPLACED_LINKED`); `replaces` меняет смысл → только решением человека. On violation: предупреждения линтера.
 
 ### INV-claim-minimal — Минимальный claim
-status: planned
+status: implemented
 
 - statement: `claim` факта — одно утверждение, одно предложение 20–200 символов без контекстных обёрток («in Rust, …»); `summary` — тот же claim, деконтекстуализированный ровно настолько, чтобы читаться вне контекста; хранятся парой. Тело факта > 1 500 символов — это тема (`W_FACT_LONG`). Why: claim — единица дедупликации и L0-выдачи (ТЗ §3.1).
 - enforced at: план — `CLS-wikisvc-core.validate_page` (длина, наличие), `PRM-wikiagent.fact_extract` (минимальность), человек в ревью. On violation: `ERR-claim_missing`.

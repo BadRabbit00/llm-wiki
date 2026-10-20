@@ -18,4 +18,5 @@ allowed_relations:
 - depends_on
 - supersedes
 - related
+- grounded_in
 template: "## Контекст\n\n\n## Решение\n\n\n## Последствия\n"

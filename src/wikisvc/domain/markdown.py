@@ -10,7 +10,7 @@ from ruamel.yaml.error import YAMLError
 from ruamel.yaml.events import AliasEvent
 
 from wikisvc.domain.errors import WikiError
-from wikisvc.domain.models import Edge, Page
+from wikisvc.domain.models import Edge, Page, RelationRef
 
 
 def load_yaml(text: str) -> Any:
@@ -129,13 +129,34 @@ def sections(body: str) -> list[Section]:
     return result
 
 
+def _relation_edge(src: str, rel: str, target: str | RelationRef) -> Edge:
+    if isinstance(target, str):
+        return Edge(src=src, dst=target, rel=rel, kind="frontmatter")
+    return Edge(
+        src=src,
+        dst=target.id,
+        rel=rel,
+        kind="frontmatter",
+        weight=target.w,
+        note=target.note,
+        origin=target.origin,
+    )
+
+
 # doc: CLS-wikisvc-core.edges
 def edges(page: Page) -> list[Edge]:
     result = {
-        Edge(src=page.id, dst=dst, rel=rel, kind="frontmatter")
+        _relation_edge(page.id, rel, target)
         for rel, targets in page.frontmatter.relations.items()
-        for dst in targets
+        for target in targets
     }
+    covers = (page.frontmatter.model_extra or {}).get("covers")
+    if isinstance(covers, list):
+        result.update(
+            Edge(src=page.id, dst=dst, rel="covers", kind="frontmatter")
+            for dst in covers
+            if isinstance(dst, str)
+        )
     result.update(
         Edge(src=page.id, dst=dst, rel="cites", kind="citation") for dst in page.frontmatter.sources
     )
@@ -147,7 +168,10 @@ def edges(page: Page) -> list[Edge]:
     result.update(
         Edge(src=page.id, dst=c.source, rel="cites", kind="citation") for c in citations(clean)
     )
-    return sorted(result, key=lambda edge: (edge.src, edge.dst, edge.rel, edge.kind))
+    return sorted(
+        result,
+        key=lambda e: (e.src, e.dst, e.rel, e.kind, e.weight or 0.0, e.note or "", e.origin),
+    )
 
 
 @dataclass(frozen=True)

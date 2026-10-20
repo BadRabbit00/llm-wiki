@@ -35,11 +35,11 @@
 | ERR-bad_request | 400 | `SVC-updater`: тело не JSON или лишние поля | нет | исправить запрос | implemented |
 | ERR-body_too_large | 413 | тело больше лимита (`NFR-body-limit`) или сумма файлов сверки больше лимита | нет | уменьшить тело | implemented |
 | ERR-budget_too_small | 422 | `budget_tokens` меньше, чем нужно на заголовок ответа и одну строку L0 (`API-wikisvc.knowledge.*`, `API-wikisvc-mcp.*`); при бюджете выше минимума ответ режется в `omitted_ids`, а не ошибкой | нет | увеличить бюджет | planned |
-| ERR-claim_missing | 422 | у `fact` нет `claim` или он вне 20–200 символов (`E_CLAIM_MISSING`, `INV-claim-minimal`) | нет | исправить claim | planned |
+| ERR-claim_missing | 422 | у `fact` нет `claim` или он вне 20–200 символов (`E_CLAIM_MISSING`, `INV-claim-minimal`) | нет | исправить claim | implemented |
 | ERR-commit_invalid | 400 | хеш коммита не 7–40 hex | нет | передать хеш | implemented |
 | ERR-cursor_invalid | 400 | неверный `cursor` пагинации | нет | начать без cursor | implemented |
 | ERR-docs_audit_disabled | 403 | сверка документации выключена (`CFG-wikiagent.docs_audit.enabled`) | нет | включает оператор | implemented |
-| ERR-domain_unknown | 422 | `domain` страницы не из `schema/domains.yaml` (`E_DOMAIN_UNKNOWN`, `INV-one-domain-per-page`) | нет | взять домен из `API-wikisvc.knowledge.domains`; новый добавляет администратор (`CLI-wikisvc-cli.domains.add`) | planned |
+| ERR-domain_unknown | 422 | `domain` страницы не из `schema/domains.yaml` (`E_DOMAIN_UNKNOWN`, `INV-one-domain-per-page`) | нет | взять домен из `API-wikisvc.knowledge.domains`; новый добавляет администратор (`CLI-wikisvc-cli.domains.add`) | implemented |
 | ERR-embeddings_unavailable | 502 | `EXT-embeddings-server` недоступен, ответил ошибкой или не прошёл self-test (`OBS-wikisvc.embeddings-selftest`: две фиксированные пары, расхождение косинуса > 0.02, Q-kb-embeddings-selftest); там, где векторы обязательны: `CLI-wikisvc-cli.reindex --embeddings`, `CLI-wikisvc-cli.embeddings.selftest`, kNN в `FLOW-dedup-judge`. `ask` в этом случае не падает, а работает урезанно (Q-kb-embeddings-degraded) | да | повторить позже; оператор проверяет сервер эмбеддингов, модель и pooling | planned |
 | ERR-extract_failed | 422 | извлечение книги завершилось `failed` без кода | да, через resume | возобновить задачу | implemented |
 | ERR-extractor_unavailable | 400 | в окружении нет `pypdf` / `python-docx` | нет | оператор ставит зависимости | implemented |
@@ -101,12 +101,13 @@
 | ERR-rule_active_not_verified | 422 | `lifecycle=active` без `verified_by` | нет | только решение ревьюера | implemented |
 | ERR-rule_fields | 422 | поля правила противоречат жизненному циклу (`STATE-rule-lifecycle`) | нет | исправить поля | implemented |
 | ERR-rule_not_in_proposal | 422 | повышение или снятие правила, которого нет в предложении | нет | — | implemented |
+| ERR-schema_invalid | 422 | файл схемы вики (`schema/domains.yaml`, `scopes.yaml`, `relations.yaml`) не читается или нарушает формат: реестр не загружается (fail-closed, FMT-wikisvc-core.domains) | нет | исправить файл схемы в RES-wiki-repo | implemented |
 | ERR-schema_newer | 500 | база записана более новой версией | нет | вернуть новую версию или копию данных | implemented |
 | ERR-scope_unknown | 400, 422 | область не из словаря `ENT-scope` (v3 planned: с учётом осей и иерархии `domain:`) | нет | взять область из списка | implemented |
 | ERR-secret_detected | 400, 422 | в тексте найден возможный секрет (`SEC-secret-detector`) | нет | убрать секрет | implemented |
 | ERR-section_missing | 422 | нет обязательного раздела типа страницы | нет | добавить раздел | implemented |
 | ERR-self_review | 403 | автор или редактор принимает своё предложение (`INV-no-self-review`) | нет | нужен другой ревьюер | implemented |
-| ERR-sensitivity_ref | 422 | страница ссылается (связь, `[[…]]`, `Facts` хаба) на страницу с `sensitivity` выше своей (`E_SENSITIVITY_REF`, `SEC-graph-clearance-mask`) | нет | повысить `sensitivity` ссылающейся страницы или убрать ссылку | planned |
+| ERR-sensitivity_ref | 422 | страница ссылается (связь, `[[…]]`, `Facts` хаба) на страницу с `sensitivity` выше своей (`E_SENSITIVITY_REF`, `SEC-graph-clearance-mask`); проверяется, когда хотя бы одна из сторон — kb-страница с `domain` (старый корпус правил не затронут) | нет | повысить `sensitivity` ссылающейся страницы или убрать ссылку | implemented |
 | ERR-service_unavailable | 502, 503 | `SVC-wiki-ui` не достучался до соседа; `SVC-updater` не проверил права | да | повторить позже | implemented |
 | ERR-source_hash | 422 | `raw_sha256` не совпадает с источником или хеш неверен | нет | — | implemented |
 | ERR-summary_too_long | 422 | тезис правила длиннее 160 символов | нет | сократить | implemented |
@@ -128,7 +129,7 @@
 | ERR-update_stale | 409 | предложенное обновление сменилось | нет | проверить обновления снова | implemented |
 | ERR-update_state | 500 | `SVC-updater` не сохранил состояние | да | оператор смотрит журнал | implemented |
 | ERR-upload_too_large | 413 | файл больше `CFG-wikisvc.MAX_UPLOAD_MB` / `CFG-wikisvc.MAX_LIBRARY_UPLOAD_MB` | нет | — | implemented |
-| ERR-valid_for_missing | 422 | факт `kind` ∈ {number, api, pitfall} без `valid_for` (`E_VALID_FOR_MISSING`) | нет | указать условие применимости | planned |
+| ERR-valid_for_missing | 422 | факт `kind` ∈ {number, api, pitfall} без `valid_for` (`E_VALID_FOR_MISSING`) | нет | указать условие применимости | implemented |
 | ERR-validation | 422 | при принятии предложения найдены ошибки | нет | автор исправляет | implemented |
 | ERR-version_conflict | 409 | `base_version` страницы устарел | нет | перечитать страницу | implemented |
 | ERR-wiki_service | 502 | `SVC-wikisvc` вернул ответ без тела ошибки | да | повторить позже | implemented |

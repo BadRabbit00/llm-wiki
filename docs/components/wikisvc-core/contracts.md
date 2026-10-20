@@ -12,7 +12,7 @@ status: implemented | owner: LIB-wikisvc-core
 
 - kind: Markdown с YAML-frontmatter между строками `---`; путь `wiki/<path_template типа>` (FMT-wikisvc-core.page-type)
 - producer / consumer: пишет только CLS-wikisvc-core.Proposals (через предложение) и CLS-wikisvc-core.review; читают CLS-wikisvc-core.Indexer, CLS-wikisvc-core.validate_page
-- changed: 2026-10-20 v3 (planned): необязательные общие поля `domain` и `scopes`; элемент `relations` — строка или DTO-wikisvc-core.RelationRef; страницы слоя знаний лежат в `wiki/kb/` (FMT-wikisvc-core.fact, FMT-wikisvc-core.topic, FMT-wikisvc-core.tech, FMT-wikisvc-core.question); старые страницы без `domain` валидны как раньше
+- changed: 2026-10-20 v3 (planned): необязательные общие поля `domain` и `scopes` (`domain` допустим у любого типа, проверяется по FMT-wikisvc-core.domains и делает страницу kb-страницей для ERR-sensitivity_ref); элемент `relations` — строка или DTO-wikisvc-core.RelationRef; страницы слоя знаний лежат в `wiki/kb/` (FMT-wikisvc-core.fact, FMT-wikisvc-core.topic, FMT-wikisvc-core.tech, FMT-wikisvc-core.question); старые страницы без `domain` валидны как раньше
 
 | поле | тип | обяз. | ограничения | смысл |
 |---|---|---|---|---|
@@ -173,7 +173,7 @@ status: implemented | owner: LIB-wikisvc-core
 Связи — FMT-wikisvc-core.relations. Тело и `summary` — на английском, русские термины — в `aliases` (ADR-0023).
 
 ### FMT-wikisvc-core.fact — Атомарный факт `type: fact`
-status: planned | owner: LIB-wikisvc-core
+status: implemented | owner: LIB-wikisvc-core
 
 - kind: FMT-wikisvc-core.page, префикс `f`, `path_template: kb/{domain}/facts/f-{slug}.md`; разделы: `Claim` обязателен, `Why`, `Example`, `Caveats` — по необходимости; ENT-fact, STATE-fact
 - producer / consumer: пишут люди и SVC-wikiagent через предложения (FLOW-fact-ingest); читают CLS-wikisvc-core.Indexer, CLS-wikisvc-core.Knowledge, CLS-wikisvc-core.Brief, CLS-wikisvc-core.Ask
@@ -187,7 +187,7 @@ status: planned | owner: LIB-wikisvc-core
 | `novelty` | map<string, enum(common\|differs\|unique)> | нет | `dict`, по умолчанию `{}`; только ручное переопределение человеком — измеренная новизна хранится производно в TBL-wikisvc-core.state.novelty (пишет JOB-wikiagent.novelty-scan через CLS-wikisvc-core.Verdicts); итог = файл, иначе таблица, иначе `differs` (решение Q-kb-novelty-write-path) | новизна для модели |
 | `valid_for` | string? | при `kind` ∈ {number, api, pitfall} | иначе ERR-valid_for_missing; `[A-Za-z0-9_.:<>=!, -]{1,64}`, одна строка; разбор строгой грамматикой `условие (, условие)*`, где условие — `имя оп версия` (оп ∈ `>= <= == != > <`) или `метка` | условие применимости: `rust>=1.75`, `kernel:io_uring` |
 | `valid_from`, `valid_to` | date? | нет | `valid_to` непустой ⇒ STATE-fact `outdated` (решение Q-kb-derived-status) | время действительности в мире (bi-temporal, ADR-0021) |
-| `value`, `unit`, `conditions` | string? | нет | для `kind: number`; тип `value` — строка (решение Q-kb-core-defaults) | число и условия замера |
+| `value`, `unit`, `conditions` | string? | нет | для `kind: number`; тип `value` — строка (решение Q-kb-core-defaults); `value` ≤ 128, `unit` ≤ 64, `conditions` ≤ 200 | число и условия замера |
 | `measured_at` | date? | нет | для `kind: number` | когда измерено |
 
 - allowed_relations: about, applies_with, supports, contradicts, refines, precedes, replaces, related
@@ -195,16 +195,16 @@ status: planned | owner: LIB-wikisvc-core
 - lint: тело > 1500 символов — `W_FACT_LONG`; без `about` — `W_FACT_NO_HUB` (таблица кодов — `code.md`, CLS-wikisvc-core.Lint)
 
 ### FMT-wikisvc-core.topic — Хаб темы `type: topic`
-status: planned | owner: LIB-wikisvc-core
+status: implemented | owner: LIB-wikisvc-core
 
 - kind: FMT-wikisvc-core.page, префикс `top`, `path_template: kb/{domain}/topics/top-{slug}.md`; ENT-topic
 - разделы: `Digest` (обязателен, ≤ 800 символов, abstractive-выжимка; вектор уровня `digest`), `Facts` (обязателен: нумерованный список `[[f-…]]`, порядок = канонический порядок выдачи, INV-canonical-order), `Open questions` (необязателен, `[[q-…]]`)
-- поля: `priority` int32 1..5, по умолчанию 3 (вес хаба в CLS-wikisvc-core.Brief; решение Q-kb-core-defaults)
+- поля: `priority` int32 1..5, по умолчанию 3 (вес хаба в CLS-wikisvc-core.Brief; решение Q-kb-core-defaults); `sources_required: false` — хаб цитирует факты, а не источники (то же у `tech` и `question`; у `fact` источники обязательны)
 - allowed_relations: part_of, builds_on, applies_with, related
 - инварианты: множество `Facts` = множество `has_fact` (`W_HUB_FACTS_MISMATCH`); 0 фактов — `W_HUB_EMPTY`, > 60 — `W_HUB_TOO_LARGE`; факт `outdated` в `Facts` — `W_HUB_CITES_OUTDATED`; `Digest` > 800 символов — `W_DIGEST_LONG` (решение Q-kb-lint-semantics)
 
 ### FMT-wikisvc-core.tech — Технология `type: tech`
-status: planned | owner: LIB-wikisvc-core
+status: implemented | owner: LIB-wikisvc-core
 
 - kind: FMT-wikisvc-core.page, префикс `tech`, `path_template: kb/{domain}/tech/tech-{slug}.md`; обязательных разделов нет (ТЗ не задаёт; решение Q-kb-core-defaults); ENT-tech
 
@@ -212,14 +212,14 @@ status: planned | owner: LIB-wikisvc-core
 |---|---|---|---|---|
 | `category` | enum(database\|runtime\|library\|protocol\|tool\|service\|chip\|board\|model) | да | | вид технологии |
 | `adoption` | enum(STATE-tech) | да | evaluating, adopted, avoid, legacy, unknown | наше отношение; в ТЗ §3.3 это `status`, но имя занято статусом ревью (решение Q-kb-tech-question-status) |
-| `verdict` | string | да | одна строка | наше суждение, не описание из README |
+| `verdict` | string | да | одна строка, ≤ 300 символов | наше суждение, не описание из README |
 | `current_version` | string? | нет | | для `W_STALE_VERSION` |
 | `homepage` | string? | нет | только `http://` или `https://`, без userinfo (`user@`), ≤ 2048 символов | сайт технологии |
 
 - allowed_relations: instance_of, alternative_to, replaces, related; факты о технологии — FMT-wikisvc-core.fact с `about: [tech-…]`; область `tech:<slug>` появляется автоматически (FMT-wikisvc-core.scopes)
 
 ### FMT-wikisvc-core.question — Открытый вопрос `type: question`
-status: planned | owner: LIB-wikisvc-core
+status: implemented | owner: LIB-wikisvc-core
 
 - kind: FMT-wikisvc-core.page, префикс `q`, `path_template: kb/{domain}/questions/q-{slug}.md`; обязательных разделов нет (решение Q-kb-core-defaults); ENT-question
 - поля: `priority` int32 1..5, по умолчанию 3 (решение Q-kb-core-defaults; в примере ТЗ — 2)
@@ -227,13 +227,13 @@ status: planned | owner: LIB-wikisvc-core
 - allowed_relations: about, answered_by, related; без движения 90 d — `W_QUESTION_STALE`
 
 ### FMT-wikisvc-core.source — Источник `type: source`
-status: planned | owner: LIB-wikisvc-core
+status: implemented | owner: LIB-wikisvc-core
 
 - kind: FMT-wikisvc-core.page, префикс `src`, путь `sources/{slug}.md`; разделы `Кратко`, `Ключевые факты`, `Что изменилось в вики`; поля как сейчас: `kind`, `author`, `year`, `edition`, `url`, `raw_path`, `raw_sha256`, `ingested_at`; ENT-library-item
 - v3: `kind` += `paper`, `datasheet`, `spec`, `course`, `video`, `rfc`; `covers` (string[], ID `top-…`) — оглавление источника, спроецированное на хабы; каждый ID должен существовать (ERR-link_unresolved в CLS-wikisvc-core.validate_set); каждый элемент даёт ребро `covers` → обратное `covered_by` (source → topic, kind `frontmatter`, вес 0.3, в белый список PPR не входит; решение Q-kb-core-defaults); `url` — только `http://` или `https://`, без userinfo, ≤ 2048 символов
 
 ### FMT-wikisvc-core.domains — Дерево доменов `schema/domains.yaml`
-status: planned | owner: LIB-wikisvc-core
+status: implemented | owner: LIB-wikisvc-core
 
 - kind: YAML-словарь `путь домена → описание` (решение Q-kb-domains-format); путь — `[a-z0-9-]+(/[a-z0-9-]+)*`
 - example: `systems: "distributed and high-load systems"`, `lang/rust: "Rust language, idioms, ecosystem"`, `db: "storage engines, kv, oltp, olap"`
@@ -247,7 +247,8 @@ status: planned | owner: LIB-wikisvc-core
 
 - kind: YAML-список вопросов; 50–100 на этапе 1, растёт с каждой книгой (ТЗ §10, ADR-0025)
 - элемент: `q` (string), `lang` enum(en\|ru), `hops` enum(single\|multi), `gold` (string[] ID фактов, ≥ 1)
-- пары для дедупликации: 100–200 штук в `tests/fixtures/kb-pairs.yaml` — `{a, b, label: enum(duplicate\|refines\|contradicts\|independent)}` (отдельный файл — решение Q-kb-core-defaults)
+- пары для дедупликации: 100–200 штук в `tests/fixtures/kb-pairs.yaml` — `{a, b, label: enum(duplicate\|refines\|contradicts\|independent), note?: enum(version-superseded\|related)}` (отдельный файл — решение Q-kb-core-defaults); `contradicts` — только настоящие противоречия при одной применимости; смена поведения между версиями (`valid_for` не пересекаются, ребро `replaces`) размечается `independent` + `note: version-superseded` как трудный негатив (ТЗ §3.1, §8.6)
+- корпус этапа 1 (`tests/fixtures/kb/`): io_uring и tokio плюс хаб именования в Rust для приёмки этапа 2 («как называть функции»); варианты для пар (дубли, устаревшие, заблуждения) привязаны `about` к tech-странице и в `Facts` хабов не входят
 - метрики: Recall@8 по `seeds[]`, Recall@20 по `seeds ∪ expanded` DTO-wikisvc-core.AskResult; срезы single/multi и ru/en; доля `expansion_used` и прирост recall от него (OBS-eval-metrics)
 - consumer: CLS-wikisvc-core.evaluate — для CLI-wikisvc-cli.eval и `pytest -m eval` в PIPE-ci; порог — не ниже зафиксированной базовой линии (NFR-eval-recall-baseline)
 
@@ -259,7 +260,7 @@ status: planned | owner: LIB-wikisvc-core
 - producer / consumer: CLS-wikisvc-core.Brief компилирует, CLS-wikisvc-core.export_block пишет только между своими маркерами (INV-policy-block-only); по умолчанию brief запрашивается в начале сессии, блок — по выбору (FLOW-knowledge-brief)
 
 ### FMT-wikisvc-core.workflow — Сценарии агента `schema/workflows/*.md`
-status: planned | owner: LIB-wikisvc-core
+status: implemented | owner: LIB-wikisvc-core
 
 - kind: Markdown без frontmatter; имя файла = имя сценария; CLS-wikisvc-core.Schema отдаёт `AGENTS.md` вики и все сценарии одним текстом
 - v3: новые `knowledge-query.md` (brief в начале, `ask` перед решением, `list_questions`, ссылка по ID), `fact-authoring.md` (claim/summary, `kind`, `valid_for`, привязка к хабу, `propose_fact` с `confidence: inferred` вместо выдумки); `book-ingest.md` переписывается под FLOW-fact-ingest; `AGENTS.md` вики получает обязанности ТЗ §7.4 (INV-cite-by-id, INV-rules-pushed-knowledge-pulled)
@@ -270,7 +271,7 @@ status: planned | owner: LIB-wikisvc-core
 Структуры ответов ядра; HTTP (DTO-wikisvc.*) и MCP рендерят их сами. Порядок элементов — канонический (INV-canonical-order).
 
 ### DTO-wikisvc-core.RelationRef — Ребро с весом в frontmatter
-status: planned | owner: LIB-wikisvc-core
+status: implemented | owner: LIB-wikisvc-core
 
 | поле | тип | обяз. | ограничения | смысл |
 |---|---|---|---|---|
@@ -328,6 +329,7 @@ status: planned | owner: LIB-wikisvc-core
 | `version` | string | хеш `meta.generation` индекса + модель эмбеддингов |
 | `expansion_used` | bool | применялось ли расширение PPR |
 | `degraded` | bool | векторы недоступны: ответ собран из BM25 и явных рёбер (решение Q-kb-embeddings-degraded) |
+| `rerank_used` | bool | применялся ли reranker (CLS-wikisvc-core.Reranker); недоступен — `false` (решение координатора 2026-10-20) |
 | `used_tokens`, `budget_tokens` | int32 | расход бюджета |
 
 ### DTO-wikisvc-core.BriefResult — Ответ `get_brief`

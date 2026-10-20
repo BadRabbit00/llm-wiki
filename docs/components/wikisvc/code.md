@@ -119,4 +119,5 @@ status: implemented | owner: SVC-wikisvc | kind: class
   `INDEX_DIR` разные и вне `WIKI_ROOT`, `ROLES_FILE` вне `WIKI_ROOT`, формат `STATUS_BOOST`.
 - changed: 2026-10-20 v3 (planned): поля слоя знаний (`runtime.md`, раздел v3) и их взаимные проверки
   (`EMBEDDINGS_*` при `EMBEDDINGS_ENABLED`, `RERANKER_*` при `ASK_RERANK_ENABLED`, бюджеты ≤ `TOOL_RESPONSE_CAP`).
+  Фикстура `config` в `tests/conftest.py` задаёт `EMBEDDINGS_ENABLED=false` (решение координатора 2026-10-20).
 - notes: общий для SVC-wikisvc, SVC-wikisvc-cli, SVC-wikisvc-mcp и LIB-wikisvc-core (`Runtime`).
