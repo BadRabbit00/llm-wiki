@@ -1,3 +1,5 @@
+// doc: MOD-updater.updater
+
 package main
 
 import (
@@ -32,6 +34,7 @@ const (
 // Stopped together: systemd orders the stop by the units' own dependencies.
 var services = []string{unitUI, unitAgent, unitWiki}
 
+// doc: DTO-updater.Step
 type Step struct {
 	Name   string    `json:"name"`
 	Status string    `json:"status"` // running, done, failed
@@ -39,6 +42,7 @@ type Step struct {
 	Detail string    `json:"detail,omitempty"`
 }
 
+// doc: DTO-updater.Operation
 type Operation struct {
 	ID         string     `json:"id"`
 	From       Image      `json:"from"`
@@ -54,6 +58,7 @@ type Operation struct {
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
 }
 
+// doc: DTO-updater.State
 type State struct {
 	Channel    string     `json:"channel"`
 	Current    Image      `json:"current"`
@@ -63,6 +68,7 @@ type State struct {
 	Operation  *Operation `json:"operation"`
 }
 
+// doc: CLS-updater.Updater
 type Updater struct {
 	cfg  Config
 	host Host
@@ -100,6 +106,7 @@ func NewUpdater(cfg Config, host Host, log *slog.Logger) (*Updater, error) {
 	return u, u.saveLocked()
 }
 
+// doc: FMT-updater.state, BKT-updater.state-dir
 func (u *Updater) statePath() string { return filepath.Join(u.cfg.StateDir, "state.json") }
 
 func (u *Updater) saveLocked() error {
@@ -136,6 +143,7 @@ func writeAtomically(path string, data []byte, mode os.FileMode) error {
 	return os.Rename(temporary.Name(), path)
 }
 
+// doc: FMT-updater.image-env
 var pinPattern = regexp.MustCompile(`^LLM_WIKI_IMAGE=(.+)@(sha256:[0-9a-f]{64})$`)
 
 // pinned reads the digest the services run; image.env, not the updater, is the truth.
@@ -226,6 +234,7 @@ func (u *Updater) Check(ctx context.Context) error {
 	return err
 }
 
+// doc: CLS-updater.discover
 func (u *Updater) discover(ctx context.Context, channel string, current Image) (*Image, string, error) {
 	tags, err := u.host.Tags(ctx)
 	if err != nil {
@@ -350,6 +359,7 @@ func (u *Updater) waitFor(ctx context.Context, timeout time.Duration, what strin
 	}
 }
 
+// doc: JOB-updater.apply
 func (u *Updater) run(op *Operation) {
 	ctx := context.Background()
 	target, _ := ParseVersion(op.To.Tag)
@@ -383,6 +393,7 @@ func (u *Updater) run(op *Operation) {
 		u.finish(op, "failed", err)
 		return
 	}
+	// doc: BKT-updater.pre-update-archives
 	archive := filepath.Join(u.cfg.BackupDir, "pre-update-"+op.ID+"-"+op.To.Tag+".tar.gz")
 	if err := u.step(op, "archive", func() (string, error) { return archive, u.host.Archive(ctx, archive) }); err != nil {
 		u.resume(op, before)
@@ -510,6 +521,7 @@ func (u *Updater) resume(op *Operation, before map[string]bool) {
 
 // rollback restores the pre-update archive, which also restores image.env and with
 // it the previous image, rebuilds the index with that image and starts the services.
+// doc: CLS-updater.rollback
 func (u *Updater) rollback(op *Operation, before map[string]bool, cause error) {
 	ctx := context.Background()
 	previous := ""

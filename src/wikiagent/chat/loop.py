@@ -30,6 +30,7 @@ def clarify(text: str | None) -> str:
     return "Уточните, какое правило или решение нужно оформить."
 
 
+# doc: CLS-wikiagent.Chat
 class Chat:
     def __init__(self, client: WikiClient, models: ModelClient, state: AgentState) -> None:
         self.client, self.models, self.state = client, models, state
@@ -104,6 +105,7 @@ class Chat:
                 )
         raise WikiError("E_AGENT_STEP_LIMIT", "Превышен лимит инструментов чата.")
 
+    # doc: DTO-wikiagent.ChatReply
     def message(
         self,
         session_id: str,

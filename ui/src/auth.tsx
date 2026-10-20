@@ -14,6 +14,7 @@ const Auth = createContext<{
   logout: () => void;
 }>({ actor: null, loading: true, logout: () => {} });
 
+// doc: CLS-wiki-ui.AuthProvider
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [actor, setActor] = useState<Actor | null>(null);
   const [loading, setLoading] = useState(true);

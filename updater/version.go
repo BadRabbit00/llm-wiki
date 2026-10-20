@@ -1,3 +1,5 @@
+// doc: MOD-updater.version
+
 package main
 
 import (
@@ -16,6 +18,7 @@ const (
 var tagPattern = regexp.MustCompile(`^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-beta\.(0|[1-9][0-9]*))?$`)
 
 // Version is a release tag: vX.Y.Z, or vX.Y.Z-beta.N for a beta of that version.
+// doc: CLS-updater.Version
 type Version struct {
 	Tag                 string
 	Major, Minor, Patch int
@@ -66,6 +69,7 @@ func (v Version) Less(o Version) bool {
 }
 
 // Latest picks the newest tag the channel may install; other tags (main, sha-…) are ignored.
+// doc: CLS-updater.Latest
 func Latest(tags []string, channel string) (Version, bool) {
 	var best Version
 	found := false

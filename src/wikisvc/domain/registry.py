@@ -21,6 +21,7 @@ class ExtraField(BaseModel):
     default: Any = None
 
 
+# doc: FMT-wikisvc-core.page-type
 class PageType(BaseModel):
     type: str
     prefix: str
@@ -34,6 +35,7 @@ class PageType(BaseModel):
     sources_required: bool = True
 
 
+# doc: FMT-wikisvc-core.profiles
 class Profile(BaseModel):
     id: str
     title: str
@@ -41,6 +43,7 @@ class Profile(BaseModel):
     budget_tokens: int = Field(default=2000, ge=1)
 
 
+# doc: FMT-wikisvc-core.relations
 class Relation(BaseModel):
     inverse: str
     symmetric: bool = False
@@ -49,6 +52,7 @@ class Relation(BaseModel):
     same_type: bool = False
 
 
+# doc: CLS-wikisvc-core.Registry
 class Registry(BaseModel):
     page_types: dict[str, PageType]
     relations: dict[str, Relation]

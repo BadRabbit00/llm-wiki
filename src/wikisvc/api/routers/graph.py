@@ -7,6 +7,7 @@ from wikisvc.api.deps import Reader, Services
 router = APIRouter(prefix="/graph")
 
 
+# doc: API-wikisvc.graph.impact
 @router.get("/impact/{page_id}")
 def impact(
     page_id: str, services: Services, actor: Reader, depth: int = 2, rels: str | None = None
@@ -14,6 +15,7 @@ def impact(
     return services.graph.impact(page_id, actor, depth, rels.split(",") if rels else None)
 
 
+# doc: API-wikisvc.graph.neighbors
 @router.get("/neighbors/{page_id}")
 def neighbors(
     page_id: str,
@@ -28,6 +30,7 @@ def neighbors(
     )
 
 
+# doc: API-wikisvc.graph.path
 @router.get("/path")
 def path(
     source: Annotated[str, Query(alias="from")],
@@ -39,6 +42,7 @@ def path(
     return services.graph.path(source, to, actor, max_depth)
 
 
+# doc: API-wikisvc.graph.export
 @router.get("/export")
 def export(
     services: Services,

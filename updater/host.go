@@ -1,3 +1,5 @@
+// doc: MOD-updater.host
+
 package main
 
 import (
@@ -16,6 +18,7 @@ import (
 )
 
 // Image is what the registry says about one release tag.
+// doc: DTO-updater.Image
 type Image struct {
 	Tag      string `json:"tag"`
 	Digest   string `json:"digest"`
@@ -23,6 +26,7 @@ type Image struct {
 }
 
 // Job is one line of `wikiagent jobs`: the agent resumes it after a restart.
+// doc: DTO-updater.Job
 type Job struct {
 	ID        string `json:"id"`
 	Kind      string `json:"kind"`
@@ -32,6 +36,7 @@ type Job struct {
 
 // Host is everything an update does to the machine. The update itself is written
 // against this interface, so its order and its rollback are tested without root.
+// doc: CLS-updater.Host
 type Host interface {
 	Tags(ctx context.Context) ([]string, error)
 	Inspect(ctx context.Context, tag string) (Image, error)
@@ -77,6 +82,7 @@ var digestPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 // System is the real Host: the distribution's podman, systemctl and tar, skopeo and
 // cosign from the host bundle, and llm-wiki-run for every container.
+// doc: CLS-updater.System
 type System struct {
 	cfg  Config
 	run  Runner

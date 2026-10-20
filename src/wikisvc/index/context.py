@@ -9,6 +9,7 @@ from wikisvc.services.pages import Pages
 from wikisvc.storage.state_db import now
 
 
+# doc: CLS-wikisvc-core.Context
 class Context:
     def __init__(
         self, db: IndexDB, pages: Pages, priority: list[str], graph: GraphStore | None = None

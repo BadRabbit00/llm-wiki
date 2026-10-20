@@ -42,6 +42,7 @@ def extract(file: Path) -> Iterable[str]:
         raise ValueError("Unsupported format")
 
 
+# doc: JOB-wikisvc-core.extract-worker
 def main() -> int:
     file = Path(sys.argv[1])
     memory, maximum, seconds = map(int, sys.argv[2:5])

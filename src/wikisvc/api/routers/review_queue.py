@@ -16,6 +16,7 @@ class Evidence(BaseModel):
     quote: str = Field(min_length=1, max_length=4000)
 
 
+# doc: DTO-wikisvc.Finding
 class Finding(BaseModel):
     model_config = ConfigDict(extra="forbid")
     kind: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
@@ -29,20 +30,24 @@ class Finding(BaseModel):
     scope: str = Field(default="", pattern=r"^([a-z0-9][a-z0-9-]{0,63})?$")
 
 
+# doc: DTO-wikisvc.Reason
 class Reason(BaseModel):
     reason: str = ""
 
 
+# doc: API-wikisvc.whoami, DTO-wikisvc.Principal
 @router.get("/whoami")
 def whoami(actor: Reader) -> dict[str, Any]:
     return actor.model_dump()
 
 
+# doc: API-wikisvc.findings.create
 @router.post("/findings")
 def create_finding(payload: Finding, services: Services, actor: Writer) -> dict[str, Any]:
     return services.findings.create(actor, payload.model_dump())
 
 
+# doc: API-wikisvc.findings.list
 @router.get("/findings")
 def findings(
     services: Services,
@@ -57,11 +62,13 @@ def findings(
     return services.findings.list(actor, status, kind, severity, limit, cursor, scope=scope)
 
 
+# doc: API-wikisvc.findings.stats
 @router.get("/findings/stats")
 def finding_stats(services: Services, actor: Reader) -> dict[str, Any]:
     return services.findings.stats(actor)
 
 
+# doc: API-wikisvc.findings.dismiss
 @router.post("/findings/{finding_id}/dismiss")
 def dismiss(
     finding_id: str, payload: Reason, services: Services, actor: Reviewer
@@ -69,11 +76,13 @@ def dismiss(
     return services.findings.decide(finding_id, actor, False, payload.reason)
 
 
+# doc: API-wikisvc.findings.reopen
 @router.post("/findings/{finding_id}/reopen")
 def reopen(finding_id: str, services: Services, actor: Reviewer) -> dict[str, Any]:
     return services.findings.decide(finding_id, actor, True)
 
 
+# doc: API-wikisvc.inbox
 @router.get("/inbox")
 def inbox(services: Services, actor: Reviewer) -> dict[str, Any]:
     candidates: Counter[str] = Counter()

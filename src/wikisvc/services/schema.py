@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from wikisvc.services.runtime import Runtime
 
 
+# doc: CLS-wikisvc-core.Schema
 class Schema:
     def __init__(self, runtime: Runtime) -> None:
         self.rt = runtime

@@ -11,10 +11,12 @@ from wikisvc.storage.lock import write_lock
 router = APIRouter(prefix="/admin")
 
 
+# doc: DTO-wikisvc.ReindexRequest
 class ReindexRequest(BaseModel):
     full: bool = True
 
 
+# doc: API-wikisvc.admin.reindex
 @router.post("/reindex")
 def reindex(payload: ReindexRequest, services: Services, actor: Admin) -> dict[str, str]:
     with write_lock(services.settings.state_dir, services.settings.lock_timeout):
@@ -23,6 +25,7 @@ def reindex(payload: ReindexRequest, services: Services, actor: Admin) -> dict[s
     return {"status": "ok"}
 
 
+# doc: API-wikisvc.admin.audit
 @router.get("/audit")
 def audit(
     services: Services,

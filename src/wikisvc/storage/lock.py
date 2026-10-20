@@ -7,6 +7,7 @@ from pathlib import Path
 from wikisvc.domain.errors import WikiError
 
 
+# doc: CLS-wikisvc-core.write_lock
 @contextmanager
 def write_lock(state_dir: Path, timeout: float = 30.0) -> Iterator[None]:
     state_dir.mkdir(parents=True, exist_ok=True)

@@ -32,6 +32,7 @@ def _load_project_template(fs: SafeFS, path: str, registry: Registry) -> Project
     return template
 
 
+# doc: CLS-wikisvc-core.load_registry, FMT-wikisvc-core.scopes
 def load_registry(root: Path) -> Registry:
     fs = SafeFS(root)
     registry = Registry.from_documents(

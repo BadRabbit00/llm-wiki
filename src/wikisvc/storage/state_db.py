@@ -12,6 +12,7 @@ def now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+# doc: CLS-wikisvc-core.StateDB
 class StateDB:
     def __init__(self, directory: Path) -> None:
         directory.mkdir(parents=True, exist_ok=True)
@@ -26,6 +27,12 @@ class StateDB:
                 "Запустите версию не старше той, что записала базу, или восстановите копию "
                 "данных, снятую до обновления.",
             )
+            # doc: TBL-wikisvc-core.state.tokens, TBL-wikisvc-core.state.proposals, TBL-wikisvc-core.state.audit
+            # doc: TBL-wikisvc-core.state.proposal_validation, TBL-wikisvc-core.state.proposal_snapshots, TBL-wikisvc-core.state.proposal_clearance
+            # doc: TBL-wikisvc-core.state.proposal_editors, TBL-wikisvc-core.state.raw_notes, TBL-wikisvc-core.state.rate_limits
+            # doc: TBL-wikisvc-core.state.people, TBL-wikisvc-core.state.rule_usage, TBL-wikisvc-core.state.proposal_notes
+            # doc: TBL-wikisvc-core.state.findings, TBL-wikisvc-core.state.extractions, TBL-wikisvc-core.state.outline_overrides
+            # doc: TBL-wikisvc-core.state.violations
             db.executescript("""
             CREATE TABLE IF NOT EXISTS tokens (
                 token_hash TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE,

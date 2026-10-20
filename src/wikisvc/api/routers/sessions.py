@@ -7,6 +7,7 @@ from wikisvc.services.sessions import SessionRequest, SessionResponse
 router = APIRouter(prefix="/sessions")
 
 
+# doc: API-wikisvc.sessions.create, DTO-wikisvc.SessionRequest, DTO-wikisvc.SessionResponse
 @router.post("")
 def create(
     payload: SessionRequest,
@@ -22,6 +23,7 @@ def create(
     return services.sessions.create(payload, actor)
 
 
+# doc: API-wikisvc.sessions.revoke
 @router.delete("/current", status_code=204)
 def revoke(request: Request, services: Services, actor: Reader) -> Response:
     if not services.settings.session_issuer_token_name:

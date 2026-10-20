@@ -18,7 +18,29 @@
     },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "wk": "wk"
+      }
+    },
+    "wk": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792177535,
+        "narHash": "sha256-mpR5WCJj6bLpEiHRj6udtwJMX2tIVMwTxTICr4Nlf30=",
+        "owner": "BadRabbit00",
+        "repo": "wk",
+        "rev": "7c9250cd1c25be70cdbf0b6c2926b535918fd54d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "BadRabbit00",
+        "repo": "wk",
+        "rev": "7c9250cd1c25be70cdbf0b6c2926b535918fd54d",
+        "type": "github"
       }
     }
   },

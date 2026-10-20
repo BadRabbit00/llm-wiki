@@ -9,6 +9,7 @@ from pathlib import Path
 from wikisvc.domain.errors import WikiError
 
 
+# doc: CLS-wikisvc-core.GitRepo, BKT-wikisvc-core.wiki-repo
 class GitRepo:
     managed = ("wiki", "raw", "schema")
 

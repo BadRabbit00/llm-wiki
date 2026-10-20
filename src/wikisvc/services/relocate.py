@@ -6,6 +6,7 @@ from wikisvc.storage.gitrepo import GitRepo
 from wikisvc.storage.lock import write_lock
 
 
+# doc: CLS-wikisvc-core.repair_worktrees
 def repair_worktrees(config: Settings) -> int:
     # Deliberately avoid Runtime: its recovery needs the worktrees to be usable first.
     with write_lock(config.state_dir, config.lock_timeout):

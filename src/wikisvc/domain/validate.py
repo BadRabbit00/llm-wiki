@@ -37,6 +37,7 @@ def issue(
     )
 
 
+# doc: CLS-wikisvc-core.parse_page
 def parse_page(text: str, path: str = "") -> Page:
     fm, body = parse(text)
     if fm.get("type") == "rule" and isinstance(fm.get("summary"), str) and len(fm["summary"]) > 160:
@@ -59,6 +60,7 @@ def parse_page(text: str, path: str = "") -> Page:
         ) from exc
 
 
+# doc: CLS-wikisvc-core.validate_page
 def validate_page(
     page: Page, registry: Registry, entropy_threshold: float = 4.5
 ) -> list[LintIssue]:
@@ -187,6 +189,7 @@ def overlaps(left: list[str], right: list[str]) -> bool:
     return "*" in left or "*" in right or bool(set(left) & set(right))
 
 
+# doc: CLS-wikisvc-core.validate_rule, FMT-wikisvc-core.rule
 def validate_rule(page: Page, registry: Registry) -> list[LintIssue]:
     fm, result = page.frontmatter, []
     data = fm.model_extra or {}
@@ -272,6 +275,7 @@ class ValidationCache:
         return previous[1], previous[2]
 
 
+# doc: CLS-wikisvc-core.validate_set
 def validate_set(
     pages: list[Page], registry: Registry, cache: ValidationCache | None = None
 ) -> list[LintIssue]:
@@ -364,6 +368,7 @@ def validate_set(
     return result
 
 
+# doc: CLS-wikisvc-core.require_valid
 def require_valid(issues: list[LintIssue]) -> None:
     errors = [value for value in issues if value.severity == "error"]
     if errors:

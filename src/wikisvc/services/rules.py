@@ -32,6 +32,7 @@ def brief(page: Page) -> dict[str, Any]:
     }
 
 
+# doc: CLS-wikisvc-core.Rules
 class Rules:
     def __init__(self, runtime: "Runtime") -> None:
         self.rt = runtime

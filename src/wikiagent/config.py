@@ -1,3 +1,4 @@
+# doc: MOD-wikiagent.config
 import os
 import re
 from pathlib import Path
@@ -8,11 +9,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from wikisvc.domain.markdown import load_yaml
 
 
+# doc: CFG-wikiagent.wikisvc.base_url, CFG-wikiagent.wikisvc.token_env, CFG-wikiagent.WIKIAGENT_TOKEN
 class ServiceConfig(BaseModel):
     base_url: str = "http://127.0.0.1:8787"
     token_env: str = "WIKIAGENT_TOKEN"
 
 
+# doc: CFG-wikiagent.models.planner, CFG-wikiagent.models.reviewer, CFG-wikiagent.models.chat
 class ModelConfig(BaseModel):
     base_url: str
     model: str
@@ -23,6 +26,8 @@ class ModelConfig(BaseModel):
     timeout_seconds: float = Field(default=120, gt=0)
 
 
+# doc: CFG-wikiagent.limits.max_tool_steps, CFG-wikiagent.limits.chapter_chunk_tokens
+# doc: CFG-wikiagent.limits.retries, CFG-wikiagent.limits.state_tokens
 class Limits(BaseModel):
     max_tool_steps: int = Field(default=25, ge=1, le=100)
     chapter_chunk_tokens: int = Field(default=8000, ge=100, le=16000)
@@ -30,6 +35,11 @@ class Limits(BaseModel):
     state_tokens: int = Field(default=1500, ge=100, le=1500)
 
 
+# doc: CFG-wikiagent.heal.enabled, CFG-wikiagent.heal.idle_minutes, CFG-wikiagent.heal.windows
+# doc: CFG-wikiagent.heal.max_findings_per_run, CFG-wikiagent.heal.max_model_calls_per_run
+# doc: CFG-wikiagent.heal.max_model_calls_per_day, CFG-wikiagent.heal.confidence_threshold
+# doc: CFG-wikiagent.heal.full_sweep_days, CFG-wikiagent.heal.k_candidates
+# doc: CFG-wikiagent.heal.candidate_stale_days
 class HealConfig(BaseModel):
     enabled: bool = True
     idle_minutes: int = Field(default=15, ge=0)
@@ -53,6 +63,10 @@ class HealConfig(BaseModel):
         return values
 
 
+# doc: CFG-wikiagent.docs_audit.enabled, CFG-wikiagent.docs_audit.max_findings_per_run
+# doc: CFG-wikiagent.docs_audit.max_model_calls_per_run, CFG-wikiagent.docs_audit.max_model_calls_per_day
+# doc: CFG-wikiagent.docs_audit.confidence_threshold, CFG-wikiagent.docs_audit.max_files
+# doc: CFG-wikiagent.docs_audit.max_total_bytes
 class DocsAuditConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool = False
@@ -64,6 +78,9 @@ class DocsAuditConfig(BaseModel):
     max_total_bytes: int = Field(default=26214400, ge=1, le=26214400)
 
 
+# doc: CFG-wikiagent.max_upload_mb, CFG-wikiagent.secret_entropy_threshold, CFG-wikiagent.state_dir
+# doc: CFG-wikiagent.bind_host, CFG-wikiagent.bind_port
+# doc: CFG-wikiagent.MAX_UPLOAD_MB, CFG-wikiagent.SECRET_ENTROPY_THRESHOLD, CFG-wikiagent.WIKIAGENT_STATE_DIR
 class AgentConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     wikisvc: ServiceConfig = Field(default_factory=ServiceConfig)
@@ -95,6 +112,7 @@ class AgentConfig(BaseModel):
         return self
 
 
+# doc: CFG-wikiagent.WIKIAGENT_CONFIG, FMT-wikiagent.config
 def load_config(path: Path | None = None) -> AgentConfig:
     return AgentConfig.model_validate(
         load_yaml((path or Path(os.environ.get("WIKIAGENT_CONFIG", "wikiagent.yaml"))).read_text())

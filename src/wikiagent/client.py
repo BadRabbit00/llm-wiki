@@ -1,3 +1,4 @@
+# doc: MOD-wikiagent.client
 import os
 import re
 from typing import Any
@@ -8,6 +9,7 @@ from wikiagent.config import ServiceConfig
 from wikisvc.domain.errors import WikiError
 
 
+# doc: CLS-wikiagent.WikiClient
 class WikiClient:
     """A transport allowlist, independent of model prompts and tool descriptions."""
 

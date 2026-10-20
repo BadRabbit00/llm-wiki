@@ -134,6 +134,7 @@ def validate_signature(data: bytes, extension: str, max_size: int) -> None:
         raise WikiError("E_RAW_SIGNATURE", "Содержимое не соответствует расширению файла.")
 
 
+# doc: CLS-wikisvc-core.Raw
 class Raw:
     def __init__(self, runtime: Runtime) -> None:
         self.rt, self.config = runtime, runtime.settings
@@ -191,6 +192,7 @@ class Raw:
                 self.rt.state.audit(actor.name, "raw.duplicate", duplicate["path"])
                 return {**dict(duplicate), "duplicate": True, "trust": "untrusted_external"}
             path = (
+                # doc: BKT-wikisvc-core.library
                 f"library/{datetime.now(UTC).year}/{digest[:8]}-{name}"
                 if category == "library"
                 else f"raw/{category}/{datetime.now(UTC).year}/{digest[:8]}-{name}"

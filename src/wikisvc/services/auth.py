@@ -23,6 +23,7 @@ def can_read(actor: Principal, sensitivity: str) -> bool:
     return levels.index(sensitivity) <= levels.index(actor.clearance)
 
 
+# doc: CLS-wikisvc-core.require_human
 def require_human(actor: Principal) -> None:
     require_role(actor, "reviewer")
     if actor.kind != "human":
@@ -31,6 +32,7 @@ def require_human(actor: Principal) -> None:
         )
 
 
+# doc: CLS-wikisvc-core.Auth
 class Auth:
     anonymous_name: str = "anonymous"
     anonymous_role: Literal["reader", "writer"] = "writer"

@@ -22,6 +22,7 @@ from wikisvc.storage.schema import load_registry
 from wikisvc.storage.state_db import StateDB
 
 
+# doc: CLS-wikisvc-core.Runtime
 class Runtime:
     def __init__(self, settings: Settings, discard_newer_index: bool = False) -> None:
         self.settings = settings

@@ -89,6 +89,7 @@ def clean_pages(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+# doc: CLS-wikisvc-core.Extractions
 class Extractions:
     def __init__(self, runtime: Runtime) -> None:
         self.rt = runtime
@@ -148,6 +149,7 @@ class Extractions:
     def close(self) -> None:
         self.pool.shutdown(wait=True, cancel_futures=True)
 
+    # doc: BKT-wikisvc-core.extract
     def directory(self, sha: str) -> Path:
         if not re.fullmatch("[a-f0-9]{64}", sha):
             raise WikiError("E_SOURCE_HASH", "Некорректный хеш источника.")

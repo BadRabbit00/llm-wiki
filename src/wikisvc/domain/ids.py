@@ -24,6 +24,7 @@ def check_page_id(registry: Registry, value: str) -> str:
     return value
 
 
+# doc: CLS-wikisvc-core.page_path
 def page_path(registry: Registry, type_name: str, page_id: str, parent: str | None = None) -> str:
     check_id(page_id)
     definition = registry.page_type(type_name)

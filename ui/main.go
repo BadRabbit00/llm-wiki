@@ -22,6 +22,7 @@ import (
 //go:embed all:dist
 var assets embed.FS
 
+// doc: MOD-wiki-ui.server
 func env(name, fallback string) string {
 	if value := os.Getenv(name); value != "" {
 		return value
@@ -62,6 +63,7 @@ func socketUpstream(socket, prefix string) http.Handler {
 
 // proxied forwards a signed-in request with the same limits for every upstream:
 // a bearer token, known methods, a bounded body and no browser cookies or origin.
+// doc: CLS-wiki-ui.proxied
 func proxied(target *url.URL, transport http.RoundTripper, prefix string) http.Handler {
 	proxy := &httputil.ReverseProxy{
 		Transport:     transport,
@@ -117,6 +119,7 @@ func proxied(target *url.URL, transport http.RoundTripper, prefix string) http.H
 	})
 }
 
+// doc: CLS-wiki-ui.handler
 func handler(files fs.FS, wikiURL, agentURL, updaterSocket string) (http.Handler, error) {
 	wiki, err := upstream(wikiURL, "")
 	if err != nil {
@@ -128,13 +131,16 @@ func handler(files fs.FS, wikiURL, agentURL, updaterSocket string) (http.Handler
 	}
 	fileServer := http.FileServerFS(files)
 	mux := http.NewServeMux()
+	// doc: API-wiki-ui.proxy.wikisvc, API-wiki-ui.proxy.wikiagent, API-wiki-ui.proxy.updater
 	mux.Handle("/api/v1/", wiki)
 	mux.Handle("/agent-api/", agent)
 	mux.Handle("/updater-api/", socketUpstream(updaterSocket, "/updater-api"))
+	// doc: API-wiki-ui.health
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok","service":"wiki-ui"}`))
 	})
+	// doc: API-wiki-ui.static
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" && r.Method != "HEAD" {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -178,6 +184,7 @@ func handler(files fs.FS, wikiURL, agentURL, updaterSocket string) (http.Handler
 
 func main() {
 	files, _ := fs.Sub(assets, "dist")
+	// doc: CFG-wiki-ui.WIKI_UI_WIKISVC_URL, CFG-wiki-ui.WIKI_UI_AGENT_URL, CFG-wiki-ui.WIKI_UI_UPDATER_SOCKET, CFG-wiki-ui.WIKI_UI_BIND
 	wikiURL := env("WIKI_UI_WIKISVC_URL", "http://127.0.0.1:8787")
 	auth, err := newOIDC(oidcEnvironment(), wikiURL)
 	if err != nil {

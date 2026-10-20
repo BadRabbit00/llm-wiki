@@ -1,6 +1,7 @@
 from typing import Any
 
 
+# doc: CLS-wikisvc-core.WikiError
 class WikiError(Exception):
     def __init__(
         self,

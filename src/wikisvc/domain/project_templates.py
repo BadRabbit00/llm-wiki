@@ -64,6 +64,7 @@ class TemplatePolicyBlock(TemplateModel):
         return validate_template_path(value)
 
 
+# doc: CLS-wikisvc-core.ProjectTemplate, FMT-wikisvc-core.project-template
 class ProjectTemplate(TemplateModel):
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")
     title: str = Field(min_length=1)

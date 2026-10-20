@@ -36,6 +36,7 @@ def yaml_text(value: Any) -> str:
     return stream.getvalue()
 
 
+# doc: CLS-wikisvc-core.upgrade_schema
 def upgrade_schema(
     rt: Runtime, actor: Principal, refresh_instructions: bool = False
 ) -> dict[str, Any]:

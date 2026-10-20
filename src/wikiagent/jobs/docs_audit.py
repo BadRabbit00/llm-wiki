@@ -107,6 +107,7 @@ class PolicyPage(BaseModel):
     applies_to: list[str]
 
 
+# doc: DTO-wikiagent.AuditVerdict
 class AuditVerdict(StrictModel):
     relation: Literal["none", "violation", "wording"]
     confidence: float = Field(ge=0, le=1)
@@ -205,6 +206,7 @@ class DocsAudit:
             )[0]["n"]
         )
 
+    # doc: JOB-wikiagent.docs-audit
     def run(self, job_id: str, payload: object) -> None:
         request = parse_request(payload, self.models.config)
         config = self.models.config.docs_audit

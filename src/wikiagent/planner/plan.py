@@ -4,6 +4,7 @@ from wikiagent.planner.claims import Claim
 from wikiagent.planner.classify import Classification
 
 
+# doc: CLS-wikiagent.plan_changes
 def plan_changes(
     claim: Claim,
     classified: Classification,
