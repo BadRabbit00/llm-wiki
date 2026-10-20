@@ -13,6 +13,7 @@ import httpx
 from wikisvc.services.sessions import load_roles
 
 
+# doc: CLS-wikiagent.check_authentication
 def check_authentication(http: httpx.Client | None = None) -> list[str]:
     issuer_name = os.environ.get("SESSION_ISSUER_TOKEN_NAME", "")
     if not issuer_name:

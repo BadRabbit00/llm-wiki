@@ -14,6 +14,7 @@ def in_window(moment: datetime, windows: list[str]) -> bool:
     return not windows
 
 
+# doc: JOB-wikiagent.scheduler
 class Scheduler:
     def __init__(self, runner: JobRunner) -> None:
         self.runner = runner

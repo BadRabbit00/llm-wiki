@@ -38,6 +38,7 @@ def paginate(
     }
 
 
+# doc: CLS-wikisvc-core.Pages
 class Pages:
     def __init__(
         self, root: Path, db: IndexDB, state: StateDB | None = None, graph: GraphStore | None = None

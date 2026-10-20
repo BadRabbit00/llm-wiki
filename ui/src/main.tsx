@@ -17,6 +17,7 @@ import { AuthProvider, useAuth } from "./auth";
 import { Empty, Loading, ToastProvider } from "./components/common";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
+// doc: MOD-wiki-ui.app, MOD-wiki-ui.pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Knowledge = lazy(() => import("./pages/Knowledge"));
 const PageDetail = lazy(() => import("./pages/PageDetail"));

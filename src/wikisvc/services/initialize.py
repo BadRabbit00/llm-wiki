@@ -5,11 +5,13 @@ from wikisvc.domain.errors import WikiError
 from wikisvc.storage.safefs import SafeFS
 
 
+# doc: CLS-wikisvc-core.initialize
 def initialize(root: Path) -> None:
     root = root.resolve()
     if root.exists() and any(root.iterdir()):
         raise WikiError("E_INIT_NONEMPTY", "Каталог для init должен быть пустым.", status=409)
     root.mkdir(parents=True, exist_ok=True)
+    # doc: MOD-wikisvc-core.template
     template = Path(__file__).resolve().parents[1] / "template"
     source, target = SafeFS(template), SafeFS(root)
     for path in source.files("**/*"):

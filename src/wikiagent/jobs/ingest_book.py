@@ -54,6 +54,7 @@ class Candidate(StrictModel):
         return value
 
 
+# doc: DTO-wikiagent.ChapterResult
 class ChapterResult(StrictModel):
     candidates: list[Candidate] = Field(default_factory=list, max_length=10)
     state_summary: str = Field(default="", max_length=3750)
@@ -76,6 +77,7 @@ class KeyIdea(StrictModel):
     text: str = Field(max_length=160)
 
 
+# doc: DTO-wikiagent.BookReview
 class BookReview(StrictModel):
     merge: list[Merge] = Field(default_factory=list, max_length=20)
     links: list[Link] = Field(default_factory=list, max_length=30)
@@ -175,6 +177,7 @@ class IngestBook:
         self.state.checkpoint(job_id, "candidate_ids", allocated)
         return page_id
 
+    # doc: JOB-wikiagent.ingest-book
     def run(self, job_id: str, payload: dict[str, Any]) -> None:
         path = payload["raw_path"]
         # Starting or resuming a job is one explicit retry of a failed extraction. Polling below

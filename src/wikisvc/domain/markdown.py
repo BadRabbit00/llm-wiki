@@ -24,6 +24,7 @@ def load_yaml(text: str) -> Any:
         raise WikiError("E_FRONTMATTER_INVALID", "Некорректный YAML.") from exc
 
 
+# doc: CLS-wikisvc-core.parse
 def parse(text: str) -> tuple[dict[str, Any], str]:
     text = text.replace("\r\n", "\n").lstrip("\ufeff")
     match = re.match(r"\A---\s*\n(.*?)\n---[ \t]*(?:\n|$)", text, re.DOTALL)
@@ -37,6 +38,7 @@ def parse(text: str) -> tuple[dict[str, Any], str]:
     return metadata, text[match.end() :].lstrip("\n")
 
 
+# doc: CLS-wikisvc-core.render
 def render(metadata: dict[str, Any], body: str) -> str:
     stream = io.StringIO()
     yaml = YAML()
@@ -46,6 +48,7 @@ def render(metadata: dict[str, Any], body: str) -> str:
     return "---\n" + stream.getvalue() + "---\n\n" + body.rstrip() + "\n"
 
 
+# doc: CLS-wikisvc-core.content_hash
 def content_hash(text: str) -> str:
     normalized = text.replace("\r\n", "\n").strip() + "\n"
     return "sha256:" + hashlib.sha256(normalized.encode()).hexdigest()
@@ -126,6 +129,7 @@ def sections(body: str) -> list[Section]:
     return result
 
 
+# doc: CLS-wikisvc-core.edges
 def edges(page: Page) -> list[Edge]:
     result = {
         Edge(src=page.id, dst=dst, rel=rel, kind="frontmatter")
@@ -158,6 +162,7 @@ class Citation:
 CITATION = re.compile(r'\[@(src-[a-z0-9-]+)(?:\s+(стр\.|гл\.)\s+(\d+)(?:-(\d+))?\s+"([^"\n]+)")?\]')
 
 
+# doc: CLS-wikisvc-core.citations
 def citations(text: str) -> list[Citation]:
     return [
         Citation(m[1], m[2], int(m[3]) if m[3] else None, int(m[4] or m[3]) if m[3] else None, m[5])

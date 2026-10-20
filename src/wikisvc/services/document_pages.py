@@ -85,6 +85,7 @@ def epub(file: Path) -> list[dict[str, Any]]:
         return pages
 
 
+# doc: CLS-wikisvc-core.document_pages
 def batch(file: Path, start: int, count: int) -> dict[str, Any]:
     outline = []
     if file.suffix.lower() == ".pdf":

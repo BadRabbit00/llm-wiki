@@ -32,6 +32,7 @@ class Target(StrictModel):
     headings: list[str] = Field(min_length=1, max_length=5)
 
 
+# doc: DTO-wikiagent.Located
 class Located(StrictModel):
     targets: list[Target] = Field(max_length=5)
 
@@ -70,6 +71,7 @@ class Revision(StrictModel):
     summary: str = Field(min_length=10, max_length=160)
 
 
+# doc: DTO-wikiagent.Revisions
 class Revisions(StrictModel):
     pages: list[Revision] = Field(max_length=5)
 
@@ -113,6 +115,7 @@ def examples(body: str) -> str | None:
     return body[start:end].strip()
 
 
+# doc: CLS-wikiagent.Reviser
 class Reviser:
     def __init__(self, client: WikiClient, models: ModelClient) -> None:
         self.client, self.models = client, models

@@ -3,6 +3,7 @@ import re
 from collections import Counter
 
 
+# doc: CLS-wikisvc-core.secret_kinds
 def secret_kinds(text: str, entropy_threshold: float = 4.5) -> list[str]:
     patterns = {
         "private_key": r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----",

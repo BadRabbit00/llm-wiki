@@ -9,6 +9,7 @@ from wikisvc.api.deps import Reader, Services, Writer
 router = APIRouter()
 
 
+# doc: API-wikisvc.raw.upload
 @router.post("/raw")
 def upload(
     services: Services,
@@ -20,6 +21,7 @@ def upload(
     return services.raw.upload(actor, file.filename or "upload", file.file, category, note)
 
 
+# doc: API-wikisvc.raw.list
 @router.get("/raw")
 def list_files(
     services: Services, actor: Reader, limit: int = 50, cursor: str | None = None
@@ -27,6 +29,7 @@ def list_files(
     return services.raw.list_files(actor, limit=limit, cursor=cursor)
 
 
+# doc: API-wikisvc.sources.pending
 @router.get("/sources/pending")
 def pending(
     services: Services, actor: Reader, limit: int = 50, cursor: str | None = None
@@ -34,6 +37,7 @@ def pending(
     return services.raw.list_files(actor, pending=True, limit=limit, cursor=cursor)
 
 
+# doc: API-wikisvc.raw.text
 @router.get("/raw/{path:path}/text")
 def text(
     path: str,
@@ -54,20 +58,24 @@ class Chapter(BaseModel):
     page_to: int = Field(ge=1)
 
 
+# doc: DTO-wikisvc.Outline
 class Outline(BaseModel):
     chapters: list[Chapter] = Field(min_length=1, max_length=5000)
 
 
+# doc: API-wikisvc.raw.extract
 @router.post("/raw/{path:path}/extract", status_code=202)
 def extract(path: str, services: Services, actor: Writer, retry: bool = False) -> dict[str, Any]:
     return services.extractions.start(actor, path, retry)
 
 
+# doc: API-wikisvc.raw.outline.get
 @router.get("/raw/{path:path}/outline")
 def outline(path: str, services: Services, actor: Reader) -> dict[str, Any]:
     return services.extractions.outline(actor, path)
 
 
+# doc: API-wikisvc.raw.outline.put
 @router.put("/raw/{path:path}/outline")
 def replace_outline(
     path: str, payload: Outline, services: Services, actor: Writer
@@ -75,6 +83,7 @@ def replace_outline(
     return services.extractions.put_outline(actor, path, [c.model_dump() for c in payload.chapters])
 
 
+# doc: API-wikisvc.raw.download
 @router.get("/raw/{path:path}")
 def download(path: str, services: Services, actor: Reader) -> FileResponse:
     file = services.raw.file(actor, path)

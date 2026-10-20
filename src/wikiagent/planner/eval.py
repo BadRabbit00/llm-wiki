@@ -68,6 +68,7 @@ def scenario_actions(
     return items, questions
 
 
+# doc: CLS-wikiagent.evaluate_scenarios
 def evaluate_scenarios(
     config: AgentConfig,
     directory: Path,

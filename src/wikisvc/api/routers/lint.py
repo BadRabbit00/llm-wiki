@@ -8,6 +8,7 @@ from wikisvc.services.pages import paginate
 router = APIRouter()
 
 
+# doc: API-wikisvc.lint
 @router.get("/lint")
 def lint(
     services: Services, actor: Reader, limit: int = 50, cursor: str | None = None
@@ -16,6 +17,7 @@ def lint(
     return {"issues": result["items"], "next_cursor": result["next_cursor"]}
 
 
+# doc: API-wikisvc.stats
 @router.get("/stats")
 def stats(services: Services, actor: Reader) -> dict[str, Any]:
     return services.lint.stats(actor)

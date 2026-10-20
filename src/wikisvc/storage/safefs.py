@@ -5,6 +5,7 @@ from pathlib import Path
 from wikisvc.domain.errors import WikiError
 
 
+# doc: CLS-wikisvc-core.SafeFS
 class SafeFS:
     def __init__(self, root: Path) -> None:
         self.root = root.resolve()

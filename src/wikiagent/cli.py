@@ -1,3 +1,4 @@
+# doc: MOD-wikiagent.cli
 from pathlib import Path
 
 import typer
@@ -7,6 +8,7 @@ from wikiagent.config import load_config
 app = typer.Typer(no_args_is_help=True)
 
 
+# doc: CLI-wikiagent.check
 @app.command("check")
 def check_deployment(
     dependencies_only: bool = False,
@@ -46,6 +48,7 @@ def check_deployment(
 
 
 @app.command()
+# doc: CLI-wikiagent.jobs
 def jobs() -> None:
     """Jobs the agent resumes after a restart, as JSON: identity and status, no payload."""
     import json
@@ -63,6 +66,7 @@ def jobs() -> None:
 
 
 @app.command()
+# doc: CLI-wikiagent.serve
 def serve(config: Path | None = None) -> None:
     import uvicorn
 
@@ -72,6 +76,7 @@ def serve(config: Path | None = None) -> None:
     uvicorn.run(create_app(settings), host=settings.bind_host, port=settings.bind_port)
 
 
+# doc: CLI-wikiagent.eval
 @app.command("eval")
 def evaluate(
     role: str = "planner",

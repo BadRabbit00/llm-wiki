@@ -7,6 +7,7 @@ from wikisvc.api.deps import Reader, Services
 router = APIRouter()
 
 
+# doc: API-wikisvc.policies.compile
 @router.get("/policies/compile")
 def compile_policies(
     services: Services,
@@ -27,11 +28,13 @@ def compile_policies(
     )
 
 
+# doc: API-wikisvc.profiles.list
 @router.get("/profiles")
 def profiles(services: Services, actor: Reader) -> list[dict[str, Any]]:
     return [p.model_dump() for p in sorted(services.registry.profiles.values(), key=lambda p: p.id)]
 
 
+# doc: API-wikisvc.scopes.list
 @router.get("/scopes")
 def scopes(services: Services, actor: Reader) -> list[str]:
     return sorted(services.registry.scopes)

@@ -21,6 +21,7 @@ def render_index(pages: list[Page]) -> str:
     return "# Индекс вики\n\n" + "\n\n".join(groups) + "\n"
 
 
+# doc: CLS-wikisvc-core.generate
 def generate(root: Path, message: str, author: str, pages: list[Page]) -> None:
     fs = SafeFS(root)
     fs.write("wiki/index.md", render_index(pages))

@@ -1,0 +1,6 @@
+id: html-docs
+title: "HTML-документы, гайды, отчёты и презентации"
+profile: html-docs
+scopes: ["doc:html", "doc:presentation"]
+policy_blocks:
+  - {file: AGENTS.md, profile: html-docs}

@@ -1,3 +1,4 @@
+# doc: MOD-wikiagent.state
 import json
 import sqlite3
 import uuid
@@ -10,6 +11,7 @@ from wikisvc.storage.db_version import AGENT_SCHEMA, refuse_newer, stamp
 from wikisvc.storage.state_db import now
 
 
+# doc: CLS-wikiagent.AgentState
 class AgentState:
     def __init__(self, directory: Path) -> None:
         directory.mkdir(parents=True, exist_ok=True)
@@ -23,6 +25,9 @@ class AgentState:
                 "Запустите версию не старше той, что записала базу, или восстановите копию "
                 "данных, снятую до обновления.",
             )
+            # doc: TBL-wikiagent.agent.jobs, TBL-wikiagent.agent.job_state, TBL-wikiagent.agent.pair_checks
+            # doc: TBL-wikiagent.agent.chat_sessions, TBL-wikiagent.agent.chat_messages
+            # doc: TBL-wikiagent.agent.meta, TBL-wikiagent.agent.model_calls
             db.executescript("""
             CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY,kind TEXT NOT NULL,status TEXT NOT NULL,owner TEXT NOT NULL,clearance TEXT NOT NULL,payload TEXT NOT NULL,progress TEXT NOT NULL,error TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS job_state(job_id TEXT NOT NULL,key TEXT NOT NULL,value TEXT NOT NULL,PRIMARY KEY(job_id,key));

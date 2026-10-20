@@ -1,3 +1,4 @@
+# doc: MOD-wikiagent.models
 import json
 import os
 from collections.abc import Callable
@@ -14,6 +15,7 @@ from wikisvc.domain.errors import WikiError
 from wikisvc.storage.state_db import now
 
 PROMPT_VERSION = "policy-layer-v2.6"
+# doc: MOD-wikiagent.prompts, PRM-wikiagent.system
 SYSTEM = (Path(__file__).parent / "prompts/system.md").read_text()
 
 
@@ -35,6 +37,7 @@ def strict_schema(value: Any) -> Any:
     return result
 
 
+# doc: CLS-wikiagent.ModelClient
 class ModelClient:
     def __init__(
         self, config: AgentConfig, state: AgentState, http: httpx.Client | None = None
@@ -98,6 +101,10 @@ class ModelClient:
         *,
         max_attempts: int | None = None,
     ) -> T:
+        # doc: PRM-wikiagent.route, PRM-wikiagent.extract_claims, PRM-wikiagent.classify
+        # doc: PRM-wikiagent.repair_validation, PRM-wikiagent.locate_revision
+        # doc: PRM-wikiagent.revise_page, PRM-wikiagent.book_chapter, PRM-wikiagent.book_review
+        # doc: PRM-wikiagent.heal_pair, PRM-wikiagent.heal_review, PRM-wikiagent.docs_audit
         task_file = Path(__file__).parent / "prompts" / f"{task}.md"
         task_prompt = task_file.read_text() if task_file.is_file() else ""
         messages = [

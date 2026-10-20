@@ -29,6 +29,7 @@ def expand_synonyms(text: str, synonyms: list[list[str]]) -> str:
     return text + (" " + " ".join(sorted(additions)) if additions else "")
 
 
+# doc: CLS-wikisvc-core.match_query
 def match_query(query: str, synonyms: list[list[str]] | None = None, operator: str = "AND") -> str:
     terms: list[str] = []
     for match in re.finditer(r'"([^"\n]+)"|(\S+)', query):

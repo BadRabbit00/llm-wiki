@@ -4,6 +4,7 @@ from wikiagent.client import WikiClient
 from wikiagent.planner.claims import Claim
 
 
+# doc: CLS-wikiagent.collect
 def collect(client: WikiClient, claim: Claim) -> dict[str, dict[str, Any]]:
     result = client.request(
         "GET",

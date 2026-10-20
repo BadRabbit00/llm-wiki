@@ -7,6 +7,7 @@ from wikisvc.api.deps import Reader, Services
 router = APIRouter()
 
 
+# doc: API-wikisvc.search
 @router.get("/search")
 def search(
     q: str,
@@ -35,6 +36,7 @@ def search(
     )
 
 
+# doc: API-wikisvc.context
 @router.get("/context/{page_id}")
 def context(
     page_id: str,

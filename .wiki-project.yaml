@@ -1,0 +1,14 @@
+version: 1
+project: llm-wiki
+wiki:
+    url: https://mcp.lw.aaag.dev
+    profile: fastapi-fullstack
+    scopes: []
+policy_blocks:
+    - file: AGENTS.md
+      profile: fastapi-fullstack
+template:
+    id: ""
+    digest: ""
+docs:
+    root: docs

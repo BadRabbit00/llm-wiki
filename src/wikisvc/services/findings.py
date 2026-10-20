@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from wikisvc.services.runtime import Runtime
 
 
+# doc: CLS-wikisvc-core.Findings
 class Findings:
     def __init__(self, runtime: "Runtime") -> None:
         self.rt = runtime

@@ -36,6 +36,7 @@ def section_text(text: str, level: int) -> str:
     return text.strip()
 
 
+# doc: CLS-wikisvc-core.apply_patch
 def apply_patch(
     metadata: dict[str, Any], body: str, ops: list[dict[str, Any]]
 ) -> tuple[dict[str, Any], str]:

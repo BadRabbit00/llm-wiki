@@ -19,6 +19,7 @@ class Repair(StrictModel):
     applies_to: list[str] | None = None
 
 
+# doc: DTO-wikiagent.Repairs
 class Repairs(StrictModel):
     pages: list[Repair] = Field(max_length=10)
 
@@ -32,6 +33,7 @@ def examples_md(good: str, bad: str) -> str:
     return "\n\n".join(["Примеры предложены моделью, проверьте.", *blocks])
 
 
+# doc: CLS-wikiagent.Builder
 class Builder:
     def __init__(self, client: WikiClient, models: ModelClient) -> None:
         self.client, self.models = client, models
@@ -167,6 +169,7 @@ class Builder:
                 )
         raise AssertionError("unreachable")
 
+    # doc: DTO-wikiagent.Plan
     def build(
         self, plan: dict[str, Any], session: dict[str, Any], transcript: str
     ) -> dict[str, Any]:

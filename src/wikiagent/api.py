@@ -1,3 +1,4 @@
+# doc: MOD-wikiagent.api
 import json
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
@@ -25,16 +26,19 @@ class Bind(BaseModel):
     id: str = Field(default="", pattern=r"^[a-z0-9-]*$")
 
 
+# doc: DTO-wikiagent.NewSession
 class NewSession(BaseModel):
     bind: Bind = Field(default_factory=Bind)
     profile: str | None = None
 
 
+# doc: DTO-wikiagent.Message
 class Message(BaseModel):
     text: str = Field(min_length=1, max_length=100000)
     attachments: list[str] = Field(default_factory=list, max_length=10)
 
 
+# doc: DTO-wikiagent.BookJob
 class BookJob(BaseModel):
     raw_path: str = Field(pattern=r"^(library|raw)/[a-zA-Z0-9_./-]+$")
     title: str | None = Field(default=None, min_length=3, max_length=120)
@@ -43,10 +47,12 @@ class BookJob(BaseModel):
     scopes_hint: list[str] = Field(default_factory=list, max_length=20)
 
 
+# doc: DTO-wikiagent.HealJob
 class HealJob(BaseModel):
     scope: Literal["changed", "full"] = "changed"
 
 
+# doc: CLS-wikiagent.create_app
 def create_app(
     config: AgentConfig | None = None,
     client: WikiClient | None = None,
@@ -78,6 +84,7 @@ def create_app(
     app.state.models = models
     app.state.scheduler = scheduler
 
+    # doc: CLS-wikiagent.authorize
     def authorize(
         credentials: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())],
     ) -> dict[str, Any]:
@@ -102,6 +109,7 @@ def create_app(
     def error(request: Any, exc: WikiError) -> JSONResponse:
         return JSONResponse(exc.response(), status_code=exc.status)
 
+    # doc: API-wikiagent.chat.sessions.create
     @app.post("/chat/sessions")
     def session(
         payload: NewSession, actor: Annotated[dict[str, Any], Depends(authorize)]
@@ -114,6 +122,7 @@ def create_app(
         chat.bound_context({"bind": payload.bind.model_dump()})
         return chat.sessions.create(actor, payload.bind.model_dump(), payload.profile)
 
+    # doc: API-wikiagent.chat.sessions.list
     @app.get("/chat/sessions")
     def list_sessions(
         actor: Annotated[dict[str, Any], Depends(authorize)],
@@ -122,12 +131,14 @@ def create_app(
     ) -> dict[str, Any]:
         return chat.sessions.list(actor, limit, cursor)
 
+    # doc: API-wikiagent.chat.sessions.get
     @app.get("/chat/sessions/{session_id}")
     def get_session(
         session_id: str, actor: Annotated[dict[str, Any], Depends(authorize)]
     ) -> dict[str, Any]:
         return chat.sessions.get(session_id, actor)
 
+    # doc: API-wikiagent.chat.messages.create
     @app.post("/chat/sessions/{session_id}/messages")
     def message(
         session_id: str, payload: Message, actor: Annotated[dict[str, Any], Depends(authorize)]
@@ -148,6 +159,7 @@ def create_app(
             stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
         )
 
+    # doc: API-wikiagent.jobs.ingest-book
     @app.post("/jobs/ingest-book", status_code=202)
     def ingest_book(
         payload: BookJob, actor: Annotated[dict[str, Any], Depends(authorize)]
@@ -160,6 +172,7 @@ def create_app(
         jobs.start(job_id)
         return jobs.get(job_id, actor)
 
+    # doc: API-wikiagent.jobs.heal
     @app.post("/jobs/heal", status_code=202)
     def heal(
         payload: HealJob, actor: Annotated[dict[str, Any], Depends(authorize)]
@@ -173,6 +186,7 @@ def create_app(
             )
         return Principal.model_validate(actor)
 
+    # doc: API-wikiagent.docs-audit.config
     @app.get("/docs-audit/config")
     def audit_config(actor: Annotated[Principal, Depends(audit_actor)]) -> dict[str, object]:
         return {
@@ -184,6 +198,7 @@ def create_app(
             ),
         }
 
+    # doc: API-wikiagent.jobs.docs-audit
     @app.post("/jobs/docs-audit", status_code=202)
     def docs_audit(
         payload: dict[str, object], actor: Annotated[Principal, Depends(audit_actor)]
@@ -193,6 +208,7 @@ def create_app(
         jobs.start(job_id)
         return dict(jobs.get(job_id, actor.model_dump()))
 
+    # doc: API-wikiagent.jobs.list
     @app.get("/jobs")
     def list_jobs(actor: Annotated[dict[str, Any], Depends(authorize)]) -> dict[str, Any]:
         return {
@@ -209,18 +225,21 @@ def create_app(
             ]
         }
 
+    # doc: API-wikiagent.jobs.get
     @app.get("/jobs/{job_id}")
     def get_job(
         job_id: str, actor: Annotated[dict[str, Any], Depends(authorize)]
     ) -> dict[str, Any]:
         return jobs.get(job_id, actor)
 
+    # doc: API-wikiagent.jobs.cancel
     @app.post("/jobs/{job_id}/cancel")
     def cancel(job_id: str, actor: Annotated[dict[str, Any], Depends(authorize)]) -> dict[str, Any]:
         jobs.get(job_id, actor)
         state.status(job_id, "cancelled")
         return jobs.get(job_id, actor)
 
+    # doc: API-wikiagent.jobs.resume
     @app.post("/jobs/{job_id}/resume")
     def resume(job_id: str, actor: Annotated[dict[str, Any], Depends(authorize)]) -> dict[str, Any]:
         job = jobs.get(job_id, actor)

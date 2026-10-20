@@ -4,6 +4,7 @@ from wikisvc.domain.errors import WikiError
 from wikisvc.storage.safefs import SafeFS
 
 
+# doc: CLS-wikisvc-core.raw_path
 def raw_path(root: Path, state_dir: Path, path: str) -> Path:
     if path.startswith("raw/"):
         return SafeFS(root).path(path)

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from wikisvc.services.runtime import Runtime
 
 
+# doc: CLS-wikisvc-core.review
 def review(
     runtime: Runtime, actor: Principal, page_id: str, verified: bool, reason: str = ""
 ) -> dict[str, Any]:

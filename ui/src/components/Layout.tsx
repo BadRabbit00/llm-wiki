@@ -148,6 +148,7 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
     </Modal>
   );
 }
+// doc: MOD-wiki-ui.components
 export default function Layout() {
   const { actor } = useAuth(),
     location = useLocation(),

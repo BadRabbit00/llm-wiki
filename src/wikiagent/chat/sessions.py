@@ -7,6 +7,7 @@ from wikisvc.domain.errors import not_found
 from wikisvc.storage.state_db import now
 
 
+# doc: CLS-wikiagent.Sessions
 class Sessions:
     def __init__(self, state: AgentState) -> None:
         self.state = state
@@ -51,6 +52,7 @@ class Sessions:
             )
         return self.get(session_id, actor)
 
+    # doc: DTO-wikiagent.Session
     def get(self, session_id: str, actor: dict[str, Any]) -> dict[str, Any]:
         rows = self.state.rows("SELECT * FROM chat_sessions WHERE id=?", (session_id,))
         if (

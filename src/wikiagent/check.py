@@ -10,6 +10,7 @@ from wikiagent.auth_check import check_authentication
 from wikiagent.config import AgentConfig
 
 
+# doc: CLS-wikiagent.check
 def check(
     config: AgentConfig,
     *,

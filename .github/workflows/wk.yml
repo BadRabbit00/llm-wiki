@@ -1,0 +1,28 @@
+# Created by wk init. Hooks give agents fast feedback; this job is the gate
+# no agent can bypass. wk refuses agent edits to this file: a human changes it.
+name: wk
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install wk
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v0.1.0 --repo BadRabbit00/wk --pattern 'wk_*_linux_amd64.tar.gz' --pattern checksums.txt
+          sha256sum --check --ignore-missing checksums.txt
+          gh attestation verify wk_*_linux_amd64.tar.gz --repo BadRabbit00/wk
+          tar -xzf wk_*_linux_amd64.tar.gz wk
+          sudo install -m 0755 wk /usr/local/bin/wk
+      - name: wk check --strict
+        env:
+          WIKI_TOKEN: ${{ secrets.WIKI_TOKEN }}
+        # Exit 3: documentation is clean and the wiki is unreachable from CI;
+        # documentation errors still fail with 1.
+        run: wk check --strict || test $? -eq 3

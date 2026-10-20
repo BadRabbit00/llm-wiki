@@ -19,6 +19,7 @@ class JobStopped(Exception):
     pass
 
 
+# doc: JOB-wikiagent.runner
 class JobRunner:
     def __init__(
         self, state: AgentState, client: WikiClient, models: ModelClient, chat: Chat

@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from wikisvc.services.runtime import Runtime
 
 
+# doc: CLS-wikisvc-core.Policies
 class Policies:
     def __init__(self, runtime: Runtime) -> None:
         self.rt = runtime
@@ -211,11 +212,13 @@ class Policies:
         return markdown, self.tokens(markdown), version
 
 
+# doc: FMT-wikisvc-core.policy-block
 BLOCK = re.compile(
     r"<!-- wikisvc:begin version=([a-f0-9]{8}) -->.*?<!-- wikisvc:end -->", re.DOTALL
 )
 
 
+# doc: CLS-wikisvc-core.export_block
 def export_block(path: Path, compiled: dict[str, Any]) -> None:
     current = path.read_text() if path.exists() else ""
     block = f"<!-- wikisvc:begin version={compiled['version']} -->\n{compiled['markdown'].rstrip()}\n<!-- wikisvc:end -->"

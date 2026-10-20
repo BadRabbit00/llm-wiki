@@ -1,3 +1,5 @@
+// doc: MOD-updater.api
+
 package main
 
 import (
@@ -10,6 +12,7 @@ import (
 )
 
 // Principal is the part of wikisvc's /api/v1/whoami the updater decides on.
+// doc: DTO-updater.Principal
 type Principal struct {
 	Kind     string `json:"kind"`
 	Role     string `json:"role"`
@@ -19,6 +22,7 @@ type Principal struct {
 
 // WhoAmI asks wikisvc who holds the bearer token: authorization stays in wikisvc,
 // the updater only applies its rule. It returns the HTTP status wikisvc answered.
+// doc: CLS-updater.WhoAmI
 type WhoAmI func(ctx context.Context, authorization string) (Principal, int, error)
 
 func wikiWhoAmI(base string, client *http.Client) WhoAmI {
@@ -62,6 +66,7 @@ type principalKey struct{}
 
 // admin lets through only a human administrator, the same rule wikisvc applies to
 // every decision: replacing the running code is one.
+// doc: CLS-updater.admin
 func (a *API) admin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authorization := r.Header.Get("Authorization")
@@ -89,10 +94,12 @@ func (a *API) admin(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// doc: API-updater.status
 func (a *API) status(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, a.updater.Status())
 }
 
+// doc: API-updater.check
 func (a *API) check(w http.ResponseWriter, r *http.Request) {
 	// A registry and signature check outlives an impatient client.
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Minute)
@@ -105,7 +112,9 @@ func (a *API) check(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, a.updater.Status())
 }
 
+// doc: API-updater.channel
 func (a *API) channel(w http.ResponseWriter, r *http.Request) {
+	// doc: DTO-updater.ChannelRequest
 	var body struct {
 		Channel string `json:"channel"`
 	}
@@ -124,7 +133,9 @@ func (a *API) channel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// doc: API-updater.apply
 func (a *API) apply(w http.ResponseWriter, r *http.Request) {
+	// doc: DTO-updater.ApplyRequest
 	var body struct {
 		Digest string `json:"digest"`
 	}
@@ -166,6 +177,7 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 }
 
 // writeError uses wikisvc's error envelope so the interface reads both alike.
+// doc: DTO-updater.Error
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	writeJSON(w, status, map[string]any{
 		"error": map[string]any{"code": code, "message": message, "hint": "", "details": nil},

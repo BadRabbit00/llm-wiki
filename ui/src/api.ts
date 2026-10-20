@@ -1,6 +1,7 @@
 import { QueryClient, useQuery } from "@tanstack/react-query";
 import type { List } from "./types";
 
+// doc: MOD-wiki-ui.api
 export class APIError extends Error {
   constructor(
     public code: string,
@@ -53,6 +54,7 @@ export function useUpdater<T>(path: string, enabled = true, interval?: number) {
     refetchInterval: interval,
   });
 }
+// doc: CLS-wiki-ui.request
 async function request<T>(url: string, init: RequestInit): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData))
@@ -128,6 +130,7 @@ export function params(values: Record<string, string | undefined>) {
   });
   return p.toString();
 }
+// doc: CLS-wiki-ui.streamMessage
 export async function streamMessage(
   id: string,
   text: string,

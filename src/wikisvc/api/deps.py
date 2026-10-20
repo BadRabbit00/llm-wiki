@@ -9,6 +9,7 @@ from wikisvc.services.auth import require_role
 from wikisvc.services.runtime import Runtime
 
 
+# doc: CLS-wikisvc.runtime
 def runtime(request: Request) -> Runtime:
     return cast(Runtime, request.app.state.runtime)
 
@@ -16,6 +17,7 @@ def runtime(request: Request) -> Runtime:
 type Services = Annotated[Runtime, Depends(runtime)]
 
 
+# doc: CLS-wikisvc.Authorize
 class Authorize:
     def __init__(self, role: Role = "reader") -> None:
         self.role = role

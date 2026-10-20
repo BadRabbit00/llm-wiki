@@ -39,6 +39,7 @@ class Claim(StrictModel):
     ambiguous_scope: bool = False
 
 
+# doc: DTO-wikiagent.Claims
 class Claims(StrictModel):
     claims: list[Claim] = Field(max_length=100)
     remove_ids: list[str] = Field(default_factory=list, max_length=10)

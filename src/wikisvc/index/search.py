@@ -15,6 +15,7 @@ def lifecycles(values: list[str] | None) -> list[str]:
     return result
 
 
+# doc: CLS-wikisvc-core.Search
 class Search:
     def __init__(
         self, db: IndexDB, boosts: dict[str, float], graph: GraphStore | None = None

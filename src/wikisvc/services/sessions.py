@@ -24,6 +24,7 @@ class Grant(BaseModel):
     clearance: Sensitivity = "public"
 
 
+# doc: FMT-wikisvc-core.roles-file
 class RoleMap(BaseModel):
     model_config = ConfigDict(extra="forbid")
     default: Grant = Field(default_factory=Grant)
@@ -83,6 +84,7 @@ class SessionResponse(BaseModel):
     actor: Principal
 
 
+# doc: CLS-wikisvc-core.Sessions
 class Sessions:
     def __init__(self, config: Settings, auth: Auth) -> None:
         self.config, self.auth = config, auth

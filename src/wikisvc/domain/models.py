@@ -7,6 +7,7 @@ type Role = Literal["reader", "writer", "reviewer", "admin"]
 type Sensitivity = Literal["public", "internal", "restricted"]
 
 
+# doc: FMT-wikisvc-core.page
 class Frontmatter(BaseModel):
     model_config = ConfigDict(extra="allow")
     id: str
@@ -46,6 +47,7 @@ class Frontmatter(BaseModel):
         return value
 
 
+# doc: CLS-wikisvc-core.Page
 class Page(BaseModel):
     frontmatter: Frontmatter
     body_md: str
@@ -57,6 +59,7 @@ class Page(BaseModel):
         return self.frontmatter.id
 
 
+# doc: CLS-wikisvc-core.Edge
 class Edge(BaseModel):
     model_config = ConfigDict(frozen=True)
     src: str
@@ -65,6 +68,7 @@ class Edge(BaseModel):
     kind: Literal["frontmatter", "wikilink", "citation", "inverse"]
 
 
+# doc: CLS-wikisvc-core.LintIssue
 class LintIssue(BaseModel):
     code: str
     severity: Literal["error", "warning", "info"]
@@ -73,6 +77,7 @@ class LintIssue(BaseModel):
     hint: str = "Проверьте страницу и /schema."
 
 
+# doc: CLS-wikisvc-core.Principal
 class Principal(BaseModel):
     name: str
     role: Role
@@ -85,6 +90,7 @@ class Principal(BaseModel):
         return self.person or self.name
 
 
+# doc: CLS-wikisvc-core.Proposal
 class Proposal(BaseModel):
     pid: str
     title: str
